@@ -13,7 +13,14 @@ export type JobWarnings =
   | "裁量が大きい"
   | "やりがい"
   | "風通しが良い"
-  | "人物重視";
+  | "人物重視"
+  | "基本給記載なし"
+  | "未経験強調"
+  | "年齢制限"
+  | "SNS実績誇張"
+  | "外部評価アピール"
+  | "美容福利厚生"
+  | "有給消化率強調";
 
 export type ParsedJob = {
   parserVersion: string;
@@ -38,6 +45,7 @@ export type Rank = "S" | "A" | "B" | "C" | "D" | "E" | "UNKNOWN";
 export type ScoredJob = {
   fixedOvertimeRank: Rank;
   holidayRank: Rank;
+  holidayTypeRank: Rank;
   benefitRank: Rank;
   totalRank: Rank;
 };

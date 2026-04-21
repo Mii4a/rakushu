@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 
-export function CheckoutButton({ disabled }: { disabled?: boolean }) {
+import { PLAN_MARKETING, type PaidPlan } from "@/lib/plans";
+
+export function CheckoutButton({ plan, disabled }: { plan: PaidPlan; disabled?: boolean }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -11,7 +13,13 @@ export function CheckoutButton({ disabled }: { disabled?: boolean }) {
     setError(null);
 
     try {
-      const res = await fetch("/api/stripe/checkout", { method: "POST" });
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ plan })
+      });
       const data = (await res.json()) as { url?: string; error?: string };
       if (!res.ok || !data.url) {
         setError(data.error ?? "Checkout開始に失敗しました。");
@@ -33,7 +41,7 @@ export function CheckoutButton({ disabled }: { disabled?: boolean }) {
         onClick={onClick}
         className="rounded-lg bg-rakushu-500 px-4 py-2 font-medium text-white hover:bg-rakushu-700 disabled:opacity-50"
       >
-        {loading ? "処理中..." : "Proプランにアップグレード"}
+        {loading ? "処理中..." : `${PLAN_MARKETING[plan].name}プランにアップグレード`}
       </button>
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
     </div>

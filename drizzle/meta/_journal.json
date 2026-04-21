@@ -8,6 +8,34 @@
       "when": 1776545518585,
       "tag": "0000_sharp_devos",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1776557388681,
+      "tag": "0001_mighty_layla_miller",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1776639960000,
+      "tag": "0002_public_criteria_and_ai_credits",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1776720300000,
+      "tag": "0003_split_holiday_type_and_benefit_ranks",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1776740800000,
+      "tag": "0004_backfill_split_holiday_type_and_benefit_ranks",
+      "breakpoints": true
     }
   ]
 }

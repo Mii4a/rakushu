@@ -10,7 +10,14 @@ const serverEnvSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().min(1),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
-  STRIPE_PRICE_PRO: z.string().optional()
+  STRIPE_PRICE_STARTER: z.string().optional(),
+  STRIPE_PRICE_PLUS: z.string().optional(),
+  STRIPE_PRICE_PRO: z.string().optional(),
+  STRIPE_ALLOW_PROMOTION_CODES: z.enum(["true", "false"]).default("true"),
+  STRIPE_CAMPAIGN_PROMOTION_CODE_ID: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional(),
+  OPENAI_MAIN_MODEL: z.string().default("gpt-4.1-mini"),
+  OPENAI_LIGHT_MODEL: z.string().default("gpt-4.1-nano")
 });
 
 export const serverEnv = serverEnvSchema.parse(process.env);

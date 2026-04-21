@@ -95,6 +95,7 @@ export const jobAnalyses = sqliteTable(
     warningsJson: text("warnings_json"),
     salaryRank: text("salary_rank"),
     holidayRank: text("holiday_rank"),
+    holidayTypeRank: text("holiday_type_rank"),
     benefitRank: text("benefit_rank"),
     totalRank: text("total_rank"),
     evidenceJson: text("evidence_json"),
@@ -123,6 +124,97 @@ export const subscriptions = sqliteTable(
   ]
 );
 
+export const rankSettings = sqliteTable(
+  "rank_settings",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    overtimeAMaxHours: integer("overtime_a_max_hours").notNull().default(10),
+    overtimeBMaxHours: integer("overtime_b_max_hours").notNull().default(20),
+    overtimeCMaxHours: integer("overtime_c_max_hours").notNull().default(30),
+    overtimeDMaxHours: integer("overtime_d_max_hours").notNull().default(45),
+    holidaySMinDays: integer("holiday_s_min_days").notNull().default(130),
+    holidayAMinDays: integer("holiday_a_min_days").notNull().default(125),
+    holidayBMinDays: integer("holiday_b_min_days").notNull().default(120),
+    holidayCMinDays: integer("holiday_c_min_days").notNull().default(115),
+    holidayDMinDays: integer("holiday_d_min_days").notNull().default(110),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
+  },
+  (table) => [
+    index("rank_settings_user_id_idx").on(table.userId),
+    uniqueIndex("rank_settings_user_id_unique").on(table.userId)
+  ]
+);
+
+export const criteriaTemplates = sqliteTable(
+  "criteria_templates",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    sourceTemplateId: text("source_template_id"),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    category: text("category").notNull(),
+    tagsJson: text("tags_json").notNull().default("[]"),
+    visibility: text("visibility").notNull().default("private"),
+    editable: integer("editable", { mode: "boolean" }).notNull().default(true),
+    overtimeAMaxHours: integer("overtime_a_max_hours").notNull().default(10),
+    overtimeBMaxHours: integer("overtime_b_max_hours").notNull().default(20),
+    overtimeCMaxHours: integer("overtime_c_max_hours").notNull().default(30),
+    overtimeDMaxHours: integer("overtime_d_max_hours").notNull().default(45),
+    holidaySMinDays: integer("holiday_s_min_days").notNull().default(130),
+    holidayAMinDays: integer("holiday_a_min_days").notNull().default(125),
+    holidayBMinDays: integer("holiday_b_min_days").notNull().default(120),
+    holidayCMinDays: integer("holiday_c_min_days").notNull().default(115),
+    holidayDMinDays: integer("holiday_d_min_days").notNull().default(110),
+    viewCount: integer("view_count").notNull().default(0),
+    saveCount: integer("save_count").notNull().default(0),
+    cloneCount: integer("clone_count").notNull().default(0),
+    useCount: integer("use_count").notNull().default(0),
+    popularityScore: integer("popularity_score").notNull().default(0),
+    publishedAt: integer("published_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
+  },
+  (table) => [
+    index("criteria_templates_user_id_idx").on(table.userId),
+    index("criteria_templates_visibility_idx").on(table.visibility),
+    index("criteria_templates_category_idx").on(table.category),
+    index("criteria_templates_popularity_idx").on(table.popularityScore)
+  ]
+);
+
+export const savedCriteriaTemplates = sqliteTable(
+  "saved_criteria_templates",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    templateId: text("template_id").notNull().references(() => criteriaTemplates.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
+  },
+  (table) => [
+    index("saved_criteria_templates_user_id_idx").on(table.userId),
+    uniqueIndex("saved_criteria_templates_user_template_unique").on(table.userId, table.templateId)
+  ]
+);
+
+export const criteriaUsageEvents = sqliteTable(
+  "criteria_usage_events",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    templateId: text("template_id").notNull().references(() => criteriaTemplates.id, { onDelete: "cascade" }),
+    eventType: text("event_type").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
+  },
+  (table) => [
+    index("criteria_usage_events_user_id_idx").on(table.userId),
+    index("criteria_usage_events_template_id_idx").on(table.templateId),
+    index("criteria_usage_events_event_type_idx").on(table.eventType)
+  ]
+);
+
 export const usageCounters = sqliteTable(
   "usage_counters",
   {
@@ -130,6 +222,7 @@ export const usageCounters = sqliteTable(
     userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
     monthKey: text("month_key").notNull(),
     analysisCount: integer("analysis_count").notNull().default(0),
+    aiCreditsUsed: integer("ai_credits_used").notNull().default(0),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
   },
@@ -144,6 +237,9 @@ export const userRelations = relations(user, ({ many, one }) => ({
   sessions: many(session),
   accounts: many(account),
   subscription: one(subscriptions),
+  rankSettings: one(rankSettings),
+  criteriaTemplates: many(criteriaTemplates),
+  savedCriteriaTemplates: many(savedCriteriaTemplates),
   usageCounters: many(usageCounters)
 }));
 
@@ -154,4 +250,24 @@ export const jobsRelations = relations(jobs, ({ one, many }) => ({
 
 export const analysesRelations = relations(jobAnalyses, ({ one }) => ({
   job: one(jobs, { fields: [jobAnalyses.jobId], references: [jobs.id] })
+}));
+
+export const rankSettingsRelations = relations(rankSettings, ({ one }) => ({
+  user: one(user, { fields: [rankSettings.userId], references: [user.id] })
+}));
+
+export const criteriaTemplatesRelations = relations(criteriaTemplates, ({ one, many }) => ({
+  user: one(user, { fields: [criteriaTemplates.userId], references: [user.id] }),
+  savedBy: many(savedCriteriaTemplates),
+  usageEvents: many(criteriaUsageEvents)
+}));
+
+export const savedCriteriaTemplatesRelations = relations(savedCriteriaTemplates, ({ one }) => ({
+  user: one(user, { fields: [savedCriteriaTemplates.userId], references: [user.id] }),
+  template: one(criteriaTemplates, { fields: [savedCriteriaTemplates.templateId], references: [criteriaTemplates.id] })
+}));
+
+export const criteriaUsageEventsRelations = relations(criteriaUsageEvents, ({ one }) => ({
+  user: one(user, { fields: [criteriaUsageEvents.userId], references: [user.id] }),
+  template: one(criteriaTemplates, { fields: [criteriaUsageEvents.templateId], references: [criteriaTemplates.id] })
 }));

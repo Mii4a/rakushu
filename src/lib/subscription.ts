@@ -12,16 +12,17 @@ export async function getUserPlan(userId: string): Promise<Plan> {
   });
 
   if (!record) return "free";
-  if (record.plan !== "pro") return "free";
+  if (record.plan !== "starter" && record.plan !== "plus" && record.plan !== "pro") return "free";
   if (!ACTIVE_STATUSES.has(record.status)) return "free";
 
-  return "pro";
+  return record.plan as Plan;
 }
 
 export async function upsertSubscriptionFromStripe(params: {
   userId: string;
   stripeCustomerId: string;
   stripeSubscriptionId: string;
+  plan: Exclude<Plan, "free">;
   status: string;
   currentPeriodEnd: number | null;
 }) {
@@ -36,7 +37,7 @@ export async function upsertSubscriptionFromStripe(params: {
       userId: params.userId,
       stripeCustomerId: params.stripeCustomerId,
       stripeSubscriptionId: params.stripeSubscriptionId,
-      plan: "pro",
+      plan: params.plan,
       status: params.status,
       currentPeriodEnd: params.currentPeriodEnd ? new Date(params.currentPeriodEnd * 1000) : null,
       createdAt: now,
@@ -50,7 +51,7 @@ export async function upsertSubscriptionFromStripe(params: {
     .set({
       stripeCustomerId: params.stripeCustomerId,
       stripeSubscriptionId: params.stripeSubscriptionId,
-      plan: "pro",
+      plan: params.plan,
       status: params.status,
       currentPeriodEnd: params.currentPeriodEnd ? new Date(params.currentPeriodEnd * 1000) : null,
       updatedAt: now

@@ -2,6 +2,7 @@ import type Stripe from "stripe";
 import { NextResponse } from "next/server";
 
 import { serverEnv } from "@/lib/env/server";
+import type { PaidPlan } from "@/lib/plans";
 import { getStripeServerClient } from "@/lib/stripe/server";
 import { setSubscriptionCanceled, upsertSubscriptionFromStripe } from "@/lib/subscription";
 
@@ -11,6 +12,12 @@ function getHeader(headers: Headers, key: string): string {
     throw new Error(`${key} header is missing`);
   }
   return value;
+}
+
+function normalizePaidPlan(raw: string | undefined): PaidPlan {
+  if (raw === "pro") return "pro";
+  if (raw === "plus") return "plus";
+  return "starter";
 }
 
 export async function POST(request: Request) {
@@ -28,6 +35,7 @@ export async function POST(request: Request) {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       const userId = session.metadata?.userId;
+      const plan = normalizePaidPlan(session.metadata?.plan);
       const subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id;
       const customerId = typeof session.customer === "string" ? session.customer : session.customer?.id;
 
@@ -42,6 +50,7 @@ export async function POST(request: Request) {
           userId,
           stripeCustomerId: customerId,
           stripeSubscriptionId: subscriptionRaw.id,
+          plan,
           status: subscriptionRaw.status,
           currentPeriodEnd: subscriptionRaw.current_period_end ?? null
         });
@@ -54,11 +63,13 @@ export async function POST(request: Request) {
 
       // NOTE: metadata.userIdが無い更新イベントを考慮し、customer検索は今後改善余地あり。
       const userId = subscription.metadata.userId;
+      const plan = normalizePaidPlan(subscription.metadata.plan);
       if (userId) {
         await upsertSubscriptionFromStripe({
           userId,
           stripeCustomerId: customerId,
           stripeSubscriptionId: subscription.id,
+          plan,
           status: subscription.status,
           currentPeriodEnd: (subscription as unknown as { current_period_end?: number }).current_period_end ?? null
         });
