@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { and, desc, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
+import { ArrowLeft, FileText, ScanSearch } from "lucide-react";
 
 import { RerunAnalysisButton } from "@/components/rerun-analysis-button";
 import type { ParsedJob } from "@/lib/analysis";
@@ -42,10 +43,10 @@ function formatDays(value: number) {
 
 function renderBadge(label: string, value: string | number | null | undefined, detail?: string) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
-      <p className="text-slate-500">{label}</p>
-      <p className="mt-1 font-medium text-slate-900">{value ?? "不明"}</p>
-      {detail ? <p className="mt-1 text-xs text-slate-600">{detail}</p> : null}
+    <div className="rounded-2xl border border-slate-200/80 bg-slate-50/90 p-4 text-sm">
+      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">{label}</p>
+      <p className="mt-2 font-medium text-slate-950">{value ?? "不明"}</p>
+      {detail ? <p className="mt-2 text-xs leading-5 text-slate-600">{detail}</p> : null}
     </div>
   );
 }
@@ -69,10 +70,12 @@ function formatBadgeValue(label: string, value: string | number | null | undefin
 
 function renderRankWithValue(label: string, rank: string | null | undefined, extracted: string) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
-      <p className="text-slate-500">{label}</p>
-      <p className="mt-1 font-medium text-slate-900">{rank ?? "UNKNOWN"}</p>
-      <p className="mt-1 text-xs text-slate-600">{extracted}</p>
+    <div className="rounded-2xl border border-slate-200/80 bg-slate-50/90 p-4 text-sm">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">{label}</p>
+        <span className="rounded-full bg-rakushu-50 px-2.5 py-1 text-xs font-semibold text-rakushu-700">{rank ?? "UNKNOWN"}</span>
+      </div>
+      <p className="mt-3 text-xs leading-5 text-slate-600">{extracted}</p>
     </div>
   );
 }
@@ -126,23 +129,32 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
       : undefined;
 
   return (
-    <section className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">{displayCompanyName}</h1>
-          <p className="text-slate-600">{displayTitle}</p>
-        </div>
-        <div className="flex gap-3">
-          <Link href="/jobs" className="text-sm text-rakushu-700 underline">
-            一覧へ
-          </Link>
-          <RerunAnalysisButton jobId={job.id} />
+    <section className="page-stack">
+      <div className="page-hero">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Job detail</p>
+            <h1 className="page-title">{displayCompanyName}</h1>
+            <p className="page-copy mt-3">{displayTitle}</p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link href="/jobs" className="button-secondary">
+              <ArrowLeft className="size-4" />
+              一覧へ
+            </Link>
+            <RerunAnalysisButton jobId={job.id} />
+          </div>
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="font-semibold">ランク</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="panel">
+        <div className="section-heading">
+          <div>
+            <h2 className="section-title">ランク</h2>
+            <p className="section-copy">休日制度と福利厚生は別軸として並べ、総合ランクに対する内訳を追いやすくしています。</p>
+          </div>
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {renderRankWithValue("固定残業ランク", latest?.salaryRank, fixedOvertimeDetail)}
           {renderRankWithValue("年間休日ランク", latest?.holidayRank, holidayDetail)}
           {renderRankWithValue("休日制度ランク", latest?.holidayTypeRank, holidayTypeDetail)}
@@ -151,9 +163,14 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="font-semibold">抽出値</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="panel">
+        <div className="section-heading">
+          <div>
+            <h2 className="section-title">抽出値</h2>
+            <p className="section-copy">解析に使った構造化データをそのまま確認できます。</p>
+          </div>
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {renderBadge("雇用形態", formatBadgeValue("雇用形態", latest?.employmentType))}
           {renderBadge("基本給最小", formatBadgeValue("基本給最小", latest?.baseSalaryMin), baseSalaryMinDetail)}
           {renderBadge("基本給最大", formatBadgeValue("基本給最大", latest?.baseSalaryMax))}
@@ -164,23 +181,35 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="font-semibold">根拠文（evidence）</h2>
-        <ul className="mt-3 space-y-2 text-sm">
+      <div className="panel">
+        <div className="section-heading">
+          <div>
+            <h2 className="section-title">根拠文</h2>
+            <p className="section-copy">各フィールドの抽出に使った文脈です。元文との対応を追えます。</p>
+          </div>
+          <ScanSearch className="size-5 text-rakushu-600" />
+        </div>
+        <ul className="mt-5 space-y-2 text-sm">
           {Object.entries(evidence)
             .filter(([key]) => key !== "parserVersion")
             .map(([key, value]) => (
-            <li key={key} className="rounded border border-slate-200 bg-slate-50 p-3">
-              <span className="font-medium text-slate-800">{evidenceLabels[key] ?? key}: </span>
-              <span className="text-slate-600">{value?.evidence ?? "根拠なし"}</span>
-            </li>
-          ))}
+              <li key={key} className="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4">
+                <span className="font-medium text-slate-800">{evidenceLabels[key] ?? key}: </span>
+                <span className="text-slate-600">{value?.evidence ?? "根拠なし"}</span>
+              </li>
+            ))}
         </ul>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="font-semibold">求人本文（生データ）</h2>
-        <pre className="mt-3 whitespace-pre-wrap rounded-lg bg-slate-50 p-4 text-sm text-slate-700">{job.rawText}</pre>
+      <div className="panel">
+        <div className="section-heading">
+          <div>
+            <h2 className="section-title">求人本文</h2>
+            <p className="section-copy">保存時点の原文です。解析の再実行時もこの本文を基にします。</p>
+          </div>
+          <FileText className="size-5 text-slate-500" />
+        </div>
+        <pre className="mt-5 whitespace-pre-wrap rounded-2xl border border-slate-200/80 bg-slate-50/80 p-5 text-sm leading-7 text-slate-700">{job.rawText}</pre>
       </div>
     </section>
   );

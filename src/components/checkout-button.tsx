@@ -39,7 +39,7 @@ export function CheckoutButton({ plan, disabled }: { plan: PaidPlan; disabled?: 
         type="button"
         disabled={disabled || loading}
         onClick={onClick}
-        className="rounded-lg bg-rakushu-500 px-4 py-2 font-medium text-white hover:bg-rakushu-700 disabled:opacity-50"
+        className="button-accent w-full"
       >
         {loading ? "処理中..." : `${PLAN_MARKETING[plan].name}プランにアップグレード`}
       </button>

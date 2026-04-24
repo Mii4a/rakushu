@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CreditCard, Layers3, Settings2, Sparkles } from "lucide-react";
 
 import { updateRankSettingsAction } from "@/actions/rank-settings-actions";
 import { CheckoutButton } from "@/components/checkout-button";
@@ -26,13 +27,32 @@ export default async function PricingPage() {
   const campaignActive = Boolean(serverEnv.STRIPE_CAMPAIGN_PROMOTION_CODE_ID);
 
   return (
-    <section className="space-y-8">
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-sm font-medium text-rakushu-700">料金プラン</p>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">AIクレジットと基準機能で選ぶ3プラン</h1>
-        <p className="mt-2 text-sm text-slate-600">
+    <section className="page-stack">
+      <div className="page-hero page-hero-split">
+        <div>
+          <p className="eyebrow">Pricing</p>
+          <h1 className="page-title">AIクレジットと基準機能で選ぶ3プラン</h1>
+          <p className="page-copy mt-3">
           初期リリースの主要AI機能は `gpt-4.1-mini`、軽量補助は `gpt-4.1-nano` を設定経由で利用できる設計です。SNS告知などの期間限定半額キャンペーンは Stripe promotion code で自動適用できる構造です。
-        </p>
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+          <div className="metric-tile">
+            <CreditCard className="size-5 text-rakushu-600" />
+            <p className="mt-3 text-sm font-medium text-slate-900">月額サブスク</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">求人管理の量とAIクレジットをプランごとに整理しています。</p>
+          </div>
+          <div className="metric-tile">
+            <Layers3 className="size-5 text-emerald-600" />
+            <p className="mt-3 text-sm font-medium text-slate-900">基準機能</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">公開基準の閲覧、保存、編集、公開の範囲が段階的に広がります。</p>
+          </div>
+          <div className="metric-tile">
+            <Settings2 className="size-5 text-amber-600" />
+            <p className="mt-3 text-sm font-medium text-slate-900">自分用ランク設定</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">Plus以上で固定残業と年間休日の閾値を自分用に調整できます。</p>
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -42,13 +62,13 @@ export default async function PricingPage() {
           const currentOrHigher = isCurrentOrHigher(plan, paidPlan);
 
           return (
-            <article key={paidPlan} className="flex flex-col rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <article key={paidPlan} className="panel flex flex-col">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h2 className="text-xl font-semibold text-slate-900">{marketing.name}</h2>
                   <p className="mt-1 text-xs text-slate-500">{marketing.audience}</p>
                 </div>
-                {paidPlan === "plus" ? <span className="rounded-full bg-rakushu-100 px-2.5 py-1 text-xs text-rakushu-700">標準</span> : null}
+                {paidPlan === "plus" ? <span className="soft-pill text-rakushu-700">標準</span> : null}
               </div>
 
               <div className="mt-5">
@@ -82,7 +102,7 @@ export default async function PricingPage() {
                 </ul>
               </div>
 
-              <div className="mt-5 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
+              <div className="mt-5 rounded-2xl border border-slate-200/80 bg-slate-50/90 p-4 text-xs text-slate-600">
                 <p>基準閲覧: {limits.criteria.canBrowsePublic ? "可" : "不可"}</p>
                 <p>保存・複製: {limits.criteria.canCloneTemplates ? "可" : "不可"}</p>
                 <p>自由編集: {limits.criteria.canEditClonedTemplates ? "可" : "不可"}</p>
@@ -103,51 +123,51 @@ export default async function PricingPage() {
         })}
       </div>
 
-      <article className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">基準機能の対応</h2>
+      <article className="panel">
+        <h2 className="section-title">基準機能の対応</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
-          <div className="rounded-lg bg-slate-50 p-4 text-sm text-slate-700">
+          <div className="metric-tile text-sm text-slate-700">
             <p className="font-medium text-slate-900">閲覧</p>
             <p className="mt-1">Starter以上で、人気順・新着順・カテゴリ別に「みんなの基準」を閲覧できます。</p>
           </div>
-          <div className="rounded-lg bg-slate-50 p-4 text-sm text-slate-700">
+          <div className="metric-tile text-sm text-slate-700">
             <p className="font-medium text-slate-900">保存・複製</p>
             <p className="mt-1">Starterはコピー中心、Plus以上はコピー後に自分用として自由編集できます。</p>
           </div>
-          <div className="rounded-lg bg-slate-50 p-4 text-sm text-slate-700">
+          <div className="metric-tile text-sm text-slate-700">
             <p className="font-medium text-slate-900">作成・公開</p>
             <p className="mt-1">Plusは非公開の自分用基準、Proは公開と利用統計確認まで解放します。</p>
           </div>
         </div>
-        <Link href="/criteria" className="mt-4 inline-block text-sm font-medium text-rakushu-700 underline">
+        <Link href="/criteria" className="button-secondary mt-4">
           みんなの基準を見る
         </Link>
       </article>
 
-      <article className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold">ランク基準設定</h2>
-        <p className="mt-2 text-sm text-slate-600">固定残業ランクと年間休日ランクの閾値をユーザー単位で変更できます。自由編集はPlus以上です。</p>
+      <article className="panel">
+        <h2 className="section-title">ランク基準設定</h2>
+        <p className="section-copy mt-2">固定残業ランクと年間休日ランクの閾値をユーザー単位で変更できます。自由編集はPlus以上です。</p>
 
         {canEditRankSettings ? (
           <form action={updateRankSettingsAction} className="mt-4 space-y-6">
             <div>
               <h3 className="text-sm font-medium text-slate-900">固定残業ランク</h3>
               <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <label className="space-y-1 text-sm">
-                  <span className="text-slate-600">A 上限時間</span>
-                  <input name="overtimeAMaxHours" type="number" min={0} defaultValue={rankSettings.fixedOvertime.aMaxHours} className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+                <label className="space-y-2">
+                  <span className="field-label">A 上限時間</span>
+                  <input name="overtimeAMaxHours" type="number" min={0} defaultValue={rankSettings.fixedOvertime.aMaxHours} className="field-input" />
                 </label>
-                <label className="space-y-1 text-sm">
-                  <span className="text-slate-600">B 上限時間</span>
-                  <input name="overtimeBMaxHours" type="number" min={0} defaultValue={rankSettings.fixedOvertime.bMaxHours} className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+                <label className="space-y-2">
+                  <span className="field-label">B 上限時間</span>
+                  <input name="overtimeBMaxHours" type="number" min={0} defaultValue={rankSettings.fixedOvertime.bMaxHours} className="field-input" />
                 </label>
-                <label className="space-y-1 text-sm">
-                  <span className="text-slate-600">C 上限時間</span>
-                  <input name="overtimeCMaxHours" type="number" min={0} defaultValue={rankSettings.fixedOvertime.cMaxHours} className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+                <label className="space-y-2">
+                  <span className="field-label">C 上限時間</span>
+                  <input name="overtimeCMaxHours" type="number" min={0} defaultValue={rankSettings.fixedOvertime.cMaxHours} className="field-input" />
                 </label>
-                <label className="space-y-1 text-sm">
-                  <span className="text-slate-600">D 上限時間</span>
-                  <input name="overtimeDMaxHours" type="number" min={0} defaultValue={rankSettings.fixedOvertime.dMaxHours} className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+                <label className="space-y-2">
+                  <span className="field-label">D 上限時間</span>
+                  <input name="overtimeDMaxHours" type="number" min={0} defaultValue={rankSettings.fixedOvertime.dMaxHours} className="field-input" />
                 </label>
               </div>
             </div>
@@ -155,35 +175,36 @@ export default async function PricingPage() {
             <div>
               <h3 className="text-sm font-medium text-slate-900">年間休日ランク</h3>
               <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                <label className="space-y-1 text-sm">
-                  <span className="text-slate-600">S 下限日数</span>
-                  <input name="holidaySMinDays" type="number" min={0} defaultValue={rankSettings.annualHolidays.sMinDays} className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+                <label className="space-y-2">
+                  <span className="field-label">S 下限日数</span>
+                  <input name="holidaySMinDays" type="number" min={0} defaultValue={rankSettings.annualHolidays.sMinDays} className="field-input" />
                 </label>
-                <label className="space-y-1 text-sm">
-                  <span className="text-slate-600">A 下限日数</span>
-                  <input name="holidayAMinDays" type="number" min={0} defaultValue={rankSettings.annualHolidays.aMinDays} className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+                <label className="space-y-2">
+                  <span className="field-label">A 下限日数</span>
+                  <input name="holidayAMinDays" type="number" min={0} defaultValue={rankSettings.annualHolidays.aMinDays} className="field-input" />
                 </label>
-                <label className="space-y-1 text-sm">
-                  <span className="text-slate-600">B 下限日数</span>
-                  <input name="holidayBMinDays" type="number" min={0} defaultValue={rankSettings.annualHolidays.bMinDays} className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+                <label className="space-y-2">
+                  <span className="field-label">B 下限日数</span>
+                  <input name="holidayBMinDays" type="number" min={0} defaultValue={rankSettings.annualHolidays.bMinDays} className="field-input" />
                 </label>
-                <label className="space-y-1 text-sm">
-                  <span className="text-slate-600">C 下限日数</span>
-                  <input name="holidayCMinDays" type="number" min={0} defaultValue={rankSettings.annualHolidays.cMinDays} className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+                <label className="space-y-2">
+                  <span className="field-label">C 下限日数</span>
+                  <input name="holidayCMinDays" type="number" min={0} defaultValue={rankSettings.annualHolidays.cMinDays} className="field-input" />
                 </label>
-                <label className="space-y-1 text-sm">
-                  <span className="text-slate-600">D 下限日数</span>
-                  <input name="holidayDMinDays" type="number" min={0} defaultValue={rankSettings.annualHolidays.dMinDays} className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+                <label className="space-y-2">
+                  <span className="field-label">D 下限日数</span>
+                  <input name="holidayDMinDays" type="number" min={0} defaultValue={rankSettings.annualHolidays.dMinDays} className="field-input" />
                 </label>
               </div>
             </div>
 
-            <button type="submit" className="rounded-lg bg-rakushu-500 px-4 py-2 text-sm font-medium text-white hover:bg-rakushu-700">
+            <button type="submit" className="button-primary">
+              <Sparkles className="size-4" />
               基準を保存
             </button>
           </form>
         ) : (
-          <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
             自分用基準の自由編集はPlusプラン以上で利用できます。現在の既定値は、固定残業 A≤{DEFAULT_RANK_SETTINGS.fixedOvertime.aMaxHours} / B≤
             {DEFAULT_RANK_SETTINGS.fixedOvertime.bMaxHours} / C≤{DEFAULT_RANK_SETTINGS.fixedOvertime.cMaxHours} / D≤{DEFAULT_RANK_SETTINGS.fixedOvertime.dMaxHours}、年間休日 S≥
             {DEFAULT_RANK_SETTINGS.annualHolidays.sMinDays} / A≥{DEFAULT_RANK_SETTINGS.annualHolidays.aMinDays} / B≥{DEFAULT_RANK_SETTINGS.annualHolidays.bMinDays} / C≥
@@ -192,11 +213,11 @@ export default async function PricingPage() {
         )}
       </article>
 
-      <article className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">追加クレジットパックの土台</h2>
+      <article className="panel">
+        <h2 className="section-title">追加クレジットパックの土台</h2>
         <div className="mt-3 grid gap-3 md:grid-cols-3">
           {CREDIT_PACKS.map((pack) => (
-            <div key={pack.credits} className="rounded-lg bg-slate-50 p-4 text-sm text-slate-700">
+            <div key={pack.credits} className="metric-tile text-sm text-slate-700">
               <p className="font-medium text-slate-900">{pack.credits}クレジット</p>
               <p className="mt-1">{formatYen(pack.priceYen)}円</p>
             </div>

@@ -53,20 +53,20 @@ export function AccountSettingsForm({
   }, [router, state.status]);
 
   return (
-    <section className="space-y-6">
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <section className="page-stack">
+      <div className="page-hero">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-sm text-slate-500">アカウント設定</p>
-            <h1 className="mt-1 text-2xl font-semibold">名前を変更</h1>
-            <p className="mt-2 text-sm text-slate-600">メールアドレスとアカウント情報は読み取り専用です。</p>
+            <p className="eyebrow">Account settings</p>
+            <h1 className="page-title mt-2">名前を変更</h1>
+            <p className="page-copy mt-3">メールアドレスとアカウント情報は読み取り専用です。表示名だけを安全に更新できます。</p>
           </div>
           {image ? (
             // Avatar preview is read-only in this MVP.
             <div
               role="img"
               aria-label="プロフィール画像"
-              className="h-16 w-16 rounded-full border border-slate-200 bg-center bg-cover"
+              className="h-16 w-16 rounded-full border border-slate-200 bg-center bg-cover shadow-sm"
               style={{ backgroundImage: `url("${image}")` }}
             />
           ) : (
@@ -77,23 +77,19 @@ export function AccountSettingsForm({
         </div>
 
         <form action={formAction} className="mt-6 space-y-4">
-          <label className="block space-y-2 text-sm">
-            <span className="font-medium text-slate-700">表示名</span>
+          <label className="block space-y-2">
+            <span className="field-label">表示名</span>
             <input
               key={name}
               name="name"
               defaultValue={name}
               maxLength={100}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none transition focus:border-rakushu-500"
+              className="field-input"
             />
           </label>
 
           <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="submit"
-              disabled={isPending}
-              className="rounded-lg bg-rakushu-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-rakushu-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
+            <button type="submit" disabled={isPending} className="button-primary">
               {isPending ? "保存中..." : "保存"}
             </button>
             {state.status !== "idle" ? (
@@ -106,8 +102,8 @@ export function AccountSettingsForm({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <article className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold">読み取り専用のアカウント情報</h2>
+        <article className="panel">
+          <h2 className="section-title">読み取り専用のアカウント情報</h2>
           <dl className="mt-4 space-y-3 text-sm">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <dt className="text-slate-500">メール</dt>
@@ -128,13 +124,13 @@ export function AccountSettingsForm({
           </dl>
         </article>
 
-        <article className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold">サインイン連携</h2>
-          <p className="mt-2 text-sm text-slate-600">現在このアカウントに紐づく認証プロバイダです。</p>
+        <article className="panel">
+          <h2 className="section-title">サインイン連携</h2>
+          <p className="section-copy mt-2">現在このアカウントに紐づく認証プロバイダです。</p>
           <div className="mt-4 space-y-3">
             {accounts.length > 0 ? (
               accounts.map((account) => (
-                <div key={account.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm">
+                <div key={account.id} className="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4 text-sm">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-medium text-slate-900">{account.providerId}</span>
                     <span className="text-slate-500">{account.accountId}</span>

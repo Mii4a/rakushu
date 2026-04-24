@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BriefcaseBusiness, Sparkles } from "lucide-react";
 
 import { AccountMenu } from "@/components/account-menu";
+import { AppNavLinks } from "@/components/app-nav-links";
 import "./globals.css";
 import { getSession } from "@/lib/auth/session";
 
@@ -16,40 +18,45 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="ja">
       <body>
-        <header className="border-b border-slate-200 bg-white/80 backdrop-blur">
-          <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-            <Link href="/" className="text-lg font-semibold text-rakushu-700">
-              らくしゅう
-            </Link>
-            <nav className="flex items-center gap-4 text-sm">
+        <header className="sticky top-0 z-40 border-b border-white/70 bg-slate-50/90 backdrop-blur-xl">
+          <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 md:px-6">
+            <div className="flex items-center justify-between gap-4">
+              <Link href={session?.user ? "/dashboard" : "/"} className="flex items-center gap-3">
+                <div className="flex size-11 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-[0_14px_30px_-16px_rgba(15,23,42,0.7)]">
+                  <BriefcaseBusiness className="size-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-950">らくしゅう</p>
+                  <p className="text-xs text-slate-500">Job signal workspace</p>
+                </div>
+              </Link>
+
               {session?.user ? (
-                <>
-                  <span className="hidden text-sm text-slate-500 md:inline">
-                    こんにちは、{session.user.name} さん
-                  </span>
-                  <Link href="/dashboard" className="text-slate-700 hover:text-rakushu-700">
-                    ダッシュボード
-                  </Link>
-                  <Link href="/jobs" className="text-slate-700 hover:text-rakushu-700">
-                    求人管理
-                  </Link>
-                  <Link href="/criteria" className="text-slate-700 hover:text-rakushu-700">
-                    みんなの基準
-                  </Link>
-                  <Link href="/pricing" className="text-slate-700 hover:text-rakushu-700">
-                    料金
-                  </Link>
+                <div className="flex items-center gap-3">
+                  <div className="hidden items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-3 py-2 text-xs text-slate-500 md:flex">
+                    <Sparkles className="size-4 text-rakushu-500" />
+                    <span>{session.user.name} さんの評価ワークスペース</span>
+                  </div>
                   <AccountMenu image={session.user.image ?? null} name={session.user.name ?? null} />
-                </>
+                </div>
               ) : (
-                <Link href="/login" className="text-slate-700 hover:text-rakushu-700">
+                <Link href="/login" className="button-primary">
                   ログイン
                 </Link>
               )}
-            </nav>
+            </div>
+
+            {session?.user ? (
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <AppNavLinks />
+                <p className="hidden text-xs text-slate-500 lg:block">
+                  求人解析、判断基準、課金設定を同じ導線で扱えます。
+                </p>
+              </div>
+            ) : null}
           </div>
         </header>
-        <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
+        <main className="page-shell">{children}</main>
       </body>
     </html>
   );

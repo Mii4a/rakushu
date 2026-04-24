@@ -4,8 +4,156 @@
 
 :root {
   color-scheme: light;
+  --surface: 255 255 255;
+  --surface-muted: 246 248 252;
+  --line: 226 232 240;
+  --ink: 15 23 42;
+  --subtle: 100 116 139;
+}
+
+html {
+  min-height: 100%;
+  background:
+    linear-gradient(180deg, rgba(91, 116, 241, 0.06) 0%, rgba(91, 116, 241, 0) 24%),
+    linear-gradient(180deg, #f8fafc 0%, #f4f7fb 100%);
 }
 
 body {
-  @apply bg-rakushu-50 text-slate-800;
+  @apply min-h-screen text-slate-800 antialiased;
+  background:
+    radial-gradient(circle at top left, rgba(91, 116, 241, 0.08), transparent 26%),
+    radial-gradient(circle at top right, rgba(16, 185, 129, 0.06), transparent 18%),
+    linear-gradient(180deg, #f8fafc 0%, #f4f7fb 100%);
+}
+
+a,
+button,
+input,
+textarea,
+select {
+  @apply transition;
+}
+
+::selection {
+  @apply bg-rakushu-100 text-slate-900;
+}
+
+@layer components {
+  .page-shell {
+    @apply mx-auto w-full max-w-6xl px-4 py-8 md:px-6 md:py-10;
+  }
+
+  .page-stack {
+    @apply space-y-8;
+  }
+
+  .page-hero {
+    @apply grid gap-6 rounded-2xl border border-white/70 bg-white/90 p-6 shadow-[0_20px_60px_-28px_rgba(15,23,42,0.25)] backdrop-blur md:p-8;
+  }
+
+  .page-hero-split {
+    @apply grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)] lg:items-start;
+  }
+
+  .eyebrow {
+    @apply inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-rakushu-700;
+  }
+
+  .page-title {
+    @apply text-3xl font-semibold tracking-tight text-slate-950 md:text-4xl;
+  }
+
+  .page-copy {
+    @apply max-w-3xl text-sm leading-7 text-slate-600 md:text-base;
+  }
+
+  .panel {
+    @apply rounded-2xl border border-white/70 bg-white/90 p-5 shadow-[0_18px_48px_-32px_rgba(15,23,42,0.28)] backdrop-blur md:p-6;
+  }
+
+  .panel-muted {
+    @apply rounded-2xl border border-slate-200/80 bg-slate-50/80 p-5;
+  }
+
+  .section-heading {
+    @apply flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between;
+  }
+
+  .section-title {
+    @apply text-lg font-semibold text-slate-950 md:text-xl;
+  }
+
+  .section-copy {
+    @apply text-sm leading-6 text-slate-600;
+  }
+
+  .metric-grid {
+    @apply grid gap-3 sm:grid-cols-2 xl:grid-cols-4;
+  }
+
+  .metric-tile {
+    @apply rounded-2xl border border-slate-200/80 bg-slate-50/90 p-4;
+  }
+
+  .metric-label {
+    @apply text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500;
+  }
+
+  .metric-value {
+    @apply mt-2 text-2xl font-semibold tracking-tight text-slate-950;
+  }
+
+  .metric-note {
+    @apply mt-2 text-xs leading-5 text-slate-500;
+  }
+
+  .button-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .button-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .button-accent {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-rakushu-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-rakushu-700 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .field-label {
+    @apply text-sm font-medium text-slate-700;
+  }
+
+  .field-input {
+    @apply w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-rakushu-500 focus:ring-4 focus:ring-rakushu-100;
+  }
+
+  .field-textarea {
+    @apply field-input min-h-[12rem] resize-y;
+  }
+
+  .field-hint {
+    @apply text-xs leading-5 text-slate-500;
+  }
+
+  .soft-pill {
+    @apply inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600;
+  }
+
+  .tag-pill {
+    @apply inline-flex items-center rounded-full bg-rakushu-50 px-2.5 py-1 text-xs font-medium text-rakushu-700;
+  }
+
+  .data-list {
+    @apply divide-y divide-slate-200 rounded-2xl border border-slate-200/80 bg-slate-50/80;
+  }
+
+  .data-list > * {
+    @apply p-4;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
 }

@@ -20,7 +20,7 @@ export function GoogleLoginButton() {
   return (
     <button
       type="button"
-      className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-rakushu-500 px-4 py-2 font-medium text-white transition hover:bg-rakushu-700 disabled:opacity-60"
+      className="button-primary w-full"
       onClick={handleLogin}
       disabled={loading}
     >

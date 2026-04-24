@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useDeferredValue, useState } from "react";
+import { ArrowRight, CheckCircle2, ClipboardList, ScanSearch, ShieldCheck, Sparkles } from "lucide-react";
 
 import { DEFAULT_RANK_SETTINGS, parseJobText, scoreParsedJob } from "@/lib/analysis";
 
@@ -132,28 +133,30 @@ function formatExtractedValue(value: string | number | boolean | string[] | null
 
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="mt-2 text-sm font-medium text-slate-900">{value}</p>
+    <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4">
+      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">{label}</p>
+      <p className="mt-2 text-sm font-medium leading-6 text-slate-900">{value}</p>
     </div>
   );
 }
 
 function RankCard({ label, rank, detail }: { label: string; rank: string; detail: string }) {
   return (
-    <div className="rounded-xl border border-rakushu-200 bg-rakushu-50 p-4">
-      <p className="text-xs text-rakushu-700">{label}</p>
-      <p className="mt-2 text-lg font-semibold text-slate-900">{rank}</p>
-      <p className="mt-2 text-xs text-slate-600">{detail}</p>
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_16px_30px_-24px_rgba(15,23,42,0.38)]">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">{label}</p>
+        <span className="rounded-full bg-rakushu-50 px-2.5 py-1 text-xs font-semibold text-rakushu-700">{rank}</span>
+      </div>
+      <p className="mt-3 text-sm leading-6 text-slate-600">{detail}</p>
     </div>
   );
 }
 
 function CriteriaCard({ label, lines }: { label: string; lines: string[] }) {
   return (
-    <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4">
+    <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4">
       <p className="text-sm font-medium text-slate-900">{label}</p>
-      <div className="mt-2 space-y-1 text-xs text-slate-600">
+      <div className="mt-3 space-y-2 text-xs leading-5 text-slate-600">
         {lines.map((line) => (
           <p key={line}>{line}</p>
         ))}
@@ -182,47 +185,98 @@ export function HomeDemo() {
   };
 
   return (
-    <section className="space-y-8">
-      <div className="space-y-4">
-        <p className="inline-block rounded-full bg-white px-3 py-1 text-xs font-medium text-rakushu-700 shadow-sm">
-          求人説明をその場で解析
-        </p>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">らくしゅう</h1>
-        <p className="max-w-3xl text-slate-700">
-          求人説明を貼ると、会社名・職種・固定残業・休日などを自動で抽出します。ログインすると保存して管理できます。
-        </p>
-        <div className="flex flex-wrap gap-3">
-          <Link
-            href="/login"
-            className="rounded-lg bg-rakushu-500 px-4 py-2 font-medium text-white transition hover:bg-rakushu-700"
-          >
-            ログイン・登録
-          </Link>
-          <Link href="/pricing" className="rounded-lg border border-slate-300 bg-white px-4 py-2 hover:bg-slate-100">
-            料金を見る
-          </Link>
+    <section className="page-stack">
+      <div className="page-hero page-hero-split overflow-hidden">
+        <div className="space-y-6">
+          <div className="space-y-4">
+            <p className="eyebrow">
+              <Sparkles className="size-4" />
+              求人票の温度感まで見える解析ワークスペース
+            </p>
+            <div className="space-y-3">
+              <h1 className="page-title text-balance">らくしゅう</h1>
+              <p className="page-copy">
+                求人本文を貼るだけで、固定残業、休日、福利厚生、注意ワードを同じ視点で整理します。保存、比較、基準の共有までを一本の画面体験にまとめた就活向けワークスペースです。
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <Link href="/login" className="button-primary">
+              ログインして使う
+              <ArrowRight className="size-4" />
+            </Link>
+            <Link href="/pricing" className="button-secondary">
+              料金を見る
+            </Link>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="panel-muted">
+              <ScanSearch className="size-5 text-rakushu-600" />
+              <p className="mt-3 text-sm font-medium text-slate-900">抽出と要点整理</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">会社名、職種、給与、休日制度、福利厚生を構造化します。</p>
+            </div>
+            <div className="panel-muted">
+              <ShieldCheck className="size-5 text-emerald-600" />
+              <p className="mt-3 text-sm font-medium text-slate-900">警告ワードの可視化</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">曖昧な訴求や誇張の兆候をまとめて見返せます。</p>
+            </div>
+            <div className="panel-muted">
+              <ClipboardList className="size-5 text-amber-600" />
+              <p className="mt-3 text-sm font-medium text-slate-900">判断基準の持ち運び</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">自分用のランク閾値や公開基準を基に見極めを統一できます。</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="panel bg-slate-950 text-white shadow-[0_32px_80px_-36px_rgba(15,23,42,0.8)]">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rakushu-200">Live preview</p>
+          <div className="mt-5 space-y-4">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-sm text-slate-300">入力から数秒で、求人票の輪郭が揃います。</p>
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <div className="rounded-xl bg-white/8 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-slate-400">総合ランク</p>
+                  <p className="mt-2 text-2xl font-semibold">A</p>
+                </div>
+                <div className="rounded-xl bg-white/8 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-slate-400">検出警告</p>
+                  <p className="mt-2 text-2xl font-semibold">4件</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-3">
+              {["固定残業と年間休日を同じ基準で比較", "休日制度と福利厚生を別ランクで表示", "保存後は一覧と詳細で同じ見方を維持"].map((line) => (
+                <div key={line} className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-3">
+                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-400" />
+                  <p className="text-sm leading-6 text-slate-200">{line}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(22rem,0.85fr)]">
+        <div className="panel">
+          <div className="section-heading">
             <div className="min-w-0">
-              <h2 className="font-semibold text-slate-900">解析デモ</h2>
-              <p className="mt-1 text-sm text-slate-600">求人文を貼り付けると、基本給・休日数・固定残業・福利厚生・注意キーワードを抽出し、ランクを付けます。</p>
+              <h2 className="section-title">解析デモ</h2>
+              <p className="section-copy">求人文を貼ると、右側のランクと抽出値がリアルタイムで更新されます。</p>
             </div>
             <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
               <button
                 type="button"
                 onClick={fillRandomSample}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm whitespace-nowrap hover:bg-slate-100"
+                className="button-secondary"
               >
                 サンプル文を入力
               </button>
               <button
                 type="button"
                 onClick={() => setRawText(initialText)}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm whitespace-nowrap hover:bg-slate-100"
+                className="button-secondary"
               >
                 クリア
               </button>
@@ -233,15 +287,20 @@ export function HomeDemo() {
             value={rawText}
             onChange={(event) => setRawText(event.target.value)}
             rows={22}
-            className="mt-4 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-rakushu-500"
+            className="field-textarea mt-5 min-h-[34rem]"
             placeholder="ここに求人・職務内容を全てコピー＆ペーストしてください"
           />
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="font-semibold text-slate-900">ランク</h2>
-            <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="panel">
+            <div className="section-heading">
+              <div>
+                <h2 className="section-title">ランク</h2>
+                <p className="section-copy">抽出値に基づいて各観点を独立評価します。</p>
+              </div>
+            </div>
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <RankCard label="総合" rank={scored.totalRank} detail={totalDetail} />
               <RankCard label="固定残業" rank={scored.fixedOvertimeRank} detail={fixedOvertimeDetail} />
               <RankCard label="年間休日" rank={scored.holidayRank} detail={holidayDetail} />
@@ -250,8 +309,8 @@ export function HomeDemo() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="font-semibold text-slate-900">抽出値</h2>
+          <div className="panel">
+            <h2 className="section-title">抽出値</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <InfoCard label="会社名" value={parsed.companyName.value ?? "不明"} />
               <InfoCard label="職種" value={parsed.title.value ?? "不明"} />
@@ -271,9 +330,9 @@ export function HomeDemo() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="font-semibold text-slate-900">ランク基準（デフォルト）</h2>
-            <p className="mt-1 text-sm text-slate-600">抽出値に応じて、次の基準でランクを付けています。</p>
+          <div className="panel">
+            <h2 className="section-title">ランク基準</h2>
+            <p className="section-copy mt-2">初期設定では以下の閾値で評価します。ログイン後はプランに応じて自分用基準に変更できます。</p>
             <div className="mt-4 grid gap-3">
               <CriteriaCard
                 label="固定残業"

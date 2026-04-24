@@ -36,7 +36,7 @@ export function RerunAnalysisButton({ jobId }: RerunAnalysisButtonProps) {
   return (
     <>
       <form action={formAction}>
-        <button type="submit" disabled={isPending} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60">
+        <button type="submit" disabled={isPending} className="button-secondary">
           {isPending ? "再解析中..." : "再解析"}
         </button>
       </form>
