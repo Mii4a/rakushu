@@ -8,10 +8,16 @@ import { z } from "zod";
 import { parseJobText, scoreParsedJob } from "@/lib/analysis";
 import { requireUser } from "@/lib/auth/require-user";
 import { db } from "@/lib/db/client";
-import { jobAnalyses, jobs } from "@/lib/db/schema";
+import { jobAnalyses, jobs, jobStatusEvents } from "@/lib/db/schema";
 import { PLAN_LIMITS } from "@/lib/plans";
 import { getUserPlan } from "@/lib/subscription";
 import { getAnalysisCount, getMonthKey, incrementAnalysisCount } from "@/lib/usage/counters";
+
+export type ActionState = {
+  error: string | null;
+};
+
+const initialActionState: ActionState = { error: null };
 
 const newJobSchema = z.object({
   companyName: z.string().trim().max(200).optional(),
@@ -20,6 +26,46 @@ const newJobSchema = z.object({
   sourceUrl: z.union([z.literal(""), z.string().url()]).optional(),
   rawText: z.string().trim().min(20, "求人本文は20文字以上入力してください")
 });
+
+const updateJobSchema = z.object({
+  jobId: z.string().uuid("求人IDが不正です"),
+  companyName: z.string().trim().max(200).optional(),
+  title: z.string().trim().max(200).optional(),
+  sourceName: z.string().trim().max(200).optional(),
+  sourceUrl: z.union([z.literal(""), z.string().url()]).optional(),
+  rawText: z.string().trim().min(20, "求人本文は20文字以上入力してください")
+});
+
+const selectionStatuses = ["saved", "applied", "screening", "interview", "offer", "rejected"] as const;
+
+const updateSelectionSchema = z.object({
+  jobId: z.string().uuid("求人IDが不正です"),
+  selectionStatus: z.enum(selectionStatuses),
+  nextActionDate: z.string().optional(),
+  selectionMemo: z.string().trim().max(2000).optional()
+});
+
+function parseDateOnlyToUtc(value: string): Date | null {
+  if (!value) return null;
+
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    throw new Error("次アクション日の形式が不正です");
+  }
+
+  const [, year, month, day] = match;
+  const utcDate = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+
+  if (
+    utcDate.getUTCFullYear() !== Number(year) ||
+    utcDate.getUTCMonth() + 1 !== Number(month) ||
+    utcDate.getUTCDate() !== Number(day)
+  ) {
+    throw new Error("次アクション日の形式が不正です");
+  }
+
+  return utcDate;
+}
 
 async function enforceJobLimit(userId: string) {
   const plan = await getUserPlan(userId);
@@ -161,3 +207,126 @@ export async function rerunAnalysisAction(jobId: string) {
 
   revalidatePath(`/jobs/${jobId}`);
 }
+
+export async function updateJobAction(formData: FormData) {
+  const user = await requireUser();
+
+  const parsedForm = updateJobSchema.safeParse({
+    jobId: formData.get("jobId")?.toString() ?? "",
+    companyName: formData.get("companyName")?.toString() ?? "",
+    title: formData.get("title")?.toString() ?? "",
+    sourceName: formData.get("sourceName")?.toString() ?? "",
+    sourceUrl: formData.get("sourceUrl")?.toString() ?? "",
+    rawText: formData.get("rawText")?.toString() ?? ""
+  });
+
+  if (!parsedForm.success) {
+    throw new Error(parsedForm.error.issues[0]?.message ?? "入力値が不正です");
+  }
+
+  const { jobId, companyName, title, sourceName, sourceUrl, rawText } = parsedForm.data;
+
+  const target = await db.query.jobs.findFirst({
+    where: and(eq(jobs.id, jobId), eq(jobs.userId, user.id))
+  });
+
+  if (!target) {
+    throw new Error("編集対象の求人が見つかりません");
+  }
+
+  await db
+    .update(jobs)
+    .set({
+      companyName: companyName || null,
+      title: title || null,
+      sourceName: sourceName || null,
+      sourceUrl: sourceUrl || null,
+      rawText,
+      updatedAt: new Date()
+    })
+    .where(and(eq(jobs.id, jobId), eq(jobs.userId, user.id)));
+
+  revalidatePath("/jobs");
+  revalidatePath(`/jobs/${jobId}`);
+  revalidatePath(`/jobs/${jobId}/edit`);
+  redirect(`/jobs/${jobId}`);
+}
+
+export async function deleteJobAction(formData: FormData) {
+  const user = await requireUser();
+  const jobId = formData.get("jobId")?.toString() ?? "";
+
+  if (!jobId) {
+    throw new Error("求人IDが指定されていません");
+  }
+
+  const target = await db.query.jobs.findFirst({
+    where: and(eq(jobs.id, jobId), eq(jobs.userId, user.id))
+  });
+
+  if (!target) {
+    throw new Error("削除対象の求人が見つかりません");
+  }
+
+  await db.delete(jobs).where(and(eq(jobs.id, jobId), eq(jobs.userId, user.id)));
+
+  revalidatePath("/jobs");
+  redirect("/jobs");
+}
+
+export async function updateSelectionProgressAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  const user = await requireUser();
+
+  const parsedForm = updateSelectionSchema.safeParse({
+    jobId: formData.get("jobId")?.toString() ?? "",
+    selectionStatus: formData.get("selectionStatus")?.toString() ?? "saved",
+    nextActionDate: formData.get("nextActionDate")?.toString() ?? "",
+    selectionMemo: formData.get("selectionMemo")?.toString() ?? ""
+  });
+
+  if (!parsedForm.success) {
+    return { error: parsedForm.error.issues[0]?.message ?? "入力値が不正です" };
+  }
+
+  const { jobId, selectionStatus, nextActionDate, selectionMemo } = parsedForm.data;
+  let nextActionAt: Date | null = null;
+  try {
+    nextActionAt = parseDateOnlyToUtc(nextActionDate ?? "");
+  } catch {
+    return { error: "次アクション日の形式が不正です" };
+  }
+
+  const target = await db.query.jobs.findFirst({
+    where: and(eq(jobs.id, jobId), eq(jobs.userId, user.id))
+  });
+
+  if (!target) {
+    return { error: "更新対象の求人が見つかりません" };
+  }
+
+  await db
+    .update(jobs)
+    .set({
+      selectionStatus,
+      nextActionAt,
+      selectionMemo: selectionMemo || null,
+      updatedAt: new Date()
+    })
+    .where(and(eq(jobs.id, jobId), eq(jobs.userId, user.id)));
+
+  if (target.selectionStatus !== selectionStatus) {
+    await db.insert(jobStatusEvents).values({
+      id: crypto.randomUUID(),
+      jobId,
+      fromStatus: target.selectionStatus,
+      toStatus: selectionStatus,
+      createdAt: new Date()
+    });
+  }
+
+  revalidatePath("/jobs");
+  revalidatePath(`/jobs/${jobId}`);
+  redirect(`/jobs/${jobId}`);
+}
+
+export { initialActionState };
