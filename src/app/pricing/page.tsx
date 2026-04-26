@@ -17,7 +17,6 @@ export default async function PricingPage() {
           <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-700">
             <li>求人保存: {PLAN_LIMITS.free.maxJobs}件まで</li>
             <li>解析: {PLAN_LIMITS.free.maxAnalysesPerMonth}件 / 月</li>
-            <li>比較: {PLAN_LIMITS.free.maxCompare}件まで</li>
             <li>詳細評価: なし</li>
           </ul>
         </article>
@@ -27,7 +26,6 @@ export default async function PricingPage() {
           <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-700">
             <li>求人保存: 無制限</li>
             <li>解析: {PLAN_LIMITS.pro.maxAnalysesPerMonth}件 / 月</li>
-            <li>比較: 無制限</li>
             <li>詳細評価: あり</li>
           </ul>
           <div className="mt-4">

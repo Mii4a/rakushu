@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
-import { db } from "@/lib/db/client";
-import { usageCounters } from "@/lib/db/schema";
+import { db } from "../db/client";
+import { usageCounters } from "../db/schema";
 
 export function getMonthKey(date = new Date()): string {
   const year = date.getUTCFullYear();

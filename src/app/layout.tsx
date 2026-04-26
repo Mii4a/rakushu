@@ -6,7 +6,7 @@ import { getSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = {
   title: "らくしゅう",
-  description: "就活情報の比較と整理をやさしく支援するアプリ"
+  description: "就活情報の整理と分析をやさしく支援するアプリ"
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -28,9 +28,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   </Link>
                   <Link href="/jobs" className="text-slate-700 hover:text-rakushu-700">
                     求人
-                  </Link>
-                  <Link href="/compare" className="text-slate-700 hover:text-rakushu-700">
-                    比較
                   </Link>
                   <Link href="/pricing" className="text-slate-700 hover:text-rakushu-700">
                     料金
