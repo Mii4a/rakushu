@@ -1,12 +1,18 @@
 import Link from "next/link";
-import { desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
-import { ArrowRight, BriefcaseBusiness, CreditCard, Layers3, Plus } from "lucide-react";
+import { ArrowRight, BriefcaseBusiness, CalendarClock, CreditCard, Layers3, Plus } from "lucide-react";
 
 import { getSession } from "@/lib/auth/session";
 import type { ParsedJob } from "@/lib/analysis";
 import { db } from "@/lib/db/client";
 import { jobAnalyses, jobs } from "@/lib/db/schema";
+import { isProductionBuildPhase } from "@/lib/env/build-phase";
+import { PLAN_LIMITS } from "@/lib/plans";
+import { getUserPlan } from "@/lib/subscription";
+import { getAnalysisCount, getMonthKey, getWeekKey } from "@/lib/usage/counters";
+
+export const dynamic = "force-dynamic";
 
 function formatHours(value: number) {
   const hours = Math.trunc(value);
@@ -56,12 +62,27 @@ function renderRankBadge(label: string, rank: string | null | undefined, detail:
   );
 }
 
+function toDateLabel(value: Date | null): string {
+  if (!value) return "日付未設定";
+  const y = value.getUTCFullYear();
+  const m = String(value.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(value.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 export default async function DashboardPage() {
+  if (isProductionBuildPhase()) {
+    return <section className="page-stack" />;
+  }
+
   const session = await getSession();
 
   if (!session?.user) {
     redirect("/login");
   }
+
+  const plan = await getUserPlan(session.user.id);
+  const limits = PLAN_LIMITS[plan];
 
   const recentJobs = await db.query.jobs.findMany({
     where: eq(jobs.userId, session.user.id),
@@ -83,6 +104,23 @@ export default async function DashboardPage() {
     const parsed = JSON.parse(latest.evidenceJson) as ParsedJob;
     return count + (parsed.warnings.value?.length ?? 0);
   }, 0);
+  const jobCountResult = await db.select({ count: sql<number>`count(*)` }).from(jobs).where(eq(jobs.userId, session.user.id));
+  const totalSavedJobs = jobCountResult[0]?.count ?? 0;
+  const periodKey = limits.analysisPeriod === "week" ? getWeekKey() : getMonthKey();
+  const analysisCount = await getAnalysisCount(session.user.id, periodKey);
+  const now = new Date();
+  const oneWeekLater = new Date(now);
+  oneWeekLater.setUTCDate(now.getUTCDate() + 7);
+  const upcomingActions = await db.query.jobs.findMany({
+    where: and(
+      eq(jobs.userId, session.user.id),
+      sql`${jobs.nextActionAt} is not null`,
+      sql`${jobs.selectionStatus} not in ('offer', 'rejected')`,
+      sql`${jobs.nextActionAt} <= ${oneWeekLater}`
+    ),
+    orderBy: [asc(jobs.nextActionAt)],
+    limit: 6
+  });
 
   return (
     <section className="page-stack">
@@ -117,19 +155,25 @@ export default async function DashboardPage() {
 
         <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
           <div className="metric-tile">
-            <p className="metric-label">表示中の最近の求人</p>
-            <p className="metric-value">{totalJobs}</p>
-            <p className="metric-note">最新6件をダッシュボードに表示しています。</p>
+            <p className="metric-label">保存済み求人</p>
+            <p className="metric-value">
+              {totalSavedJobs}
+              <span className="ml-1 text-base text-slate-500">/ {Number.isFinite(limits.maxJobs) ? limits.maxJobs : "∞"}</span>
+            </p>
+            <p className="metric-note">現在プランで保存できる上限に対する件数です。</p>
           </div>
           <div className="metric-tile">
-            <p className="metric-label">解析済み</p>
-            <p className="metric-value">{latestAnalysisCount}</p>
-            <p className="metric-note">保存済み求人のうち、直近解析がある件数です。</p>
+            <p className="metric-label">{limits.analysisPeriod === "week" ? "今週の解析" : "今月の解析"}</p>
+            <p className="metric-value">
+              {analysisCount}
+              <span className="ml-1 text-base text-slate-500">/ {limits.maxAnalyses}</span>
+            </p>
+            <p className="metric-note">期間キー: {periodKey}</p>
           </div>
           <div className="metric-tile">
             <p className="metric-label">検出警告</p>
             <p className="metric-value">{criticalWarnings}</p>
-            <p className="metric-note">表示中の求人に含まれる注意ワード総数です。</p>
+            <p className="metric-note">最近の求人 {totalJobs} 件に含まれる注意ワード総数です。</p>
           </div>
         </div>
       </div>
@@ -192,6 +236,29 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
+        <div className="panel lg:col-span-3">
+          <div className="section-heading">
+            <div>
+              <h2 className="section-title">次アクション（7日以内）</h2>
+              <p className="section-copy">応募済み以降の求人について、近い日付のフォローアップを並べています。</p>
+            </div>
+            <CalendarClock className="size-5 text-rakushu-600" />
+          </div>
+          {upcomingActions.length === 0 ? (
+            <p className="mt-4 text-sm text-slate-600">期限が近いアクションはありません。</p>
+          ) : (
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {upcomingActions.map((job) => (
+                <Link key={job.id} href={`/jobs/${job.id}`} className="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4">
+                  <p className="text-sm font-semibold text-slate-950">{job.companyName ?? "会社名不明"}</p>
+                  <p className="mt-1 text-sm text-slate-600">{job.title ?? "職種不明"}</p>
+                  <p className="mt-3 text-xs text-slate-500">次アクション: {toDateLabel(job.nextActionAt)}</p>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="panel">
           <h2 className="section-title">解析の流れ</h2>
           <div className="mt-4 space-y-3 text-sm text-slate-600">

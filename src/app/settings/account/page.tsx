@@ -3,6 +3,9 @@ import { headers } from "next/headers";
 import { AccountSettingsForm } from "@/components/account-settings-form";
 import { auth } from "@/lib/auth/server";
 import { requireUser } from "@/lib/auth/require-user";
+import { isProductionBuildPhase } from "@/lib/env/build-phase";
+
+export const dynamic = "force-dynamic";
 
 function formatDate(value: Date) {
   return new Intl.DateTimeFormat("ja-JP", {
@@ -12,6 +15,10 @@ function formatDate(value: Date) {
 }
 
 export default async function AccountSettingsPage() {
+  if (isProductionBuildPhase()) {
+    return <section className="page-stack" />;
+  }
+
   const user = await requireUser();
   const sessionHeaders = await headers();
   const accounts = await auth.api.listUserAccounts({

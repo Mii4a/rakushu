@@ -1,11 +1,44 @@
 import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
-import { ArrowRight, Plus, ShieldAlert } from "lucide-react";
+import { ArrowRight, Pencil, Plus, ShieldAlert, Trash2 } from "lucide-react";
 
 import type { ParsedJob } from "@/lib/analysis";
-import { requireUser } from "@/lib/auth/require-user";
-import { db } from "@/lib/db/client";
-import { jobAnalyses, jobs } from "@/lib/db/schema";
+import { isProductionBuildPhase } from "@/lib/env/build-phase";
+
+export const dynamic = "force-dynamic";
+
+const SORT_OPTIONS = {
+  created_desc: "登録日が新しい順",
+  created_asc: "登録日が古い順",
+  company_asc: "会社名A→Z",
+  company_desc: "会社名Z→A",
+  rank_desc: "総合ランクが高い順",
+  holidays_desc: "年間休日が多い順"
+} as const;
+
+type SortKey = keyof typeof SORT_OPTIONS;
+
+const rankScore: Record<string, number> = {
+  S: 6,
+  A: 5,
+  B: 4,
+  C: 3,
+  D: 2,
+  E: 1
+};
+
+const statusLabel: Record<string, string> = {
+  saved: "検討中",
+  applied: "応募済み",
+  screening: "書類選考中",
+  interview: "面接中",
+  offer: "内定",
+  rejected: "見送り"
+};
+
+function toSingle(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
 
 function formatHours(value: number) {
   const hours = Math.trunc(value);
@@ -64,8 +97,25 @@ function renderWarningBadge(warning: string) {
   );
 }
 
-export default async function JobsPage() {
+export default async function JobsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  if (isProductionBuildPhase()) {
+    return <section className="page-stack" />;
+  }
+
+  const [{ deleteJobAction }, { requireUser }, { db }, { jobAnalyses, jobs }] = await Promise.all([
+    import("@/actions/job-actions"),
+    import("@/lib/auth/require-user"),
+    import("@/lib/db/client"),
+    import("@/lib/db/schema")
+  ]);
   const user = await requireUser();
+  const params = (await searchParams) ?? {};
+  const q = (toSingle(params.q) ?? "").trim().toLowerCase();
+  const totalRank = (toSingle(params.totalRank) ?? "").trim().toUpperCase();
+  const minHolidayRaw = (toSingle(params.minHoliday) ?? "").trim();
+  const sortInput = (toSingle(params.sort) ?? "created_desc").trim() as SortKey;
+  const sort = sortInput in SORT_OPTIONS ? sortInput : "created_desc";
+  const minHoliday = minHolidayRaw ? Number(minHolidayRaw) : Number.NaN;
 
   const jobList = await db.query.jobs.findMany({
     where: eq(jobs.userId, user.id),
@@ -78,6 +128,47 @@ export default async function JobsPage() {
     }
   });
 
+  const filteredList = jobList.filter((job) => {
+    const latest = job.analyses[0];
+    const parsed = latest?.evidenceJson ? (JSON.parse(latest.evidenceJson) as ParsedJob) : null;
+    const displayCompanyName = parsed?.companyName.value ?? job.companyName ?? "";
+    const displayTitle = parsed?.title.value ?? job.title ?? "";
+    const matchedQuery =
+      !q ||
+      [displayCompanyName, displayTitle, job.sourceName ?? ""]
+        .filter(Boolean)
+        .some((value) => value.toLowerCase().includes(q));
+    const matchedRank = !totalRank || latest?.totalRank === totalRank;
+    const matchedHoliday = !Number.isFinite(minHoliday) || (parsed?.annualHolidays.value != null && parsed.annualHolidays.value >= minHoliday);
+
+    return matchedQuery && matchedRank && matchedHoliday;
+  });
+
+  const sortedList = [...filteredList].sort((a, b) => {
+    const aLatest = a.analyses[0];
+    const bLatest = b.analyses[0];
+    const aParsed = aLatest?.evidenceJson ? (JSON.parse(aLatest.evidenceJson) as ParsedJob) : null;
+    const bParsed = bLatest?.evidenceJson ? (JSON.parse(bLatest.evidenceJson) as ParsedJob) : null;
+    const aName = aParsed?.companyName.value ?? a.companyName ?? "";
+    const bName = bParsed?.companyName.value ?? b.companyName ?? "";
+
+    switch (sort) {
+      case "created_asc":
+        return a.createdAt.getTime() - b.createdAt.getTime();
+      case "company_asc":
+        return aName.localeCompare(bName, "ja");
+      case "company_desc":
+        return bName.localeCompare(aName, "ja");
+      case "rank_desc":
+        return (rankScore[bLatest?.totalRank ?? ""] ?? 0) - (rankScore[aLatest?.totalRank ?? ""] ?? 0);
+      case "holidays_desc":
+        return (bParsed?.annualHolidays.value ?? -1) - (aParsed?.annualHolidays.value ?? -1);
+      case "created_desc":
+      default:
+        return b.createdAt.getTime() - a.createdAt.getTime();
+    }
+  });
+
   return (
     <section className="page-stack">
       <div className="page-hero">
@@ -85,7 +176,7 @@ export default async function JobsPage() {
           <div>
             <p className="eyebrow">Jobs</p>
             <h1 className="page-title">求人一覧</h1>
-            <p className="page-copy mt-3">保存済みの求人を、総合ランク、評価内訳、警告ワードの3層で素早く見返せる一覧にまとめています。</p>
+            <p className="page-copy mt-3">保存済みの求人を、総合ランク、評価内訳、警告ワード、選考ステータスの4層で見返せるようにしています。</p>
           </div>
           <Link href="/jobs/new" className="button-primary">
             <Plus className="size-4" />
@@ -93,6 +184,51 @@ export default async function JobsPage() {
           </Link>
         </div>
       </div>
+
+      <form className="panel grid gap-3 md:grid-cols-4">
+        <label className="space-y-2 md:col-span-2">
+          <span className="field-label">キーワード</span>
+          <input name="q" defaultValue={q} placeholder="会社名・職種・情報元で検索" className="field-input" />
+        </label>
+
+        <label className="space-y-2">
+          <span className="field-label">総合ランク</span>
+          <select name="totalRank" defaultValue={totalRank} className="field-input">
+            <option value="">指定なし</option>
+            <option value="S">S</option>
+            <option value="A">A</option>
+            <option value="B">B</option>
+            <option value="C">C</option>
+            <option value="D">D</option>
+            <option value="E">E</option>
+          </select>
+        </label>
+
+        <label className="space-y-2">
+          <span className="field-label">最低年間休日</span>
+          <input name="minHoliday" type="number" min={0} step={1} defaultValue={Number.isFinite(minHoliday) ? minHoliday : ""} placeholder="例: 120" className="field-input" />
+        </label>
+
+        <label className="space-y-2">
+          <span className="field-label">並び順</span>
+          <select name="sort" defaultValue={sort} className="field-input">
+            {Object.entries(SORT_OPTIONS).map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div className="flex items-end gap-2">
+          <button type="submit" className="button-primary">
+            絞り込み
+          </button>
+          <Link href="/jobs" className="button-secondary">
+            クリア
+          </Link>
+        </div>
+      </form>
 
       {jobList.length === 0 ? (
         <div className="panel">
@@ -103,9 +239,13 @@ export default async function JobsPage() {
             </Link>
           </div>
         </div>
+      ) : sortedList.length === 0 ? (
+        <div className="panel">
+          <div className="panel-muted text-sm text-slate-600">条件に合う求人がありません。検索条件を変更するか、求人を新規登録してください。</div>
+        </div>
       ) : (
         <div className="grid gap-4">
-          {jobList.map((job) => {
+          {sortedList.map((job) => {
             const latest = job.analyses[0];
             const parsed = latest?.evidenceJson ? (JSON.parse(latest.evidenceJson) as ParsedJob) : null;
             const displayCompanyName = parsed?.companyName.value ?? job.companyName ?? "会社名不明";
@@ -118,11 +258,25 @@ export default async function JobsPage() {
                   <div className="min-w-0">
                     <p className="text-lg font-semibold text-slate-950">{displayCompanyName}</p>
                     <p className="mt-1 text-sm leading-6 text-slate-600">{displayTitle}</p>
+                    <p className="mt-2 text-xs text-slate-500">選考ステータス: {statusLabel[job.selectionStatus] ?? "未設定"}</p>
                   </div>
-                  <Link href={`/jobs/${job.id}`} className="button-secondary">
-                    詳細を見る
-                    <ArrowRight className="size-4" />
-                  </Link>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Link href={`/jobs/${job.id}`} className="button-secondary">
+                      詳細
+                      <ArrowRight className="size-4" />
+                    </Link>
+                    <Link href={`/jobs/${job.id}/edit`} className="button-secondary">
+                      <Pencil className="size-4" />
+                      編集
+                    </Link>
+                    <form action={deleteJobAction}>
+                      <input type="hidden" name="jobId" value={job.id} />
+                      <button type="submit" className="button-secondary text-rose-700 hover:text-rose-800">
+                        <Trash2 className="size-4" />
+                        削除
+                      </button>
+                    </form>
+                  </div>
                 </div>
 
                 {latest ? (

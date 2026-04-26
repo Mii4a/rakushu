@@ -4,8 +4,11 @@ import { ArrowRight, Bookmark, Copy, Search } from "lucide-react";
 import { clonePublicCriteriaAction, savePublicCriteriaAction } from "@/actions/criteria-actions";
 import { requireUser } from "@/lib/auth/require-user";
 import { CRITERIA_CATEGORIES, listPublicCriteria, parseTags, type CriteriaSort } from "@/lib/criteria/templates";
+import { isProductionBuildPhase } from "@/lib/env/build-phase";
 import { PLAN_LIMITS } from "@/lib/plans";
 import { getUserPlan } from "@/lib/subscription";
+
+export const dynamic = "force-dynamic";
 
 const SORT_LABELS: Record<CriteriaSort, string> = {
   popular: "人気順",
@@ -23,10 +26,14 @@ export default async function CriteriaPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  if (isProductionBuildPhase()) {
+    return <section className="page-stack" />;
+  }
+
   const user = await requireUser();
   const plan = await getUserPlan(user.id);
   const criteriaLimits = PLAN_LIMITS[plan].criteria;
-  const params = await searchParams;
+  const params = (await searchParams) ?? {};
   const sort = (getSingle(params.sort) ?? "popular") as CriteriaSort;
   const category = getSingle(params.category);
   const tag = getSingle(params.tag);

@@ -3,8 +3,15 @@ import { ArrowLeft } from "lucide-react";
 
 import { JobCreateForm } from "@/components/job-create-form";
 import { requireUser } from "@/lib/auth/require-user";
+import { isProductionBuildPhase } from "@/lib/env/build-phase";
+
+export const dynamic = "force-dynamic";
 
 export default async function NewJobPage() {
+  if (isProductionBuildPhase()) {
+    return <section className="page-stack" />;
+  }
+
   await requireUser();
 
   return (

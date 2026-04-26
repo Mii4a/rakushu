@@ -48,6 +48,7 @@ export async function incrementAnalysisCount(userId: string, periodKey = getMont
       userId,
       monthKey: periodKey,
       analysisCount: 1,
+      compareCount: 0,
       aiCreditsUsed: 0,
       createdAt: now,
       updatedAt: now
@@ -84,6 +85,7 @@ export async function consumeAiCredits(userId: string, feature: AiCreditFeature,
       userId,
       monthKey,
       analysisCount: 0,
+      compareCount: 0,
       aiCreditsUsed: cost,
       createdAt: now,
       updatedAt: now

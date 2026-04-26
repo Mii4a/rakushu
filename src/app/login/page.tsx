@@ -4,6 +4,8 @@ import { LockKeyhole, Sparkles } from "lucide-react";
 import { GoogleLoginButton } from "@/components/google-login-button";
 import { getSession } from "@/lib/auth/session";
 
+export const dynamic = "force-dynamic";
+
 export default async function LoginPage() {
   const session = await getSession();
 

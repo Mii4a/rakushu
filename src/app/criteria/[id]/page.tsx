@@ -4,15 +4,25 @@ import { Bookmark, Copy, Gauge, PlayCircle } from "lucide-react";
 import { clonePublicCriteriaAction, recordCriteriaUseAction, savePublicCriteriaAction } from "@/actions/criteria-actions";
 import { requireUser } from "@/lib/auth/require-user";
 import { criteriaToRankSettings, getPublicCriteria, incrementCriteriaMetric, parseTags } from "@/lib/criteria/templates";
+import { isProductionBuildPhase } from "@/lib/env/build-phase";
 import { PLAN_LIMITS } from "@/lib/plans";
 import { getUserPlan } from "@/lib/subscription";
+
+export const dynamic = "force-dynamic";
 
 export default async function CriteriaDetailPage({
   params
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
+  if (isProductionBuildPhase()) {
+    return <section className="page-stack" />;
+  }
+
+  const { id } = (await params) ?? {};
+  if (!id) {
+    notFound();
+  }
   const user = await requireUser();
   const plan = await getUserPlan(user.id);
   const limits = PLAN_LIMITS[plan].criteria;

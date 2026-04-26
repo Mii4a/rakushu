@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { and, desc, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
-import { ArrowLeft, FileText, ScanSearch } from "lucide-react";
+import { ArrowLeft, FileText, Pencil, ScanSearch, Trash2 } from "lucide-react";
 
 import { RerunAnalysisButton } from "@/components/rerun-analysis-button";
+import { SelectionProgressForm } from "@/components/selection-progress-form";
 import type { ParsedJob } from "@/lib/analysis";
-import { requireUser } from "@/lib/auth/require-user";
-import { db } from "@/lib/db/client";
-import { jobAnalyses, jobs } from "@/lib/db/schema";
+import { isProductionBuildPhase } from "@/lib/env/build-phase";
+
+export const dynamic = "force-dynamic";
 
 const evidenceLabels: Record<string, string> = {
   companyName: "会社名",
@@ -26,6 +27,15 @@ const evidenceLabels: Record<string, string> = {
   warnings: "警告"
 };
 
+const statusLabel: Record<string, string> = {
+  saved: "検討中",
+  applied: "応募済み",
+  screening: "書類選考中",
+  interview: "面接中",
+  offer: "内定",
+  rejected: "見送り"
+};
+
 function formatYen(value: number) {
   return `￥${value.toLocaleString("ja-JP")}`;
 }
@@ -39,6 +49,14 @@ function formatHours(value: number) {
 
 function formatDays(value: number) {
   return `${value}日`;
+}
+
+function toDateInputValue(value: Date | null): string {
+  if (!value) return "";
+  const year = value.getUTCFullYear();
+  const month = String(value.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(value.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function renderBadge(label: string, value: string | number | null | undefined, detail?: string) {
@@ -81,8 +99,22 @@ function renderRankWithValue(label: string, rank: string | null | undefined, ext
 }
 
 export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  if (isProductionBuildPhase()) {
+    return <section className="page-stack" />;
+  }
+
+  const [{ deleteJobAction }, { requireUser }, { db }, { jobAnalyses, jobs }] = await Promise.all([
+    import("@/actions/job-actions"),
+    import("@/lib/auth/require-user"),
+    import("@/lib/db/client"),
+    import("@/lib/db/schema")
+  ]);
   const user = await requireUser();
-  const { id } = await params;
+  const { id } = (await params) ?? {};
+
+  if (!id) {
+    notFound();
+  }
 
   const job = await db.query.jobs.findFirst({
     where: and(eq(jobs.id, id), eq(jobs.userId, user.id)),
@@ -103,6 +135,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const evidence = (parsed ?? {}) as Record<string, { evidence?: string | null }>;
   const displayCompanyName = parsed?.companyName.value ?? job.companyName ?? "会社名不明";
   const displayTitle = parsed?.title.value ?? job.title ?? "職種不明";
+  const nextActionDate = toDateInputValue(job.nextActionAt);
   const fixedOvertimeHoursDisplay =
     parsed?.fixedOvertimeHours.status === "none"
       ? "固定残業制なし"
@@ -142,9 +175,30 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
               <ArrowLeft className="size-4" />
               一覧へ
             </Link>
+            <Link href={`/jobs/${job.id}/edit`} className="button-secondary">
+              <Pencil className="size-4" />
+              編集
+            </Link>
+            <form action={deleteJobAction}>
+              <input type="hidden" name="jobId" value={job.id} />
+              <button type="submit" className="button-secondary text-rose-700 hover:text-rose-800">
+                <Trash2 className="size-4" />
+                削除
+              </button>
+            </form>
             <RerunAnalysisButton jobId={job.id} />
           </div>
         </div>
+      </div>
+
+      <div className="panel">
+        <div className="section-heading">
+          <div>
+            <h2 className="section-title">選考進捗</h2>
+            <p className="section-copy">現在ステータス: {statusLabel[job.selectionStatus] ?? "未設定"}</p>
+          </div>
+        </div>
+        <SelectionProgressForm jobId={job.id} selectionStatus={job.selectionStatus} nextActionDate={nextActionDate} selectionMemo={job.selectionMemo ?? ""} />
       </div>
 
       <div className="panel">

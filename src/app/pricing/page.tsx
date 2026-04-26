@@ -5,10 +5,13 @@ import { updateRankSettingsAction } from "@/actions/rank-settings-actions";
 import { CheckoutButton } from "@/components/checkout-button";
 import { DEFAULT_RANK_SETTINGS } from "@/lib/analysis";
 import { requireUser } from "@/lib/auth/require-user";
+import { isProductionBuildPhase } from "@/lib/env/build-phase";
 import { serverEnv } from "@/lib/env/server";
 import { CREDIT_PACKS, DEFAULT_CAMPAIGN_DISCOUNT, PAID_PLAN_ORDER, PLAN_LIMITS, PLAN_MARKETING, type PaidPlan } from "@/lib/plans";
 import { getUserPlan } from "@/lib/subscription";
 import { getUserRankSettings } from "@/lib/subscription/rank-settings";
+
+export const dynamic = "force-dynamic";
 
 function formatYen(value: number) {
   return new Intl.NumberFormat("ja-JP").format(value);
@@ -20,6 +23,10 @@ function isCurrentOrHigher(current: string, target: PaidPlan) {
 }
 
 export default async function PricingPage() {
+  if (isProductionBuildPhase()) {
+    return <section className="page-stack" />;
+  }
+
   const user = await requireUser();
   const plan = await getUserPlan(user.id);
   const rankSettings = await getUserRankSettings(user.id);
