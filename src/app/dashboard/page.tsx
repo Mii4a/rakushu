@@ -5,12 +5,9 @@ import { ArrowRight, BriefcaseBusiness, CalendarClock, CreditCard, Layers3, Plus
 
 import { getSession } from "@/lib/auth/session";
 import type { ParsedJob } from "@/lib/analysis";
-import { db } from "@/lib/db/client";
-import { jobAnalyses, jobs } from "@/lib/db/schema";
 import { isProductionBuildPhase } from "@/lib/env/build-phase";
+import { getLatestAnalysesByJobIds } from "@/lib/jobs/latest-analyses";
 import { PLAN_LIMITS } from "@/lib/plans";
-import { getUserPlan } from "@/lib/subscription";
-import { getAnalysisCount, getMonthKey, getWeekKey } from "@/lib/usage/counters";
 
 export const dynamic = "force-dynamic";
 
@@ -81,24 +78,29 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
+  const [{ db }, { jobs }, { getUserPlan }, { getAnalysisCount, getMonthKey, getWeekKey }] = await Promise.all([
+    import("@/lib/db/client"),
+    import("@/lib/db/schema"),
+    import("@/lib/subscription"),
+    import("@/lib/usage/counters")
+  ]);
   const plan = await getUserPlan(session.user.id);
   const limits = PLAN_LIMITS[plan];
 
   const recentJobs = await db.query.jobs.findMany({
     where: eq(jobs.userId, session.user.id),
     orderBy: [desc(jobs.createdAt)],
-    limit: 6,
-    with: {
-      analyses: {
-        orderBy: [desc(jobAnalyses.createdAt)],
-        limit: 1
-      }
-    }
+    limit: 6
   });
+  const latestAnalysesByJobId = await getLatestAnalysesByJobIds(recentJobs.map((job) => job.id));
+  const recentJobsWithAnalyses = recentJobs.map((job) => ({
+    ...job,
+    analyses: latestAnalysesByJobId.has(job.id) ? [latestAnalysesByJobId.get(job.id)!] : []
+  }));
 
-  const totalJobs = recentJobs.length;
-  const latestAnalysisCount = recentJobs.filter((job) => job.analyses[0]).length;
-  const criticalWarnings = recentJobs.reduce((count, job) => {
+  const totalJobs = recentJobsWithAnalyses.length;
+  const latestAnalysisCount = recentJobsWithAnalyses.filter((job) => job.analyses[0]).length;
+  const criticalWarnings = recentJobsWithAnalyses.reduce((count, job) => {
     const latest = job.analyses[0];
     if (!latest?.evidenceJson) return count;
     const parsed = JSON.parse(latest.evidenceJson) as ParsedJob;
@@ -190,7 +192,7 @@ export default async function DashboardPage() {
           </Link>
         </div>
 
-        {recentJobs.length === 0 ? (
+        {recentJobsWithAnalyses.length === 0 ? (
           <div className="mt-5 panel-muted">
             <p className="text-sm leading-6 text-slate-600">まだ求人が登録されていません。最初の1件を解析すると、この画面に最近の評価が並びます。</p>
             <Link href="/jobs/new" className="button-primary mt-4">
@@ -199,7 +201,7 @@ export default async function DashboardPage() {
           </div>
         ) : (
           <div className="mt-5 grid gap-4 xl:grid-cols-2">
-            {recentJobs.map((job) => {
+            {recentJobsWithAnalyses.map((job) => {
               const latest = job.analyses[0];
               const parsed = latest?.evidenceJson ? (JSON.parse(latest.evidenceJson) as ParsedJob) : null;
               const displayCompanyName = parsed?.companyName.value ?? job.companyName ?? "会社名不明";

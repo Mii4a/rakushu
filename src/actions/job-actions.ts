@@ -35,8 +35,6 @@ export type ActionState = {
   error: string | null;
 };
 
-export const initialActionState: ActionState = { error: null };
-
 const newJobSchema = z.object({
   companyName: z.string().trim().max(200).optional(),
   title: z.string().trim().max(200).optional(),

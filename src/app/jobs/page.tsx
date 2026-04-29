@@ -4,6 +4,7 @@ import { ArrowRight, Pencil, Plus, ShieldAlert, Trash2 } from "lucide-react";
 
 import type { ParsedJob } from "@/lib/analysis";
 import { isProductionBuildPhase } from "@/lib/env/build-phase";
+import { getLatestAnalysesByJobIds } from "@/lib/jobs/latest-analyses";
 
 export const dynamic = "force-dynamic";
 
@@ -102,7 +103,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
     return <section className="page-stack" />;
   }
 
-  const [{ deleteJobAction }, { requireUser }, { db }, { jobAnalyses, jobs }] = await Promise.all([
+  const [{ deleteJobAction }, { requireUser }, { db }, { jobs }] = await Promise.all([
     import("@/actions/job-actions"),
     import("@/lib/auth/require-user"),
     import("@/lib/db/client"),
@@ -119,16 +120,15 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
 
   const jobList = await db.query.jobs.findMany({
     where: eq(jobs.userId, user.id),
-    orderBy: [desc(jobs.createdAt)],
-    with: {
-      analyses: {
-        orderBy: [desc(jobAnalyses.createdAt)],
-        limit: 1
-      }
-    }
+    orderBy: [desc(jobs.createdAt)]
   });
+  const latestAnalysesByJobId = await getLatestAnalysesByJobIds(jobList.map((job) => job.id));
+  const jobListWithAnalyses = jobList.map((job) => ({
+    ...job,
+    analyses: latestAnalysesByJobId.has(job.id) ? [latestAnalysesByJobId.get(job.id)!] : []
+  }));
 
-  const filteredList = jobList.filter((job) => {
+  const filteredList = jobListWithAnalyses.filter((job) => {
     const latest = job.analyses[0];
     const parsed = latest?.evidenceJson ? (JSON.parse(latest.evidenceJson) as ParsedJob) : null;
     const displayCompanyName = parsed?.companyName.value ?? job.companyName ?? "";
@@ -230,7 +230,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
         </div>
       </form>
 
-      {jobList.length === 0 ? (
+      {jobListWithAnalyses.length === 0 ? (
         <div className="panel">
           <div className="panel-muted">
             <p className="text-sm leading-6 text-slate-600">まだ求人がありません。まずは本文を貼り付けて、固定残業や休日制度がどう評価されるかを確認してください。</p>

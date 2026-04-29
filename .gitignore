@@ -2,8 +2,10 @@ node_modules
 .next
 .env
 .env.local
+.env.production
 .vercel
 .netlify
+.open-next
 *.log
 tsconfig.tsbuildinfo
 .brv

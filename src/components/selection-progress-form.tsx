@@ -3,7 +3,9 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
-import { initialActionState, updateSelectionProgressAction } from "@/actions/job-actions";
+import { updateSelectionProgressAction, type ActionState } from "@/actions/job-actions";
+
+const initialActionState: ActionState = { error: null };
 
 function SubmitButton() {
   const { pending } = useFormStatus();

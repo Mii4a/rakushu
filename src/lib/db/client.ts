@@ -1,4 +1,4 @@
-import { createClient } from "@libsql/client";
+import { createClient } from "@libsql/client/http";
 import { drizzle } from "drizzle-orm/libsql";
 
 import { serverEnv } from "@/lib/env/server";

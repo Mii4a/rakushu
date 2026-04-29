@@ -45,6 +45,39 @@
    npm run dev
    ```
 
+## 本番デプロイ
+
+本番投入の実行手順は [docs/production-deploy.md](/home/openclaw/rakushu/docs/production-deploy.md) を参照してください。  
+重要なのは、アプリ公開前に本番 DB へ migration を先に適用することです。
+
+このアプリは App Router / 認証 / SSR を使っているため、Cloudflare Pages の静的配信ではなく Cloudflare Workers 上で動かします。  
+Cloudflare Pages は静的 export 向けで、この構成の本番配備先としては使いません。
+
+本番 env テンプレート:
+```bash
+cp .env.production.example .env.production
+```
+
+本番 DB への migration 実行:
+```bash
+npm run db:migrate:prod
+```
+
+Cloudflare Workers ランタイムでの事前確認:
+```bash
+npm run preview
+```
+
+Cloudflare Workers への secret 登録:
+```bash
+npm run cf:secrets:prod
+```
+
+Cloudflare Workers へのデプロイ:
+```bash
+npm run deploy
+```
+
 ## Stripe ローカル検証
 1. `.env.local` に Stripe のテスト用値を設定
 2. 開発サーバーを起動

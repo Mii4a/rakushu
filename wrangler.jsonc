@@ -1,0 +1,42 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "rakushu",
+  "main": ".open-next/worker.js",
+  "keep_vars": true,
+  "routes": [
+    {
+      "pattern": "rakushu.com",
+      "zone_name": "rakushu.com",
+      "custom_domain": true
+    }
+  ],
+  "vars": {
+    "NEXT_PUBLIC_APP_URL": "https://rakushu.com",
+    "BETTER_AUTH_URL": "https://rakushu.com",
+    "TURSO_DATABASE_URL": "libsql://rakushu-db-production-mii4a.aws-ap-northeast-1.turso.io",
+    "GOOGLE_CLIENT_ID": "706992603921-s6g9v2trquco7j9gnb7o2hk39ciofa2g.apps.googleusercontent.com",
+    "STRIPE_PRICE_STARTER": "price_1TRUcR03AGtVEXP9iVMY67Uh",
+    "STRIPE_PRICE_PLUS": "price_1TRVAg03AGtVEXP9ZwSFn0qw",
+    "STRIPE_PRICE_PRO": "price_1TRVB103AGtVEXP99l8DegFH",
+    "STRIPE_ALLOW_PROMOTION_CODES": "true",
+    "STRIPE_CAMPAIGN_PROMOTION_CODE_ID": "",
+    "OPENAI_MAIN_MODEL": "gpt-4.1-mini",
+    "OPENAI_LIGHT_MODEL": "gpt-4.1-nano"
+  },
+  "compatibility_date": "2025-03-25",
+  "compatibility_flags": ["nodejs_compat"],
+  "secrets": {
+    "required": [
+      "BETTER_AUTH_SECRET",
+      "TURSO_AUTH_TOKEN",
+      "GOOGLE_CLIENT_SECRET",
+      "STRIPE_SECRET_KEY",
+      "STRIPE_WEBHOOK_SECRET",
+      "OPENAI_API_KEY"
+    ]
+  },
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  }
+}
