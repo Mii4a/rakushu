@@ -62,8 +62,13 @@ Cloudflare への投入例:
 
 ```bash
 npx wrangler secret put BETTER_AUTH_SECRET
+npx wrangler secret put TURSO_DATABASE_URL_SECRET
 npx wrangler secret put TURSO_AUTH_TOKEN
+npx wrangler secret put GOOGLE_CLIENT_ID
 npx wrangler secret put GOOGLE_CLIENT_SECRET
+npx wrangler secret put STRIPE_PRICE_STARTER_SECRET
+npx wrangler secret put STRIPE_PRICE_PLUS_SECRET
+npx wrangler secret put STRIPE_PRICE_PRO_SECRET
 npx wrangler secret put STRIPE_SECRET_KEY
 npx wrangler secret put STRIPE_WEBHOOK_SECRET
 npx wrangler secret put OPENAI_API_KEY
@@ -80,11 +85,18 @@ npm run cf:secrets:prod
 このコマンドは以下の secret を `wrangler secret put` で登録します。
 
 - `BETTER_AUTH_SECRET`
+- `TURSO_DATABASE_URL_SECRET`
 - `TURSO_AUTH_TOKEN`
+- `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
+- `STRIPE_PRICE_STARTER_SECRET`
+- `STRIPE_PRICE_PLUS_SECRET`
+- `STRIPE_PRICE_PRO_SECRET`
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
 - `OPENAI_API_KEY`
+
+`STRIPE_CAMPAIGN_PROMOTION_CODE_ID_SECRET` は任意です。`.env.production` に値が入っている場合だけ secret として登録します。
 
 ## 3. 外部サービス設定
 

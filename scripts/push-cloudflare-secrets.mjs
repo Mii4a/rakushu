@@ -1,13 +1,22 @@
 import { readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 
-const SECRET_KEYS = [
-  "BETTER_AUTH_SECRET",
-  "TURSO_AUTH_TOKEN",
-  "GOOGLE_CLIENT_SECRET",
-  "STRIPE_SECRET_KEY",
-  "STRIPE_WEBHOOK_SECRET",
-  "OPENAI_API_KEY"
+const REQUIRED_SECRET_KEYS = [
+  { envKey: "BETTER_AUTH_SECRET", bindingKey: "BETTER_AUTH_SECRET" },
+  { envKey: "TURSO_DATABASE_URL", bindingKey: "TURSO_DATABASE_URL_SECRET" },
+  { envKey: "TURSO_AUTH_TOKEN", bindingKey: "TURSO_AUTH_TOKEN" },
+  { envKey: "GOOGLE_CLIENT_ID", bindingKey: "GOOGLE_CLIENT_ID" },
+  { envKey: "GOOGLE_CLIENT_SECRET", bindingKey: "GOOGLE_CLIENT_SECRET" },
+  { envKey: "STRIPE_PRICE_STARTER", bindingKey: "STRIPE_PRICE_STARTER_SECRET" },
+  { envKey: "STRIPE_PRICE_PLUS", bindingKey: "STRIPE_PRICE_PLUS_SECRET" },
+  { envKey: "STRIPE_PRICE_PRO", bindingKey: "STRIPE_PRICE_PRO_SECRET" },
+  { envKey: "STRIPE_SECRET_KEY", bindingKey: "STRIPE_SECRET_KEY" },
+  { envKey: "STRIPE_WEBHOOK_SECRET", bindingKey: "STRIPE_WEBHOOK_SECRET" },
+  { envKey: "OPENAI_API_KEY", bindingKey: "OPENAI_API_KEY" }
+];
+
+const OPTIONAL_SECRET_KEYS = [
+  { envKey: "STRIPE_CAMPAIGN_PROMOTION_CODE_ID", bindingKey: "STRIPE_CAMPAIGN_PROMOTION_CODE_ID_SECRET" }
 ];
 
 function parseEnvFile(path) {
@@ -67,18 +76,30 @@ async function main() {
   const envPath = process.argv[2] ?? ".env.production";
   const env = parseEnvFile(envPath);
 
-  const missing = SECRET_KEYS.filter((key) => {
-    const value = env.get(key);
+  const missing = REQUIRED_SECRET_KEYS.filter(({ envKey }) => {
+    const value = env.get(envKey);
     return !value || value.startsWith("replace-with") || value.startsWith("sk-replace") || value.startsWith("whsec_replace");
-  });
+  }).map(({ envKey }) => envKey);
 
   if (missing.length > 0) {
     throw new Error(`Missing or placeholder secret values in ${envPath}: ${missing.join(", ")}`);
   }
 
-  for (const key of SECRET_KEYS) {
-    console.log(`Uploading secret: ${key}`);
-    await putSecret(key, env.get(key));
+  for (const { envKey, bindingKey } of REQUIRED_SECRET_KEYS) {
+    console.log(`Uploading secret: ${bindingKey}`);
+    await putSecret(bindingKey, env.get(envKey));
+  }
+
+  for (const { envKey, bindingKey } of OPTIONAL_SECRET_KEYS) {
+    const value = env.get(envKey);
+
+    if (!value) {
+      console.log(`Skipping empty optional secret: ${bindingKey}`);
+      continue;
+    }
+
+    console.log(`Uploading optional secret: ${bindingKey}`);
+    await putSecret(bindingKey, value);
   }
 
   console.log("Cloudflare secret upload complete");

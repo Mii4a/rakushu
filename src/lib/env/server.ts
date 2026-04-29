@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { isProductionBuildPhase } from "@/lib/env/build-phase";
+
 const serverEnvSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url(),
   BETTER_AUTH_URL: z.string().url(),
@@ -20,4 +22,34 @@ const serverEnvSchema = z.object({
   OPENAI_LIGHT_MODEL: z.string().default("gpt-4.1-nano")
 });
 
-export const serverEnv = serverEnvSchema.parse(process.env);
+const runtimeEnvInput = {
+  ...process.env,
+  TURSO_DATABASE_URL: process.env.TURSO_DATABASE_URL ?? process.env.TURSO_DATABASE_URL_SECRET,
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ?? process.env.GOOGLE_CLIENT_ID_SECRET,
+  STRIPE_PRICE_STARTER: process.env.STRIPE_PRICE_STARTER ?? process.env.STRIPE_PRICE_STARTER_SECRET,
+  STRIPE_PRICE_PLUS: process.env.STRIPE_PRICE_PLUS ?? process.env.STRIPE_PRICE_PLUS_SECRET,
+  STRIPE_PRICE_PRO: process.env.STRIPE_PRICE_PRO ?? process.env.STRIPE_PRICE_PRO_SECRET,
+  STRIPE_CAMPAIGN_PROMOTION_CODE_ID:
+    process.env.STRIPE_CAMPAIGN_PROMOTION_CODE_ID ?? process.env.STRIPE_CAMPAIGN_PROMOTION_CODE_ID_SECRET
+};
+
+const buildPhaseFallbacks = {
+  NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+  BETTER_AUTH_URL: "http://localhost:3000",
+  BETTER_AUTH_SECRET: "build-placeholder-secret-build-placeholder-secret",
+  TURSO_DATABASE_URL: "libsql://build-placeholder.turso.io",
+  TURSO_AUTH_TOKEN: "build-placeholder-token",
+  GOOGLE_CLIENT_ID: "build-placeholder-google-client-id",
+  GOOGLE_CLIENT_SECRET: "build-placeholder-google-client-secret"
+} as const;
+
+const serverEnvInput = isProductionBuildPhase()
+  ? {
+      ...runtimeEnvInput,
+      ...Object.fromEntries(
+        Object.entries(buildPhaseFallbacks).map(([key, value]) => [key, process.env[key] ?? value])
+      )
+    }
+  : runtimeEnvInput;
+
+export const serverEnv = serverEnvSchema.parse(serverEnvInput);
