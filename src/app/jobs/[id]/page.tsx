@@ -2,7 +2,9 @@ import Link from "next/link";
 import { and, desc, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 
-import { rerunAnalysisAction } from "@/actions/job-actions";
+import { deleteJobAction, rerunAnalysisAction } from "@/actions/job-actions";
+import { AnalysisCorrectionForm } from "@/components/analysis-correction-form";
+import { SelectionProgressForm } from "@/components/selection-progress-form";
 import { requireUser } from "@/lib/auth/require-user";
 import { db } from "@/lib/db/client";
 import { jobAnalyses, jobs } from "@/lib/db/schema";
@@ -14,6 +16,23 @@ function renderBadge(label: string, value: string | number | null | undefined) {
       <p className="mt-1 font-medium text-slate-900">{value ?? "不明"}</p>
     </div>
   );
+}
+
+const statusLabel: Record<string, string> = {
+  saved: "検討中",
+  applied: "応募済み",
+  screening: "書類選考中",
+  interview: "面接中",
+  offer: "内定",
+  rejected: "見送り"
+};
+
+function toDateInputValue(value: Date | null): string {
+  if (!value) return "";
+  const year = value.getUTCFullYear();
+  const month = String(value.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(value.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -36,6 +55,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
 
   const latest = job.analyses[0];
   const evidence = latest?.evidenceJson ? (JSON.parse(latest.evidenceJson) as Record<string, { evidence?: string | null }>) : {};
+  const nextActionDate = toDateInputValue(job.nextActionAt);
 
   return (
     <section className="space-y-6">
@@ -48,12 +68,33 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           <Link href="/jobs" className="text-sm text-rakushu-700 underline">
             一覧へ
           </Link>
+          <Link href={`/jobs/${job.id}/edit`} className="text-sm text-rakushu-700 underline">
+            編集
+          </Link>
+          <form action={deleteJobAction}>
+            <input type="hidden" name="jobId" value={job.id} />
+            <button type="submit" className="text-sm text-rose-700 underline">
+              削除
+            </button>
+          </form>
           <form action={rerunAnalysisAction.bind(null, job.id)}>
             <button type="submit" className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-100">
               再解析
             </button>
           </form>
         </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="font-semibold">選考進捗</h2>
+        <p className="mt-1 text-sm text-slate-600">現在ステータス: {statusLabel[job.selectionStatus] ?? "未設定"}</p>
+
+        <SelectionProgressForm
+          jobId={job.id}
+          selectionStatus={job.selectionStatus}
+          nextActionDate={nextActionDate}
+          selectionMemo={job.selectionMemo ?? ""}
+        />
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -67,6 +108,23 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           {renderBadge("年間休日", latest?.annualHolidays)}
           {renderBadge("休日制度", latest?.holidayType)}
         </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="font-semibold">抽出値の手動補正</h2>
+        <p className="mt-1 text-sm text-slate-600">解析で誤抽出があった場合に、主要項目を手動で修正できます。</p>
+        {latest ? (
+          <AnalysisCorrectionForm
+            analysisId={latest.id}
+            employmentType={latest.employmentType ?? ""}
+            annualHolidays={latest.annualHolidays}
+            holidayType={latest.holidayType ?? ""}
+            baseSalaryMin={latest.baseSalaryMin}
+            baseSalaryMax={latest.baseSalaryMax}
+          />
+        ) : (
+          <p className="mt-2 text-sm text-slate-500">解析結果がまだないため補正できません。</p>
+        )}
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">

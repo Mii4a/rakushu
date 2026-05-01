@@ -69,6 +69,9 @@ export const jobs = sqliteTable(
     title: text("title"),
     sourceName: text("source_name"),
     sourceUrl: text("source_url"),
+    selectionStatus: text("selection_status").notNull().default("saved"),
+    nextActionAt: integer("next_action_at", { mode: "timestamp_ms" }),
+    selectionMemo: text("selection_memo"),
     rawText: text("raw_text").notNull(),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
@@ -104,6 +107,18 @@ export const jobAnalyses = sqliteTable(
   (table) => [index("job_analyses_job_id_idx").on(table.jobId)]
 );
 
+export const jobStatusEvents = sqliteTable(
+  "job_status_events",
+  {
+    id: text("id").primaryKey(),
+    jobId: text("job_id").notNull().references(() => jobs.id, { onDelete: "cascade" }),
+    fromStatus: text("from_status"),
+    toStatus: text("to_status").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
+  },
+  (table) => [index("job_status_events_job_id_idx").on(table.jobId)]
+);
+
 export const subscriptions = sqliteTable(
   "subscriptions",
   {
@@ -130,6 +145,7 @@ export const usageCounters = sqliteTable(
     userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
     monthKey: text("month_key").notNull(),
     analysisCount: integer("analysis_count").notNull().default(0),
+    compareCount: integer("compare_count").notNull().default(0),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
   },
@@ -149,9 +165,14 @@ export const userRelations = relations(user, ({ many, one }) => ({
 
 export const jobsRelations = relations(jobs, ({ one, many }) => ({
   user: one(user, { fields: [jobs.userId], references: [user.id] }),
-  analyses: many(jobAnalyses)
+  analyses: many(jobAnalyses),
+  statusEvents: many(jobStatusEvents)
 }));
 
 export const analysesRelations = relations(jobAnalyses, ({ one }) => ({
   job: one(jobs, { fields: [jobAnalyses.jobId], references: [jobs.id] })
+}));
+
+export const statusEventsRelations = relations(jobStatusEvents, ({ one }) => ({
+  job: one(jobs, { fields: [jobStatusEvents.jobId], references: [jobs.id] })
 }));

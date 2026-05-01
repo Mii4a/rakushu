@@ -1,0 +1,1 @@
+ALTER TABLE `usage_counters` ADD `compare_count` integer DEFAULT 0 NOT NULL;

@@ -8,7 +8,7 @@ export default function HomePage() {
       </p>
       <h1 className="text-3xl font-bold tracking-tight text-slate-900">らくしゅう</h1>
       <p className="max-w-2xl text-slate-700">
-        企業説明文を保存して、比較しやすい形に整理するMVPです。まずはGoogleログインで始めましょう。
+        企業説明文を保存して、選考に役立つ情報へ整理するMVPです。まずはGoogleログインで始めましょう。
       </p>
       <div className="flex flex-wrap gap-3">
         <Link
