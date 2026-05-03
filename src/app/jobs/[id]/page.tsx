@@ -28,10 +28,10 @@ const evidenceLabels: Record<string, string> = {
 };
 
 const statusLabel: Record<string, string> = {
-  saved: "検討中",
+  saved: "整理中",
   applied: "応募済み",
-  screening: "書類選考中",
-  interview: "面接中",
+  screening: "選考中",
+  interview: "面接予定",
   offer: "内定",
   rejected: "見送り"
 };
@@ -98,6 +98,26 @@ function renderRankWithValue(label: string, rank: string | null | undefined, ext
   );
 }
 
+function getDecisionSummary(status: string, warningCount: number, totalRank: string | null | undefined) {
+  if (status === "applied" || status === "screening" || status === "interview") {
+    return "この求人はすでに動いています。今は評価の再確認より、次に見る予定とメモを整えるのが優先です。";
+  }
+
+  if (status === "offer") {
+    return "この求人は内定まで進んでいます。比較より、判断材料の見返しと記録の整理に使うページです。";
+  }
+
+  if (status === "rejected") {
+    return "この求人は見送り済みです。あとで振り返るときに、評価と根拠を残しておけます。";
+  }
+
+  if (warningCount > 0) {
+    return `総合ランク ${totalRank ?? "UNKNOWN"} で、気になる点も見つかっています。残すか迷うなら、根拠文を先に見返すと判断しやすくなります。`;
+  }
+
+  return `総合ランク ${totalRank ?? "UNKNOWN"} の求人です。大きな引っかかりがなければ、次に見る予定だけ置いて静かに追えます。`;
+}
+
 export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   if (isProductionBuildPhase()) {
     return <section className="page-stack" />;
@@ -156,6 +176,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const holidayTypeDetail = `休日制度: ${formatExtractedValue(parsed?.holidayType.value)}`;
   const benefitDetail = `福利厚生: ${formatExtractedValue(parsed?.benefits.value)}`;
   const totalDetail = `警告: ${formatExtractedValue(parsed?.warnings.value)}`;
+  const warningCount = parsed?.warnings.value?.length ?? 0;
+  const decisionSummary = getDecisionSummary(job.selectionStatus, warningCount, latest?.totalRank);
   const baseSalaryMinDetail =
     parsed?.baseSalaryMin.evidence?.includes("基本給記載なし")
       ? "基本給記載なしのため月給の最小値から固定残業代を差し引いて算出"
@@ -169,6 +191,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             <p className="eyebrow">Job detail</p>
             <h1 className="page-title">{displayCompanyName}</h1>
             <p className="page-copy mt-3">{displayTitle}</p>
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600">{decisionSummary}</p>
           </div>
           <div className="flex flex-wrap gap-3">
             <Link href="/jobs" className="button-secondary">
@@ -189,12 +212,29 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             <RerunAnalysisButton jobId={job.id} />
           </div>
         </div>
+        <div className="mt-6 grid gap-3 md:grid-cols-3">
+          <div className="panel-muted">
+            <p className="metric-label">Step 1</p>
+            <p className="mt-2 text-sm font-medium text-slate-900">ランクを確認する</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">まずは総合ランクと気になる点を見て、残す理由を確かめます。</p>
+          </div>
+          <div className="panel-muted">
+            <p className="metric-label">Step 2</p>
+            <p className="mt-2 text-sm font-medium text-slate-900">根拠を見返す</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">迷った項目だけ、抽出値や根拠文まで下りて確認できます。</p>
+          </div>
+          <div className="panel-muted">
+            <p className="metric-label">Step 3</p>
+            <p className="mt-2 text-sm font-medium text-slate-900">次の扱いを決める</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">応募状況、次に見る予定、メモを置いてこの求人の流れを切らさず進めます。</p>
+          </div>
+        </div>
       </div>
 
       <div className="panel">
         <div className="section-heading">
           <div>
-            <h2 className="section-title">選考進捗</h2>
+            <h2 className="section-title">次の扱いを決める</h2>
             <p className="section-copy">現在ステータス: {statusLabel[job.selectionStatus] ?? "未設定"}</p>
           </div>
         </div>
@@ -204,8 +244,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
       <div className="panel">
         <div className="section-heading">
           <div>
-            <h2 className="section-title">ランク</h2>
-            <p className="section-copy">休日制度と福利厚生は別軸として並べ、総合ランクに対する内訳を追いやすくしています。</p>
+            <h2 className="section-title">ランク結果</h2>
+            <p className="section-copy">まずは総合ランクを見て、そのあと必要な項目だけ深掘りできます。</p>
           </div>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
@@ -221,7 +261,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         <div className="section-heading">
           <div>
             <h2 className="section-title">抽出値</h2>
-            <p className="section-copy">解析に使った構造化データをそのまま確認できます。</p>
+            <p className="section-copy">ランクの根拠になる情報を、そのまま確認できます。</p>
           </div>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -239,7 +279,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         <div className="section-heading">
           <div>
             <h2 className="section-title">根拠文</h2>
-            <p className="section-copy">各フィールドの抽出に使った文脈です。元文との対応を追えます。</p>
+            <p className="section-copy">気になる項目だけ、どの文章から判断したかを見返せます。</p>
           </div>
           <ScanSearch className="size-5 text-rakushu-600" />
         </div>

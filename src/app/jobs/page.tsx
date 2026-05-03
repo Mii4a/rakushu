@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
-import { ArrowRight, Pencil, Plus, ShieldAlert, Trash2 } from "lucide-react";
+import { ArrowRight, Layers3, Pencil, Plus, ShieldAlert, Trash2 } from "lucide-react";
 
 import type { ParsedJob } from "@/lib/analysis";
 import { isProductionBuildPhase } from "@/lib/env/build-phase";
@@ -29,10 +29,10 @@ const rankScore: Record<string, number> = {
 };
 
 const statusLabel: Record<string, string> = {
-  saved: "検討中",
+  saved: "整理中",
   applied: "応募済み",
-  screening: "書類選考中",
-  interview: "面接中",
+  screening: "選考中",
+  interview: "面接予定",
   offer: "内定",
   rejected: "見送り"
 };
@@ -175,13 +175,38 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
         <div className="section-heading">
           <div>
             <p className="eyebrow">Jobs</p>
-            <h1 className="page-title">求人一覧</h1>
-            <p className="page-copy mt-3">保存済みの求人を、総合ランク、評価内訳、警告ワード、選考ステータスの4層で見返せるようにしています。</p>
+            <h1 className="page-title">ランク付けした求人を、残した分だけ整理する</h1>
+            <p className="page-copy mt-3">
+              このページは、良いと思った求人を残して見返す場所です。先にランク付けし、そのあと応募状況や次に見る予定を静かに追えるようにしています。
+            </p>
           </div>
-          <Link href="/jobs/new" className="button-primary">
-            <Plus className="size-4" />
-            求人を登録
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link href="/jobs/new" className="button-primary">
+              <Plus className="size-4" />
+              ランク付けして保存
+            </Link>
+            <Link href="/criteria" className="button-secondary">
+              <Layers3 className="size-4" />
+              判断基準を見る
+            </Link>
+          </div>
+        </div>
+        <div className="mt-6 grid gap-3 md:grid-cols-3">
+          <div className="panel-muted">
+            <p className="metric-label">Step 1</p>
+            <p className="mt-2 text-sm font-medium text-slate-900">先にランク付けする</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">求人を追加すると、残すかどうかの判断材料がそろいます。</p>
+          </div>
+          <div className="panel-muted">
+            <p className="metric-label">Step 2</p>
+            <p className="mt-2 text-sm font-medium text-slate-900">残した求人だけ並べる</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">総合ランクを見ながら、気になる求人だけを見返せます。</p>
+          </div>
+          <div className="panel-muted">
+            <p className="metric-label">Step 3</p>
+            <p className="mt-2 text-sm font-medium text-slate-900">応募状況を追う</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">次に見る予定や進捗を置いて、就活の流れを切らさずに進めます。</p>
+          </div>
         </div>
       </div>
 
@@ -233,9 +258,9 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
       {jobListWithAnalyses.length === 0 ? (
         <div className="panel">
           <div className="panel-muted">
-            <p className="text-sm leading-6 text-slate-600">まだ求人がありません。まずは本文を貼り付けて、固定残業や休日制度がどう評価されるかを確認してください。</p>
+            <p className="text-sm leading-6 text-slate-600">まだ求人がありません。まずは1件だけランク付けして、残したい求人かどうかを確認してみてください。</p>
             <Link href="/jobs/new" className="button-primary mt-4">
-              最初の求人を解析
+              最初の求人をランク付け
             </Link>
           </div>
         </div>
@@ -246,20 +271,26 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
       ) : (
         <div className="grid gap-4">
           {sortedList.map((job) => {
-            const latest = job.analyses[0];
-            const parsed = latest?.evidenceJson ? (JSON.parse(latest.evidenceJson) as ParsedJob) : null;
-            const displayCompanyName = parsed?.companyName.value ?? job.companyName ?? "会社名不明";
-            const displayTitle = parsed?.title.value ?? job.title ?? "職種不明";
-            const warnings = parsed?.warnings.value ?? [];
+              const latest = job.analyses[0];
+              const parsed = latest?.evidenceJson ? (JSON.parse(latest.evidenceJson) as ParsedJob) : null;
+              const displayCompanyName = parsed?.companyName.value ?? job.companyName ?? "会社名不明";
+              const displayTitle = parsed?.title.value ?? job.title ?? "職種不明";
+              const warnings = parsed?.warnings.value ?? [];
+              const summary =
+                latest == null
+                  ? "まだランク付け前です。必要になったときに整えれば十分です。"
+                  : warnings.length > 0
+                    ? "気になる点があれば、詳細で根拠文だけ見返せます。"
+                    : "今の時点では、大きな引っかかりなく見返せる状態です。";
 
-            return (
-              <article key={job.id} className="panel">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="min-w-0">
-                    <p className="text-lg font-semibold text-slate-950">{displayCompanyName}</p>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">{displayTitle}</p>
-                    <p className="mt-2 text-xs text-slate-500">選考ステータス: {statusLabel[job.selectionStatus] ?? "未設定"}</p>
-                  </div>
+              return (
+                <article key={job.id} className="panel">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-lg font-semibold text-slate-950">{displayCompanyName}</p>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">{displayTitle}</p>
+                      <p className="mt-2 text-xs text-slate-500">選考ステータス: {statusLabel[job.selectionStatus] ?? "未設定"}</p>
+                    </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <Link href={`/jobs/${job.id}`} className="button-secondary">
                       詳細
@@ -281,12 +312,17 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
 
                 {latest ? (
                   <>
-                    <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1.2fr)_repeat(4,minmax(0,1fr))]">
                       {renderRankBadge("総合", latest.totalRank, formatRankDetail("総合", parsed))}
                       {renderRankBadge("固定残業", latest.salaryRank, formatRankDetail("固定残業", parsed))}
                       {renderRankBadge("年間休日", latest.holidayRank, formatRankDetail("年間休日", parsed))}
                       {renderRankBadge("休日制度", latest.holidayTypeRank, formatRankDetail("休日制度", parsed))}
                       {renderRankBadge("福利厚生", latest.benefitRank, formatRankDetail("福利厚生", parsed))}
+                    </div>
+
+                    <div className="mt-4 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4">
+                      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">ひとこと</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">{summary}</p>
                     </div>
 
                     {warnings.length > 0 ? (
@@ -300,7 +336,9 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
                     ) : null}
                   </>
                 ) : (
-                  <p className="mt-5 text-sm text-slate-500">解析結果はまだありません。</p>
+                  <div className="mt-5 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4">
+                    <p className="text-sm text-slate-500">{summary}</p>
+                  </div>
                 )}
               </article>
             );

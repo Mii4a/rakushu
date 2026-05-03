@@ -51,21 +51,40 @@ export default async function CriteriaPage({
   return (
     <section className="page-stack">
       <div className="page-hero">
-        <p className="eyebrow">Public criteria</p>
-        <h1 className="page-title">公開された就活判断基準を探す</h1>
-        <p className="page-copy">
-          人気度は閲覧だけでなく、保存・複製・利用を重めに集計します。Starterは閲覧と一部保存・コピー、Plusは編集、Proは公開と統計確認まで利用できます。
-        </p>
+        <div className="space-y-4">
+          <p className="eyebrow">Public criteria</p>
+          <h1 className="page-title">まずは公開基準を借りて、判断軸をそろえる</h1>
+          <p className="page-copy">
+            どんな求人を残すか迷うときは、公開された基準をそのまま使えます。気になる基準を保存またはコピーして、自分のランク付けと求人整理につなげます。
+          </p>
+        </div>
+        <div className="mt-6 grid gap-3 md:grid-cols-3">
+          <div className="panel-muted">
+            <p className="metric-label">Step 1</p>
+            <p className="mt-2 text-sm font-medium text-slate-900">公開基準を探す</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">人気順やカテゴリから、今の自分に近い判断軸を見つけます。</p>
+          </div>
+          <div className="panel-muted">
+            <p className="metric-label">Step 2</p>
+            <p className="mt-2 text-sm font-medium text-slate-900">保存・コピーする</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">そのまま使うなら保存、調整したいならコピーして自分用にします。</p>
+          </div>
+          <div className="panel-muted">
+            <p className="metric-label">Step 3</p>
+            <p className="mt-2 text-sm font-medium text-slate-900">求人整理に使う</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">基準が決まると、残したい求人と見送る求人の判断がぶれにくくなります。</p>
+          </div>
+        </div>
       </div>
 
       {!criteriaLimits.canBrowsePublic ? (
         <div className="panel">
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
-          みんなの基準はStarterプラン以上で利用できます。
-          <Link href="/pricing" className="ml-2 underline">
-            料金プランを見る
-          </Link>
-        </div>
+            公開基準の閲覧はStarterプラン以上で利用できます。
+            <Link href="/pricing" className="ml-2 underline">
+              料金プランを見る
+            </Link>
+          </div>
         </div>
       ) : (
         <>
@@ -97,8 +116,8 @@ export default async function CriteriaPage({
           {templates.length === 0 ? (
             <div className="panel">
               <div className="panel-muted text-sm text-slate-600">
-              条件に合う公開基準はまだありません。Proユーザーが公開するとここに表示されます。
-            </div>
+                条件に合う公開基準はまだありません。別のカテゴリで探すか、自分で基準を作って使い始められます。
+              </div>
             </div>
           ) : (
             <ul className="grid gap-4 md:grid-cols-2">
@@ -131,7 +150,7 @@ export default async function CriteriaPage({
                       <div className="metric-tile p-3 text-center">複製 {template.cloneCount}</div>
                       <div className="metric-tile p-3 text-center">利用 {template.useCount}</div>
                     </div>
-                    <div className="mt-4 flex gap-2">
+                    <div className="mt-4 flex flex-wrap gap-2">
                       <form action={savePublicCriteriaAction.bind(null, template.id)}>
                         <button type="submit" className="button-secondary">
                           <Bookmark className="size-4" />
@@ -141,9 +160,12 @@ export default async function CriteriaPage({
                       <form action={clonePublicCriteriaAction.bind(null, template.id)}>
                         <button type="submit" className="button-primary">
                           <Copy className="size-4" />
-                          コピー
+                          コピーして使う
                         </button>
                       </form>
+                      <Link href="/jobs/new" className="button-secondary">
+                        この基準でランク付け
+                      </Link>
                       <Link href={`/criteria/${template.id}`} className="button-secondary ml-auto">
                         詳細
                         <ArrowRight className="size-4" />

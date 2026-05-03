@@ -2,23 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BriefcaseBusiness, CreditCard, LayoutDashboard, Layers3, Search } from "lucide-react";
+import { BriefcaseBusiness, CreditCard, FileText, LayoutDashboard, Layers3, Search } from "lucide-react";
 
 const navItems = [
   {
     href: "/dashboard",
-    label: "ダッシュボード",
+    label: "ホーム",
     icon: LayoutDashboard
   },
   {
-    href: "/jobs",
-    label: "求人管理",
-    icon: BriefcaseBusiness
+    href: "/criteria",
+    label: "判断基準",
+    icon: Layers3
   },
   {
-    href: "/criteria",
-    label: "みんなの基準",
-    icon: Layers3
+    href: "/jobs",
+    label: "求人整理",
+    icon: BriefcaseBusiness
   },
   {
     href: "/pricing",
@@ -26,8 +26,13 @@ const navItems = [
     icon: CreditCard
   },
   {
+    href: "/resume",
+    label: "履歴書",
+    icon: FileText
+  },
+  {
     href: "/jobs/new",
-    label: "新規解析",
+    label: "ランク付け",
     icon: Search
   }
 ];

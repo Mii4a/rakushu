@@ -27,7 +27,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-slate-950">らくしゅう</p>
-                  <p className="text-xs text-slate-500">Job signal workspace</p>
+                  <p className="text-xs text-slate-500">求人を見極めて、就活を整える</p>
                 </div>
               </Link>
 
@@ -50,7 +50,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <AppNavLinks />
                 <p className="hidden text-xs text-slate-500 lg:block">
-                  求人解析、判断基準、課金設定を同じ導線で扱えます。
+                  ランク付けから求人整理まで、同じ流れで進められます。
                 </p>
               </div>
             ) : null}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useDeferredValue, useState } from "react";
-import { ArrowRight, CheckCircle2, ClipboardList, ScanSearch, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, ClipboardList, Sparkles } from "lucide-react";
 
 import { DEFAULT_RANK_SETTINGS, parseJobText, scoreParsedJob } from "@/lib/analysis";
 
@@ -186,55 +186,55 @@ export function HomeDemo() {
 
   return (
     <section className="page-stack">
-      <div className="page-hero page-hero-split overflow-hidden">
+      <div className="page-hero page-hero-split overflow-hidden border-[#dfe3eb] bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] shadow-[0_16px_40px_-28px_rgba(31,41,55,0.22)]">
         <div className="space-y-6">
           <div className="space-y-4">
-            <p className="eyebrow">
+            <p className="inline-flex items-center gap-2 rounded-full bg-[#e8f0fe] px-3 py-1 text-xs font-medium tracking-[0.08em] text-[#1967d2]">
               <Sparkles className="size-4" />
-              求人票の温度感まで見える解析ワークスペース
+              求人をランクで見極める就活ワークスペース
             </p>
             <div className="space-y-3">
-              <h1 className="page-title text-balance">らくしゅう</h1>
-              <p className="page-copy">
-                求人本文を貼るだけで、固定残業、休日、福利厚生、注意ワードを同じ視点で整理します。保存、比較、基準の共有までを一本の画面体験にまとめた就活向けワークスペースです。
+              <h1 className="page-title text-balance">求人をランク付けして、そのまま就活の整理まで進める</h1>
+              <p className="max-w-3xl text-base leading-8 text-slate-600">
+                まずは求人票を貼って、固定残業や休日、福利厚生を自分の基準でランク付け。よかった求人だけを保存して、あとから応募状況まで追えるようにします。
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap gap-3">
             <Link href="/login" className="button-primary">
-              ログインして使う
+              ランク付けを試す
               <ArrowRight className="size-4" />
             </Link>
-            <Link href="/pricing" className="button-secondary">
-              料金を見る
+            <Link href="/criteria" className="button-secondary">
+              基準の仕組みを見る
             </Link>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="panel-muted">
-              <ScanSearch className="size-5 text-rakushu-600" />
-              <p className="mt-3 text-sm font-medium text-slate-900">抽出と要点整理</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">会社名、職種、給与、休日制度、福利厚生を構造化します。</p>
+            <div className="rounded-3xl border border-slate-200/80 bg-white p-4 shadow-[0_12px_28px_-24px_rgba(15,23,42,0.22)]">
+              <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Step 1</p>
+              <p className="mt-2 text-sm font-medium text-slate-900">求人をランク付け</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">求人票を貼ると、重要な観点ごとに評価が出ます。</p>
             </div>
-            <div className="panel-muted">
-              <ShieldCheck className="size-5 text-emerald-600" />
-              <p className="mt-3 text-sm font-medium text-slate-900">警告ワードの可視化</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">曖昧な訴求や誇張の兆候をまとめて見返せます。</p>
+            <div className="rounded-3xl border border-slate-200/80 bg-white p-4 shadow-[0_12px_28px_-24px_rgba(15,23,42,0.22)]">
+              <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Step 2</p>
+              <p className="mt-2 text-sm font-medium text-slate-900">基準を作る・借りる</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">自分用の基準でも、公開基準でも判断軸をそろえられます。</p>
             </div>
-            <div className="panel-muted">
-              <ClipboardList className="size-5 text-amber-600" />
-              <p className="mt-3 text-sm font-medium text-slate-900">判断基準の持ち運び</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">自分用のランク閾値や公開基準を基に見極めを統一できます。</p>
+            <div className="rounded-3xl border border-slate-200/80 bg-white p-4 shadow-[0_12px_28px_-24px_rgba(15,23,42,0.22)]">
+              <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Step 3</p>
+              <p className="mt-2 text-sm font-medium text-slate-900">良い求人だけ保存</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">保存した求人は、一覧と応募状況でそのまま管理できます。</p>
             </div>
           </div>
         </div>
 
-        <div className="panel bg-slate-950 text-white shadow-[0_32px_80px_-36px_rgba(15,23,42,0.8)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rakushu-200">Live preview</p>
+        <div className="rounded-[28px] bg-[#1f1f1f] p-6 text-white shadow-[0_28px_70px_-38px_rgba(15,23,42,0.82)]">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#a8c7fa]">What You Get</p>
           <div className="mt-5 space-y-4">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p className="text-sm text-slate-300">入力から数秒で、求人票の輪郭が揃います。</p>
+              <p className="text-sm text-slate-300">最初に見るのは、求人の総合ランクと注意点です。</p>
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <div className="rounded-xl bg-white/8 p-3">
                   <p className="text-[11px] uppercase tracking-[0.14em] text-slate-400">総合ランク</p>
@@ -247,7 +247,7 @@ export function HomeDemo() {
               </div>
             </div>
             <div className="space-y-3">
-              {["固定残業と年間休日を同じ基準で比較", "休日制度と福利厚生を別ランクで表示", "保存後は一覧と詳細で同じ見方を維持"].map((line) => (
+              {["ランク基準を自分用に調整できる", "公開基準を見て判断軸をそろえられる", "保存した求人はそのまま応募管理へつながる"].map((line) => (
                 <div key={line} className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-3">
                   <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-400" />
                   <p className="text-sm leading-6 text-slate-200">{line}</p>
@@ -258,12 +258,12 @@ export function HomeDemo() {
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(22rem,0.85fr)]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(22rem,0.9fr)]">
         <div className="panel">
           <div className="section-heading">
             <div className="min-w-0">
-              <h2 className="section-title">解析デモ</h2>
-              <p className="section-copy">求人文を貼ると、右側のランクと抽出値がリアルタイムで更新されます。</p>
+              <h2 className="section-title">1. まずランク付けを試す</h2>
+              <p className="section-copy">求人文を貼ると、右側に総合ランクと各観点の評価が出ます。</p>
             </div>
             <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
               <button
@@ -296,8 +296,8 @@ export function HomeDemo() {
           <div className="panel">
             <div className="section-heading">
               <div>
-                <h2 className="section-title">ランク</h2>
-                <p className="section-copy">抽出値に基づいて各観点を独立評価します。</p>
+                <h2 className="section-title">2. ランク結果を見る</h2>
+                <p className="section-copy">まずは総合ランクを見て、そのあと必要な項目だけ深掘りできます。</p>
               </div>
             </div>
             <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -310,7 +310,8 @@ export function HomeDemo() {
           </div>
 
           <div className="panel">
-            <h2 className="section-title">抽出値</h2>
+            <h2 className="section-title">3. 抽出値を見る</h2>
+            <p className="section-copy mt-2">ランクの根拠になる情報を、その場で確認できます。</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <InfoCard label="会社名" value={parsed.companyName.value ?? "不明"} />
               <InfoCard label="職種" value={parsed.title.value ?? "不明"} />
@@ -331,7 +332,7 @@ export function HomeDemo() {
           </div>
 
           <div className="panel">
-            <h2 className="section-title">ランク基準</h2>
+            <h2 className="section-title">4. 基準をそろえる</h2>
             <p className="section-copy mt-2">初期設定では以下の閾値で評価します。ログイン後はプランに応じて自分用基準に変更できます。</p>
             <div className="mt-4 grid gap-3">
               <CriteriaCard
@@ -371,6 +372,24 @@ export function HomeDemo() {
               />
             </div>
           </div>
+
+          <div className="panel border-[#d2e3fc] bg-[#eef4ff]">
+            <div className="flex items-start gap-3">
+              <ClipboardList className="mt-1 size-5 shrink-0 text-[#1967d2]" />
+              <div>
+                <h2 className="section-title text-[#174ea6]">5. 良い求人だけ保存して管理する</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-700">
+                  らくしゅうの価値は、ランク付けで終わらないことです。残したい求人だけ保存しておくと、一覧で見返しながら応募状況や次に見る予定まで追えるようになります。
+                </p>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <span className="soft-pill">気になる求人だけ残す</span>
+                  <span className="soft-pill">応募状況を記録する</span>
+                  <span className="soft-pill">次の確認日を置いておく</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     </section>

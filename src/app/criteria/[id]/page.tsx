@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Bookmark, Copy, Gauge, PlayCircle } from "lucide-react";
+import { ArrowRight, Bookmark, Copy, Gauge, PlayCircle } from "lucide-react";
 
 import { clonePublicCriteriaAction, recordCriteriaUseAction, savePublicCriteriaAction } from "@/actions/criteria-actions";
 import { requireUser } from "@/lib/auth/require-user";
@@ -63,11 +64,29 @@ export default async function CriteriaDetailPage({
           ))}
         </div>
 
+        <div className="mt-6 grid gap-3 md:grid-cols-3">
+          <div className="panel-muted">
+            <p className="metric-label">Step 1</p>
+            <p className="mt-2 text-sm font-medium text-slate-900">この基準を読む</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">固定残業や年間休日の感度が、今の自分に合うかを先に確認します。</p>
+          </div>
+          <div className="panel-muted">
+            <p className="metric-label">Step 2</p>
+            <p className="mt-2 text-sm font-medium text-slate-900">保存・コピーする</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">そのまま残すか、自分用にコピーして基準の土台にします。</p>
+          </div>
+          <div className="panel-muted">
+            <p className="metric-label">Step 3</p>
+            <p className="mt-2 text-sm font-medium text-slate-900">この基準でランク付けする</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">判断軸が決まったら、求人を追加して残すかどうかを見極めます。</p>
+          </div>
+        </div>
+
         <div className="mt-6 flex flex-wrap gap-2">
           <form action={savePublicCriteriaAction.bind(null, template.id)}>
             <button type="submit" disabled={!limits.canSaveTemplates} className="button-secondary">
               <Bookmark className="size-4" />
-              お気に入り保存
+              保存する
             </button>
           </form>
           <form action={clonePublicCriteriaAction.bind(null, template.id)}>
@@ -79,9 +98,13 @@ export default async function CriteriaDetailPage({
           <form action={recordCriteriaUseAction.bind(null, template.id)}>
             <button type="submit" className="button-accent">
               <PlayCircle className="size-4" />
-              この基準を利用
+              利用を記録
             </button>
           </form>
+          <Link href="/jobs/new" className="button-secondary">
+            この基準でランク付け
+            <ArrowRight className="size-4" />
+          </Link>
         </div>
       </article>
 
@@ -89,7 +112,7 @@ export default async function CriteriaDetailPage({
         <div className="section-heading">
           <div>
             <h2 className="section-title">基準項目</h2>
-            <p className="section-copy">このテンプレートが採用している閾値です。利用前に固定残業と年間休日の感度を確認できます。</p>
+            <p className="section-copy">まずはランクの付き方を確認して、この基準で残したい求人が選べそうかを見ます。</p>
           </div>
           <Gauge className="size-5 text-rakushu-600" />
         </div>
@@ -106,6 +129,26 @@ export default async function CriteriaDetailPage({
               S≥{settings.annualHolidays.sMinDays} / A≥{settings.annualHolidays.aMinDays} / B≥{settings.annualHolidays.bMinDays} / C≥{settings.annualHolidays.cMinDays} / D≥
               {settings.annualHolidays.dMinDays} 日
             </p>
+          </div>
+          <div className="metric-tile">
+            <h3 className="text-sm font-medium text-slate-900">休日制度・福利厚生</h3>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              完全週休2日制は高め、週休2日制は中間として扱います。福利厚生は項目数に住宅手当や社宅制度を加点して見ます。
+            </p>
+          </div>
+          <div className="metric-tile md:col-span-2">
+            <h3 className="text-sm font-medium text-slate-900">この基準の使いどころ</h3>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              気になる求人を片っ端から保存する前に、この基準で先にランク付けしておくと、残す求人の判断がぶれにくくなります。保存したあとは求人整理ページで応募状況や次に見る予定を追えます。
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link href="/jobs/new" className="button-primary">
+                求人をランク付けする
+              </Link>
+              <Link href="/jobs" className="button-secondary">
+                求人整理を見る
+              </Link>
+            </div>
           </div>
         </div>
       </article>

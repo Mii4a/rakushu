@@ -151,6 +151,6 @@ export const PLAN_MARKETING: Record<PaidPlan, {
     priceYen: 2980,
     campaignPriceYen: getDiscountedPriceYen(2980, DEFAULT_CAMPAIGN_DISCOUNT.percentOff),
     audience: "高頻度利用者、ヘビーユーザー",
-    uses: ["多数求人の深い分析補助", "自作基準の公開", "公開した基準の利用統計確認", "将来の高度分析機能"]
+    uses: ["多数求人の深い分析補助", "履歴書下書き作成", "自作基準の公開", "公開した基準の利用統計確認", "将来の高度分析機能"]
   }
 };

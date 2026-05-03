@@ -2,16 +2,9 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "rakushu",
   "main": ".open-next/worker.js",
-  "routes": [
-    {
-      "pattern": "app.rakushu.com",
-      "zone_name": "rakushu.com",
-      "custom_domain": true
-    }
-  ],
   "vars": {
-    "NEXT_PUBLIC_APP_URL": "https://app.rakushu.com",
-    "BETTER_AUTH_URL": "https://app.rakushu.com",
+    "NEXT_PUBLIC_APP_URL": "https://rakushu.mii4a.workers.dev",
+    "BETTER_AUTH_URL": "https://rakushu.mii4a.workers.dev",
     "STRIPE_ALLOW_PROMOTION_CODES": "true",
     "OPENAI_MAIN_MODEL": "gpt-4.1-mini",
     "OPENAI_LIGHT_MODEL": "gpt-4.1-nano"

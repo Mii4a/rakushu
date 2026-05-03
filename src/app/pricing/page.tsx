@@ -38,25 +38,25 @@ export default async function PricingPage() {
       <div className="page-hero page-hero-split">
         <div>
           <p className="eyebrow">Pricing</p>
-          <h1 className="page-title">AIクレジットと基準機能で選ぶ3プラン</h1>
+          <h1 className="page-title">基準を育てながら、ランク付けの量を増やすための3プラン</h1>
           <p className="page-copy mt-3">
-          初期リリースの主要AI機能は `gpt-4.1-mini`、軽量補助は `gpt-4.1-nano` を設定経由で利用できる設計です。SNS告知などの期間限定半額キャンペーンは Stripe promotion code で自動適用できる構造です。
+            らくしゅうの主役は、判断基準を決めて求人をランク付けし、残した求人だけ整理する流れです。プランはその流れをどこまで広げられるかで選べます。
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
           <div className="metric-tile">
             <CreditCard className="size-5 text-rakushu-600" />
-            <p className="mt-3 text-sm font-medium text-slate-900">月額サブスク</p>
-            <p className="mt-2 text-sm leading-6 text-slate-600">求人管理の量とAIクレジットをプランごとに整理しています。</p>
+            <p className="mt-3 text-sm font-medium text-slate-900">ランク付け量</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">求人をどれだけ追加してランク付けできるかが広がります。</p>
           </div>
           <div className="metric-tile">
             <Layers3 className="size-5 text-emerald-600" />
-            <p className="mt-3 text-sm font-medium text-slate-900">基準機能</p>
-            <p className="mt-2 text-sm leading-6 text-slate-600">公開基準の閲覧、保存、編集、公開の範囲が段階的に広がります。</p>
+            <p className="mt-3 text-sm font-medium text-slate-900">判断基準</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">公開基準の閲覧から、自分用基準の編集・公開まで段階的に広がります。</p>
           </div>
           <div className="metric-tile">
             <Settings2 className="size-5 text-amber-600" />
-            <p className="mt-3 text-sm font-medium text-slate-900">自分用ランク設定</p>
+            <p className="mt-3 text-sm font-medium text-slate-900">自分用の見極め方</p>
             <p className="mt-2 text-sm leading-6 text-slate-600">Plus以上で固定残業と年間休日の閾値を自分用に調整できます。</p>
           </div>
         </div>
@@ -110,10 +110,10 @@ export default async function PricingPage() {
               </div>
 
               <div className="mt-5 rounded-2xl border border-slate-200/80 bg-slate-50/90 p-4 text-xs text-slate-600">
-                <p>基準閲覧: {limits.criteria.canBrowsePublic ? "可" : "不可"}</p>
-                <p>保存・複製: {limits.criteria.canCloneTemplates ? "可" : "不可"}</p>
-                <p>自由編集: {limits.criteria.canEditClonedTemplates ? "可" : "不可"}</p>
-                <p>公開・統計: {limits.criteria.canPublish ? "可" : "不可"}</p>
+                <p>公開基準を読む: {limits.criteria.canBrowsePublic ? "可" : "不可"}</p>
+                <p>保存・コピーして使う: {limits.criteria.canCloneTemplates ? "可" : "不可"}</p>
+                <p>自分用に育てる: {limits.criteria.canEditClonedTemplates ? "可" : "不可"}</p>
+                <p>公開・統計を見る: {limits.criteria.canPublish ? "可" : "不可"}</p>
               </div>
 
               <div className="mt-auto pt-5">
@@ -131,15 +131,15 @@ export default async function PricingPage() {
       </div>
 
       <article className="panel">
-        <h2 className="section-title">基準機能の対応</h2>
+        <h2 className="section-title">判断基準まわりの違い</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           <div className="metric-tile text-sm text-slate-700">
             <p className="font-medium text-slate-900">閲覧</p>
-            <p className="mt-1">Starter以上で、人気順・新着順・カテゴリ別に「みんなの基準」を閲覧できます。</p>
+            <p className="mt-1">Starter以上で、人気順・新着順・カテゴリ別に公開基準を閲覧できます。</p>
           </div>
           <div className="metric-tile text-sm text-slate-700">
             <p className="font-medium text-slate-900">保存・複製</p>
-            <p className="mt-1">Starterはコピー中心、Plus以上はコピー後に自分用として自由編集できます。</p>
+            <p className="mt-1">Starterはコピー中心、Plus以上はコピー後に自分用として育てられます。</p>
           </div>
           <div className="metric-tile text-sm text-slate-700">
             <p className="font-medium text-slate-900">作成・公開</p>
@@ -147,12 +147,12 @@ export default async function PricingPage() {
           </div>
         </div>
         <Link href="/criteria" className="button-secondary mt-4">
-          みんなの基準を見る
+          公開基準を見る
         </Link>
       </article>
 
       <article className="panel">
-        <h2 className="section-title">ランク基準設定</h2>
+        <h2 className="section-title">自分用のランク基準設定</h2>
         <p className="section-copy mt-2">固定残業ランクと年間休日ランクの閾値をユーザー単位で変更できます。自由編集はPlus以上です。</p>
 
         {canEditRankSettings ? (
@@ -221,7 +221,7 @@ export default async function PricingPage() {
       </article>
 
       <article className="panel">
-        <h2 className="section-title">追加クレジットパックの土台</h2>
+        <h2 className="section-title">追加クレジットパック</h2>
         <div className="mt-3 grid gap-3 md:grid-cols-3">
           {CREDIT_PACKS.map((pack) => (
             <div key={pack.credits} className="metric-tile text-sm text-slate-700">
@@ -230,7 +230,7 @@ export default async function PricingPage() {
             </div>
           ))}
         </div>
-        <p className="mt-3 text-xs text-slate-500">初期UIは表示のみです。Stripe one-time payment に接続しやすいよう、価格定義はコード側で分離しています。</p>
+        <p className="mt-3 text-xs text-slate-500">ランク付け量を一時的に増やしたいときのための追加枠です。現在は表示のみです。</p>
       </article>
     </section>
   );

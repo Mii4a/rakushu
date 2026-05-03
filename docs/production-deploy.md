@@ -13,7 +13,7 @@
 - 本番用 Turso データベースが作成済みであること
 - Google OAuth の本番用クライアントが発行済みであること
 - Stripe の本番用 Price / Webhook 設定が済んでいること
-- 本番用ドメインが確定していること
+- 本番公開 URL が確定していること
 - Cloudflare アカウントと Workers 配備権限があること
 - `wrangler login` または CI 用 API Token が準備できていること
 
@@ -28,8 +28,8 @@ cp .env.production.example .env.production
 ```
 
 ```bash
-NEXT_PUBLIC_APP_URL=https://your-domain.com
-BETTER_AUTH_URL=https://your-domain.com
+NEXT_PUBLIC_APP_URL=https://rakushu.mii4a.workers.dev
+BETTER_AUTH_URL=https://rakushu.mii4a.workers.dev
 BETTER_AUTH_SECRET=replace-with-a-new-strong-random-secret
 
 TURSO_DATABASE_URL=libsql://your-production-db.turso.io
@@ -105,9 +105,9 @@ npm run cf:secrets:prod
 Google Cloud Console で以下を登録します。
 
 - Authorized JavaScript origins:
-  - `https://your-domain.com`
+  - `https://rakushu.mii4a.workers.dev`
 - Authorized redirect URIs:
-  - `https://your-domain.com/api/auth/callback/google`
+  - `https://rakushu.mii4a.workers.dev/api/auth/callback/google`
 
 このアプリの Better Auth は `BETTER_AUTH_URL` を `baseURL` として使います。
 
@@ -120,7 +120,7 @@ Stripe 側で以下を設定します。
   - `Plus`
   - `Pro`
 - Webhook endpoint:
-  - `https://your-domain.com/api/stripe/webhook`
+  - `https://rakushu.mii4a.workers.dev/api/stripe/webhook`
 
 受信イベント例:
 
@@ -188,7 +188,7 @@ npm run db:migrate:prod
    ```bash
    npm run deploy
    ```
-6. 必要なら custom domain を Worker に割り当てる
+6. `workers.dev` URL で疎通確認する
 
 CI/CD を使う場合も、実行順は `db:migrate:prod -> npm run deploy` に固定します。
 
@@ -218,7 +218,7 @@ DB 側でも最低限以下を確認します。
 Cloudflare 側でも確認します。
 
 - Worker の本番デプロイが成功している
-- カスタムドメインが正しく紐付いている
+- `rakushu.mii4a.workers.dev` でアクセスできる
 - 必要な secret が揃っている
 - ログ上で auth / stripe webhook の失敗が出ていない
 

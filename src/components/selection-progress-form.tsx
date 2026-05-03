@@ -39,17 +39,17 @@ export function SelectionProgressForm({ jobId, selectionStatus, nextActionDate, 
         <label className="space-y-1 text-sm">
           <span className="text-slate-700">ステータス</span>
           <select name="selectionStatus" defaultValue={selectionStatus} className="w-full rounded-lg border border-slate-300 px-3 py-2">
-            <option value="saved">検討中</option>
+            <option value="saved">整理中</option>
             <option value="applied">応募済み</option>
-            <option value="screening">書類選考中</option>
-            <option value="interview">面接中</option>
+            <option value="screening">選考中</option>
+            <option value="interview">面接予定</option>
             <option value="offer">内定</option>
             <option value="rejected">見送り</option>
           </select>
         </label>
 
         <label className="space-y-1 text-sm">
-          <span className="text-slate-700">次アクション日</span>
+          <span className="text-slate-700">次に見る予定</span>
           <input type="date" name="nextActionDate" defaultValue={nextActionDate} className="w-full rounded-lg border border-slate-300 px-3 py-2" />
         </label>
       </div>
@@ -60,7 +60,7 @@ export function SelectionProgressForm({ jobId, selectionStatus, nextActionDate, 
           name="selectionMemo"
           rows={4}
           defaultValue={selectionMemo}
-          placeholder="次回面接で確認したい内容など"
+          placeholder="次に見るときのメモや、残しておきたい判断材料"
           className="w-full rounded-lg border border-slate-300 px-3 py-2"
         />
       </label>

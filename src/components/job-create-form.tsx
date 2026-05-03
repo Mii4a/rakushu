@@ -26,8 +26,8 @@ export function JobCreateForm() {
       <form action={formAction} className="panel space-y-5">
         <div className="section-heading">
           <div>
-            <h2 className="section-title">入力フォーム</h2>
-            <p className="section-copy">情報元のメモも残せます。あとから詳細画面で原文と抽出根拠を見返せます。</p>
+            <h2 className="section-title">求人本文を貼る</h2>
+            <p className="section-copy">まずは本文だけで十分です。情報元のメモも残せて、あとから詳細画面で原文と抽出根拠を見返せます。</p>
           </div>
         </div>
 
@@ -67,14 +67,16 @@ export function JobCreateForm() {
         </div>
 
         <div className="panel-muted">
-          <p className="text-sm leading-6 text-slate-600">保存時にルールベース解析を実行し、解析結果は履歴テーブルへ保存されます。再解析した場合も比較しやすい構造です。</p>
+          <p className="text-sm leading-6 text-slate-600">
+            保存時にルールベース解析を実行し、その場でランク結果を作ります。残した求人はあとから一覧や詳細で静かに見返せます。
+          </p>
         </div>
 
         {state.status === "error" && state.code !== "analysis_limit" ? <p className="text-sm text-rose-700">{state.message}</p> : null}
 
         <div className="flex flex-wrap items-center gap-3">
           <button type="submit" disabled={isPending} className="button-primary">
-            {isPending ? "保存中..." : "保存して解析する"}
+            {isPending ? "保存中..." : "ランク付けして保存する"}
           </button>
           <p className="text-xs text-slate-500">解析にはプランに応じた利用上限があります。</p>
         </div>

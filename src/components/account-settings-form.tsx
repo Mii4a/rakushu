@@ -58,8 +58,8 @@ export function AccountSettingsForm({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="eyebrow">Account settings</p>
-            <h1 className="page-title mt-2">名前を変更</h1>
-            <p className="page-copy mt-3">メールアドレスとアカウント情報は読み取り専用です。表示名だけを安全に更新できます。</p>
+            <h1 className="page-title mt-2">アカウント設定</h1>
+            <p className="page-copy mt-3">就活の判断や求人整理には影響しない、プロフィール情報の設定ページです。表示名だけを安全に更新できます。</p>
           </div>
           {image ? (
             // Avatar preview is read-only in this MVP.
