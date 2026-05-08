@@ -16,7 +16,7 @@ function SubmitButton() {
 }
 
 function inputClassName(fullWidth?: boolean) {
-  return `${fullWidth ? "w-full" : ""} rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm outline-none transition focus:border-rakushu-400 focus:ring-2 focus:ring-rakushu-100`;
+  return `${fullWidth ? "w-full" : ""} rounded-2xl border border-rakumo-border bg-white px-3 py-2 text-sm text-rakumo-ink shadow-sm outline-none transition focus:border-rakumo-mint focus:ring-2 focus:ring-rakumo-mint/25`;
 }
 
 export function ResumeGeneratorForm() {
@@ -42,9 +42,9 @@ export function ResumeGeneratorForm() {
       <SubmitButton />
 
       {state.result ? (
-        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-          <p className="mb-2 text-sm font-medium text-slate-900">生成結果（下書き）</p>
-          <pre className="whitespace-pre-wrap text-sm leading-6 text-slate-700">{state.result}</pre>
+        <div className="rounded-3xl border border-rakumo-border bg-rakumo-sand/70 p-4">
+          <p className="mb-2 text-sm font-medium text-rakumo-ink">生成結果（下書き）</p>
+          <pre className="whitespace-pre-wrap text-sm leading-6 text-rakumo-ink/80">{state.result}</pre>
         </div>
       ) : null}
     </form>

@@ -12,9 +12,10 @@ const initialState: JobActionState = {
 
 type RerunAnalysisButtonProps = {
   jobId: string;
+  buttonClassName?: string;
 };
 
-export function RerunAnalysisButton({ jobId }: RerunAnalysisButtonProps) {
+export function RerunAnalysisButton({ jobId, buttonClassName }: RerunAnalysisButtonProps) {
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(true);
   const [state, formAction, isPending] = useActionState(rerunAnalysisAction.bind(null, jobId), initialState);
@@ -36,7 +37,7 @@ export function RerunAnalysisButton({ jobId }: RerunAnalysisButtonProps) {
   return (
     <>
       <form action={formAction}>
-        <button type="submit" disabled={isPending} className="button-secondary">
+        <button type="submit" disabled={isPending} className={buttonClassName ?? "button-secondary"}>
           {isPending ? "再解析中..." : "再解析"}
         </button>
       </form>

@@ -203,7 +203,7 @@ export async function createJobAction(_: JobActionState | undefined, formData: F
   await incrementAnalysisCount(user.id, PLAN_LIMITS[plan].analysisPeriod === "week" ? getWeekKey() : getMonthKey());
 
   revalidatePath("/jobs");
-  redirect(`/jobs/${jobId}`);
+  redirect(`/jobs?selected=${jobId}`);
 }
 
 export async function rerunAnalysisAction(jobId: string, _: JobActionState | undefined, __: FormData): Promise<JobActionState> {
@@ -285,6 +285,7 @@ export async function rerunAnalysisAction(jobId: string, _: JobActionState | und
   const plan = await getUserPlan(user.id);
   await incrementAnalysisCount(user.id, PLAN_LIMITS[plan].analysisPeriod === "week" ? getWeekKey() : getMonthKey());
 
+  revalidatePath("/jobs");
   revalidatePath(`/jobs/${jobId}`);
   return {
     status: "success"
@@ -331,7 +332,7 @@ export async function updateJobAction(formData: FormData) {
   revalidatePath("/jobs");
   revalidatePath(`/jobs/${jobId}`);
   revalidatePath(`/jobs/${jobId}/edit`);
-  redirect(`/jobs/${jobId}`);
+  redirect(`/jobs?selected=${jobId}`);
 }
 
 export async function deleteJobAction(formData: FormData) {
@@ -409,5 +410,5 @@ export async function updateSelectionProgressAction(_: ActionState, formData: Fo
 
   revalidatePath("/jobs");
   revalidatePath(`/jobs/${jobId}`);
-  redirect(`/jobs/${jobId}`);
+  redirect(`/jobs?selected=${jobId}`);
 }

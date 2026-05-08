@@ -45,19 +45,19 @@ export default async function PricingPage() {
         </div>
         <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
           <div className="metric-tile">
-            <CreditCard className="size-5 text-rakushu-600" />
-            <p className="mt-3 text-sm font-medium text-slate-900">ランク付け量</p>
-            <p className="mt-2 text-sm leading-6 text-slate-600">求人をどれだけ追加してランク付けできるかが広がります。</p>
+            <CreditCard className="size-5 text-rakumo-mint" />
+            <p className="mt-3 text-sm font-medium text-rakumo-ink">ランク付け量</p>
+            <p className="mt-2 text-sm leading-6 text-rakumo-ink/75">求人をどれだけ追加してランク付けできるかが広がります。</p>
           </div>
           <div className="metric-tile">
-            <Layers3 className="size-5 text-emerald-600" />
-            <p className="mt-3 text-sm font-medium text-slate-900">判断基準</p>
-            <p className="mt-2 text-sm leading-6 text-slate-600">公開基準の閲覧から、自分用基準の編集・公開まで段階的に広がります。</p>
+            <Layers3 className="size-5 text-rakumo-lavender" />
+            <p className="mt-3 text-sm font-medium text-rakumo-ink">判断基準</p>
+            <p className="mt-2 text-sm leading-6 text-rakumo-ink/75">公開基準の閲覧から、自分用基準の編集・公開まで段階的に広がります。</p>
           </div>
           <div className="metric-tile">
-            <Settings2 className="size-5 text-amber-600" />
-            <p className="mt-3 text-sm font-medium text-slate-900">自分用の見極め方</p>
-            <p className="mt-2 text-sm leading-6 text-slate-600">Plus以上で固定残業と年間休日の閾値を自分用に調整できます。</p>
+            <Settings2 className="size-5 text-rakumo-warning" />
+            <p className="mt-3 text-sm font-medium text-rakumo-ink">自分用の見極め方</p>
+            <p className="mt-2 text-sm leading-6 text-rakumo-ink/75">Plus以上で固定残業と年間休日の閾値を自分用に調整できます。</p>
           </div>
         </div>
       </div>
@@ -75,7 +75,7 @@ export default async function PricingPage() {
                   <h2 className="text-xl font-semibold text-slate-900">{marketing.name}</h2>
                   <p className="mt-1 text-xs text-slate-500">{marketing.audience}</p>
                 </div>
-                {paidPlan === "plus" ? <span className="soft-pill text-rakushu-700">標準</span> : null}
+                {paidPlan === "plus" ? <span className="soft-pill text-rakumo-ink">標準</span> : null}
               </div>
 
               <div className="mt-5">

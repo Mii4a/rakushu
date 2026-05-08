@@ -42,7 +42,7 @@ export function AccountMenu({ image, name }: AccountMenuProps) {
         aria-label="アカウントメニュー"
         aria-expanded={isOpen}
         onClick={() => setIsOpen((current) => !current)}
-        className="flex size-10 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white/90 text-slate-700 shadow-sm hover:border-slate-300 hover:bg-white hover:text-rakushu-700"
+        className="flex size-10 items-center justify-center overflow-hidden rounded-full border border-rakumo-border bg-white/90 text-rakumo-ink shadow-sm hover:border-rakumo-mint/70 hover:bg-rakumo-cream hover:text-rakumo-ink"
       >
         {image ? (
           <img
@@ -57,18 +57,18 @@ export function AccountMenu({ image, name }: AccountMenuProps) {
       </button>
 
       {isOpen ? (
-        <div className="absolute right-0 top-12 z-50 w-48 rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_24px_40px_-28px_rgba(15,23,42,0.45)]">
+        <div className="absolute right-0 top-12 z-50 w-48 rounded-2xl border border-rakumo-border bg-white p-2 shadow-[0_24px_40px_-28px_rgba(45,58,74,0.35)]">
           <Link
             href="/settings/account"
             onClick={() => setIsOpen(false)}
-            className="block rounded-xl px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100 hover:text-rakushu-700"
+            className="block rounded-xl px-3 py-2 text-sm text-rakumo-ink transition hover:bg-rakumo-cream hover:text-rakumo-ink"
           >
             アカウント設定
           </Link>
           <button
             type="button"
             onClick={handleLogout}
-            className="block w-full rounded-xl px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-100 hover:text-rakushu-700"
+            className="block w-full rounded-xl px-3 py-2 text-left text-sm text-rakumo-ink transition hover:bg-rakumo-cream hover:text-rakumo-ink"
           >
             ログアウト
           </button>

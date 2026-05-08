@@ -1,24 +1,38 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useActionState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  Bookmark,
+  BriefcaseBusiness,
+  Check,
+  ChevronRight,
+  CircleUserRound,
+  FilePenLine,
+  Home,
+  Info,
+  Mail,
+  Plane,
+  Scale,
+  Settings,
+  Sparkles
+} from "lucide-react";
 
 import { updateAccountNameAction, type AccountSettingsActionState } from "@/actions/account-settings-actions";
 
 type AccountSettingsFormProps = {
   name: string;
   email: string;
-  emailVerified: boolean;
   image: string | null;
-  createdAt: string;
-  updatedAt: string;
+  planLabel: string;
+  planLevel: string;
+  analysisCount: number;
+  analysisMax: number;
+  analysisPeriodLabel: string;
   accounts: Array<{
     id: string;
     providerId: string;
-    accountId: string;
-    createdAt: string;
-    updatedAt: string;
-    scopes: string[];
   }>;
 };
 
@@ -26,25 +40,36 @@ const initialState: AccountSettingsActionState = {
   status: "idle"
 };
 
-function formatListValue(value: string[] | undefined) {
-  if (!value || value.length === 0) {
-    return "なし";
+const mobileNavItems = [
+  { href: "/dashboard", label: "ホーム", icon: Home },
+  { href: "/criteria", label: "ランク付け", icon: BriefcaseBusiness },
+  { href: "/jobs", label: "保存した求人", icon: Bookmark },
+  { href: "/jobs/new", label: "応募", icon: Plane },
+  { href: "/settings", label: "設定", icon: Settings }
+] as const;
+
+function getProviderLabel(providerId: string) {
+  if (providerId === "google") {
+    return "Google";
   }
 
-  return value.join(", ");
+  return providerId;
 }
 
 export function AccountSettingsForm({
   name,
   email,
-  emailVerified,
   image,
-  createdAt,
-  updatedAt,
+  planLabel,
+  planLevel,
+  analysisCount,
+  analysisMax,
+  analysisPeriodLabel,
   accounts
 }: AccountSettingsFormProps) {
   const router = useRouter();
   const [state, formAction, isPending] = useActionState(updateAccountNameAction, initialState);
+  const progressWidth = analysisMax > 0 ? Math.min(100, (analysisCount / analysisMax) * 100) : 0;
 
   useEffect(() => {
     if (state.status === "success") {
@@ -53,100 +78,205 @@ export function AccountSettingsForm({
   }, [router, state.status]);
 
   return (
-    <section className="page-stack">
-      <div className="page-hero">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="eyebrow">Account settings</p>
-            <h1 className="page-title mt-2">アカウント設定</h1>
-            <p className="page-copy mt-3">就活の判断や求人整理には影響しない、プロフィール情報の設定ページです。表示名だけを安全に更新できます。</p>
+    <section className="dashboard-frame">
+      <div className="dashboard-shell">
+        <aside className="dashboard-sidebar">
+          <div className="dashboard-logo-card">
+            <div className="dashboard-logo-mark">
+              <BriefcaseBusiness className="size-7" />
+            </div>
+            <div>
+              <p className="dashboard-logo-title">らくしゅう</p>
+              <p className="dashboard-logo-copy">就活求人管理アプリ</p>
+            </div>
           </div>
-          {image ? (
-            // Avatar preview is read-only in this MVP.
-            <div
-              role="img"
-              aria-label="プロフィール画像"
-              className="h-16 w-16 rounded-full border border-slate-200 bg-center bg-cover shadow-sm"
-              style={{ backgroundImage: `url("${image}")` }}
-            />
-          ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-full border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-500">
-              画像なし
-            </div>
-          )}
-        </div>
 
-        <form action={formAction} className="mt-6 space-y-4">
-          <label className="block space-y-2">
-            <span className="field-label">表示名</span>
-            <input
-              key={name}
-              name="name"
-              defaultValue={name}
-              maxLength={100}
-              className="field-input"
-            />
-          </label>
+          <nav className="dashboard-nav">
+            <Link href="/dashboard" className="dashboard-nav-item">
+              <Home className="size-5" />
+              <span>ダッシュボード</span>
+            </Link>
+            <Link href="/jobs" className="dashboard-nav-item">
+              <BriefcaseBusiness className="size-5" />
+              <span>求人一覧</span>
+            </Link>
+            <Link href="/jobs" className="dashboard-nav-item">
+              <Bookmark className="size-5" />
+              <span>保存した求人</span>
+            </Link>
+            <Link href="/jobs/new" className="dashboard-nav-item">
+              <Plane className="size-5" />
+              <span>応募状況</span>
+            </Link>
+            <Link href="/criteria" className="dashboard-nav-item">
+              <Scale className="size-5" />
+              <span>判断基準</span>
+            </Link>
+            <Link href="/settings" className="dashboard-nav-item dashboard-nav-item-active dashboard-nav-item-muted">
+              <Settings className="size-5" />
+              <span>設定</span>
+            </Link>
+          </nav>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <button type="submit" disabled={isPending} className="button-primary">
-              {isPending ? "保存中..." : "保存"}
-            </button>
-            {state.status !== "idle" ? (
-              <p className={state.status === "error" ? "text-sm text-rose-700" : "text-sm text-emerald-700"}>
-                {state.message}
-              </p>
-            ) : null}
+          <div className="dashboard-sidebar-note">
+            <p className="dashboard-sidebar-note-icon">i</p>
+            <p>表示名だけ更新できます。メールアドレスとサインイン方法は確認専用です。</p>
           </div>
-        </form>
-      </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <article className="panel">
-          <h2 className="section-title">読み取り専用のアカウント情報</h2>
-          <dl className="mt-4 space-y-3 text-sm">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <dt className="text-slate-500">メール</dt>
-              <dd className="font-medium text-slate-900">{email}</dd>
+          <div className="dashboard-profile-card">
+            <div className="dashboard-profile-avatar">{name.slice(0, 1) || "ら"}</div>
+            <div className="min-w-0">
+              <p className="truncate text-base font-semibold text-rakumo-ink">{name}</p>
+              <p className="text-sm text-rakumo-ink/65">プロフィール</p>
             </div>
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <dt className="text-slate-500">メール確認済み</dt>
-              <dd className="font-medium text-slate-900">{emailVerified ? "はい" : "いいえ"}</dd>
-            </div>
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <dt className="text-slate-500">作成日時</dt>
-              <dd className="font-medium text-slate-900">{createdAt}</dd>
-            </div>
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <dt className="text-slate-500">更新日時</dt>
-              <dd className="font-medium text-slate-900">{updatedAt}</dd>
-            </div>
-          </dl>
-        </article>
+            <ChevronRight className="size-4 shrink-0 text-rakumo-ink/45" />
+          </div>
+        </aside>
 
-        <article className="panel">
-          <h2 className="section-title">サインイン連携</h2>
-          <p className="section-copy mt-2">現在このアカウントに紐づく認証プロバイダです。</p>
-          <div className="mt-4 space-y-3">
-            {accounts.length > 0 ? (
-              accounts.map((account) => (
-                <div key={account.id} className="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4 text-sm">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-medium text-slate-900">{account.providerId}</span>
-                    <span className="text-slate-500">{account.accountId}</span>
-                  </div>
-                  <div className="mt-2 grid gap-1 text-xs text-slate-500">
-                    <p>Scopes: {formatListValue(account.scopes)}</p>
-                    <p>作成: {account.createdAt}</p>
-                    <p>更新: {account.updatedAt}</p>
-                  </div>
+        <div className="dashboard-main space-y-5">
+          <div className="dashboard-mobile-top">
+            <div className="dashboard-mobile-brand">
+              <div className="dashboard-logo-mark">
+                <BriefcaseBusiness className="size-6" />
+              </div>
+              <div>
+                <p className="dashboard-logo-title">らくしゅう</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="account-settings-topbar">
+            <div className="account-settings-heading">
+              <h1 className="account-settings-title">アカウント設定</h1>
+              <p className="account-settings-copy">プロフィール情報を確認・更新できます。</p>
+            </div>
+
+            <Link href="/pricing" className="dashboard-plan-card">
+              <div className="dashboard-level-badge">
+                <span className="text-xs font-semibold">Lv.</span>
+                <span className="text-3xl font-bold leading-none">{planLevel.replace("Lv.", "")}</span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-base font-semibold text-rakumo-ink">{planLabel}</p>
+                <p className="mt-1 text-sm text-rakumo-ink/70">{analysisPeriodLabel}の解析使用数</p>
+                <p className="mt-1 text-[2rem] font-black tracking-tight text-[#111111]">
+                  {analysisCount} <span className="text-base font-medium">/ {analysisMax} 件</span>
+                </p>
+                <div className="dashboard-progress mt-2">
+                  <div className="dashboard-progress-bar" style={{ width: `${progressWidth}%` }} />
                 </div>
-              ))
-            ) : (
-              <p className="text-sm text-slate-600">連携アカウントはありません。</p>
-            )}
+              </div>
+              <ChevronRight className="size-5 shrink-0 text-rakumo-ink/45" />
+            </Link>
           </div>
-        </article>
+
+          <article className="account-settings-panel">
+            <div className="account-settings-profile-block">
+              <h2 className="account-settings-section-title">プロフィール画像</h2>
+              <div className="account-settings-profile-row">
+                {image ? (
+                  <div
+                    role="img"
+                    aria-label="プロフィール画像"
+                    className="account-settings-avatar bg-cover bg-center"
+                    style={{ backgroundImage: `url("${image}")` }}
+                  />
+                ) : (
+                  <div className="account-settings-avatar">
+                    <CircleUserRound className="size-14 text-slate-300" />
+                    <span>画像なし</span>
+                  </div>
+                )}
+                <p className="account-settings-profile-copy">プロフィール画像のアップロード・変更機能は未実装です。</p>
+              </div>
+            </div>
+
+            <form action={formAction} className="account-settings-form">
+              <div className="account-settings-input-card">
+                <div className="account-settings-field-title">
+                  <FilePenLine className="size-6 text-[#2ca100]" />
+                  <h2>表示名</h2>
+                </div>
+                <label className="block space-y-3">
+                  <span className="sr-only">表示名</span>
+                  <input key={name} name="name" defaultValue={name} maxLength={50} className="account-settings-input" />
+                </label>
+                <div className="account-settings-note-list">
+                  <p>
+                    <Check className="size-5" />
+                    空欄では保存できません
+                  </p>
+                  <p>
+                    <Check className="size-5" />
+                    50文字以内で入力してください
+                  </p>
+                  <p>保存後、画面が更新されます。</p>
+                </div>
+                {state.status === "error" ? (
+                  <p className="text-sm font-medium text-rose-700">{state.message}</p>
+                ) : null}
+              </div>
+
+              <button type="submit" disabled={isPending} className="account-settings-save-button">
+                <Check className="size-7" />
+                {isPending ? "保存中..." : "保存する"}
+              </button>
+            </form>
+          </article>
+
+          <div className={`account-settings-feedback ${state.status === "error" ? "account-settings-feedback-error" : ""}`}>
+            <Info className="size-6 shrink-0" />
+            <p>{state.status === "success" ? state.message : "表示名はアプリ内表示に使われます。"}</p>
+            <Sparkles className="ml-auto hidden size-5 text-[#f5bf28] sm:block" />
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            <article className="account-settings-subpanel">
+              <div className="account-settings-field-title">
+                <Mail className="size-6 text-[#2ca100]" />
+                <h2>サインイン中のメールアドレス</h2>
+              </div>
+              <dl className="account-settings-data-list">
+                <div>
+                  <dt>メール</dt>
+                  <dd>{email}</dd>
+                </div>
+              </dl>
+            </article>
+
+            <article className="account-settings-subpanel">
+              <div className="account-settings-field-title">
+                <Settings className="size-6 text-[#2ca100]" />
+                <h2>サインイン連携</h2>
+              </div>
+              <div className="mt-4 space-y-3">
+                {accounts.length > 0 ? (
+                  accounts.map((account) => (
+                    <div key={account.id} className="account-settings-account-card">
+                      <p className="font-semibold text-[#222222]">{getProviderLabel(account.providerId)}でサインインしています</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-rakumo-ink/70">利用中のサインイン連携はありません。</p>
+                )}
+              </div>
+            </article>
+          </div>
+
+          <nav className="dashboard-mobile-nav">
+            {mobileNavItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = item.href === "/settings";
+
+              return (
+                <Link key={item.href} href={item.href} className={`dashboard-mobile-nav-item ${isActive ? "dashboard-mobile-nav-item-active" : ""}`}>
+                  <Icon className="size-6" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
       </div>
     </section>
   );

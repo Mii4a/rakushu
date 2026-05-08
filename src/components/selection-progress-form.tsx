@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { updateSelectionProgressAction, type ActionState } from "@/actions/job-actions";
@@ -14,9 +14,9 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-lg bg-rakushu-500 px-4 py-2 text-sm font-medium text-white hover:bg-rakushu-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+      className="inline-flex h-[64px] w-full items-center justify-center rounded-[18px] bg-[linear-gradient(180deg,#20b15f_0%,#129f51_100%)] px-6 text-2xl font-black text-white shadow-[0_22px_36px_-26px_rgba(18,159,81,0.75)] disabled:cursor-not-allowed disabled:opacity-60"
     >
-      {pending ? "保存中..." : "進捗を保存"}
+      {pending ? "保存中..." : "保存"}
     </button>
   );
 }
@@ -30,15 +30,16 @@ type Props = {
 
 export function SelectionProgressForm({ jobId, selectionStatus, nextActionDate, selectionMemo }: Props) {
   const [state, formAction] = useActionState(updateSelectionProgressAction, initialActionState);
+  const [memo, setMemo] = useState(selectionMemo);
 
   return (
-    <form action={formAction} className="mt-4 space-y-3">
+    <form action={formAction} className="space-y-4">
       <input type="hidden" name="jobId" value={jobId} />
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <label className="space-y-1 text-sm">
-          <span className="text-slate-700">ステータス</span>
-          <select name="selectionStatus" defaultValue={selectionStatus} className="w-full rounded-lg border border-slate-300 px-3 py-2">
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px]">
+        <label className="space-y-2 text-sm font-semibold text-rakumo-ink/85">
+          <span>選考ステータス</span>
+          <select name="selectionStatus" defaultValue={selectionStatus} className="field-input h-12">
             <option value="saved">整理中</option>
             <option value="applied">応募済み</option>
             <option value="screening">選考中</option>
@@ -48,26 +49,32 @@ export function SelectionProgressForm({ jobId, selectionStatus, nextActionDate, 
           </select>
         </label>
 
-        <label className="space-y-1 text-sm">
-          <span className="text-slate-700">次に見る予定</span>
-          <input type="date" name="nextActionDate" defaultValue={nextActionDate} className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+        <label className="space-y-2 text-sm font-semibold text-rakumo-ink/85">
+          <span>次のアクション予定日</span>
+          <input type="date" name="nextActionDate" defaultValue={nextActionDate} className="field-input h-12" />
         </label>
       </div>
 
-      <label className="block space-y-1 text-sm">
-        <span className="text-slate-700">メモ</span>
-        <textarea
-          name="selectionMemo"
-          rows={4}
-          defaultValue={selectionMemo}
-          placeholder="次に見るときのメモや、残しておきたい判断材料"
-          className="w-full rounded-lg border border-slate-300 px-3 py-2"
-        />
-      </label>
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_160px] lg:items-end">
+        <label className="block space-y-2 text-sm font-semibold text-rakumo-ink/85">
+          <span>メモ（任意）</span>
+          <textarea
+            name="selectionMemo"
+            rows={3}
+            value={memo}
+            onChange={(event) => setMemo(event.target.value)}
+            placeholder="一次面接通過。次回は現場エンジニアとの技術面接。"
+            className="field-textarea min-h-0"
+          />
+        </label>
+
+        <div className="space-y-3">
+          <p className="text-right text-sm text-rakumo-ink/55">{memo.length} / 2000</p>
+          <SubmitButton />
+        </div>
+      </div>
 
       {state.error ? <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">{state.error}</p> : null}
-
-      <SubmitButton />
     </form>
   );
 }

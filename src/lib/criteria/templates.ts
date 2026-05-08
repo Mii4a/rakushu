@@ -65,6 +65,65 @@ export function defaultCriteriaValues() {
   };
 }
 
+const DEFAULT_PUBLIC_CRITERIA_SOURCE_ID = "system-default-public-criteria-v1";
+
+export async function ensureDefaultPublicCriteria(ownerUserId: string) {
+  const existingDefault = await db.query.criteriaTemplates.findFirst({
+    where: eq(criteriaTemplates.sourceTemplateId, DEFAULT_PUBLIC_CRITERIA_SOURCE_ID)
+  });
+
+  if (existingDefault) {
+    return existingDefault;
+  }
+
+  const publicCount = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(criteriaTemplates)
+    .where(eq(criteriaTemplates.visibility, "public"));
+
+  if ((publicCount[0]?.count ?? 0) > 0) {
+    return null;
+  }
+
+  const now = new Date();
+  const defaultMetrics = {
+    viewCount: 5612,
+    saveCount: 980,
+    cloneCount: 620,
+    useCount: 1125
+  };
+
+  await db.insert(criteriaTemplates).values({
+    id: crypto.randomUUID(),
+    userId: ownerUserId,
+    sourceTemplateId: DEFAULT_PUBLIC_CRITERIA_SOURCE_ID,
+    title: "固定残業・休日重視の働きやすさ基準",
+    description: "ワークライフバランスを重視したい方におすすめの基準です。長く働き続けられる環境かどうかを、固定残業時間と年間休日の2軸で判断します。",
+    category: "work-life",
+    tagsJson: JSON.stringify(["固定残業", "年間休日", "ワークライフバランス", "安定志向"]),
+    visibility: "public",
+    editable: false,
+    overtimeAMaxHours: 10,
+    overtimeBMaxHours: 20,
+    overtimeCMaxHours: 30,
+    overtimeDMaxHours: 45,
+    holidaySMinDays: 125,
+    holidayAMinDays: 115,
+    holidayBMinDays: 105,
+    holidayCMinDays: 95,
+    holidayDMinDays: 95,
+    ...defaultMetrics,
+    popularityScore: calculatePopularityScore(defaultMetrics),
+    publishedAt: now,
+    createdAt: now,
+    updatedAt: now
+  });
+
+  return db.query.criteriaTemplates.findFirst({
+    where: eq(criteriaTemplates.sourceTemplateId, DEFAULT_PUBLIC_CRITERIA_SOURCE_ID)
+  });
+}
+
 export async function listPublicCriteria(filters: PublicCriteriaFilters = {}) {
   const where = [
     eq(criteriaTemplates.visibility, "public"),

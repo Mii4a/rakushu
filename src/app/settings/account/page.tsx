@@ -4,8 +4,18 @@ import { AccountSettingsForm } from "@/components/account-settings-form";
 import { auth } from "@/lib/auth/server";
 import { requireUser } from "@/lib/auth/require-user";
 import { isProductionBuildPhase } from "@/lib/env/build-phase";
+import { PLAN_LIMITS, type Plan } from "@/lib/plans";
+import { getUserPlan } from "@/lib/subscription";
+import { getAnalysisCount, getMonthKey, getWeekKey } from "@/lib/usage/counters";
 
 export const dynamic = "force-dynamic";
+
+const planCopy: Record<Plan, { label: string; level: string }> = {
+  free: { label: "フリープラン", level: "Lv.1" },
+  starter: { label: "スタータープラン", level: "Lv.2" },
+  plus: { label: "プラスプラン", level: "Lv.3" },
+  pro: { label: "プロプラン", level: "Lv.4" }
+};
 
 function formatDate(value: Date) {
   return new Intl.DateTimeFormat("ja-JP", {
@@ -21,26 +31,30 @@ export default async function AccountSettingsPage() {
 
   const user = await requireUser();
   const sessionHeaders = await headers();
-  const accounts = await auth.api.listUserAccounts({
-    headers: sessionHeaders
-  });
+  const [accounts, plan] = await Promise.all([
+    auth.api.listUserAccounts({
+      headers: sessionHeaders
+    }),
+    getUserPlan(user.id)
+  ]);
+  const limits = PLAN_LIMITS[plan];
+  const periodKey = limits.analysisPeriod === "week" ? getWeekKey() : getMonthKey();
+  const analysisCount = await getAnalysisCount(user.id, periodKey);
 
   return (
     <AccountSettingsForm
       key={user.name}
       name={user.name}
       email={user.email}
-      emailVerified={user.emailVerified}
       image={user.image ?? null}
-      createdAt={formatDate(user.createdAt)}
-      updatedAt={formatDate(user.updatedAt)}
+      planLabel={planCopy[plan].label}
+      planLevel={planCopy[plan].level}
+      analysisCount={analysisCount}
+      analysisMax={limits.maxAnalyses}
+      analysisPeriodLabel={limits.analysisPeriod === "week" ? "今週" : "今月"}
       accounts={accounts.map((account) => ({
         id: account.id,
-        providerId: account.providerId,
-        accountId: account.accountId,
-        createdAt: formatDate(account.createdAt),
-        updatedAt: formatDate(account.updatedAt),
-        scopes: account.scopes
+        providerId: account.providerId
       }))}
     />
   );

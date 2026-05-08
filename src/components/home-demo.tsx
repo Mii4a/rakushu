@@ -133,30 +133,30 @@ function formatExtractedValue(value: string | number | boolean | string[] | null
 
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4">
-      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">{label}</p>
-      <p className="mt-2 text-sm font-medium leading-6 text-slate-900">{value}</p>
+    <div className="rounded-2xl border border-rakumo-border bg-rakumo-cream p-4">
+      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-rakumo-ink/60">{label}</p>
+      <p className="mt-2 text-sm font-medium leading-6 text-rakumo-ink">{value}</p>
     </div>
   );
 }
 
 function RankCard({ label, rank, detail }: { label: string; rank: string; detail: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_16px_30px_-24px_rgba(15,23,42,0.38)]">
+    <div className="rounded-2xl border border-rakumo-border bg-white p-4 shadow-[0_16px_30px_-24px_rgba(45,58,74,0.28)]">
       <div className="flex items-start justify-between gap-3">
-        <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">{label}</p>
-        <span className="rounded-full bg-rakushu-50 px-2.5 py-1 text-xs font-semibold text-rakushu-700">{rank}</span>
+        <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-rakumo-ink/60">{label}</p>
+        <span className="rounded-full border border-rakumo-lavender/70 bg-rakumo-lavender/25 px-2.5 py-1 text-xs font-semibold text-rakumo-ink">{rank}</span>
       </div>
-      <p className="mt-3 text-sm leading-6 text-slate-600">{detail}</p>
+      <p className="mt-3 text-sm leading-6 text-rakumo-ink/75">{detail}</p>
     </div>
   );
 }
 
 function CriteriaCard({ label, lines }: { label: string; lines: string[] }) {
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4">
-      <p className="text-sm font-medium text-slate-900">{label}</p>
-      <div className="mt-3 space-y-2 text-xs leading-5 text-slate-600">
+    <div className="rounded-2xl border border-rakumo-border bg-rakumo-cream p-4">
+      <p className="text-sm font-medium text-rakumo-ink">{label}</p>
+      <div className="mt-3 space-y-2 text-xs leading-5 text-rakumo-ink/75">
         {lines.map((line) => (
           <p key={line}>{line}</p>
         ))}
@@ -186,16 +186,16 @@ export function HomeDemo() {
 
   return (
     <section className="page-stack">
-      <div className="page-hero page-hero-split overflow-hidden border-[#dfe3eb] bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] shadow-[0_16px_40px_-28px_rgba(31,41,55,0.22)]">
-        <div className="space-y-6">
-          <div className="space-y-4">
-            <p className="inline-flex items-center gap-2 rounded-full bg-[#e8f0fe] px-3 py-1 text-xs font-medium tracking-[0.08em] text-[#1967d2]">
+        <div className="page-hero page-hero-split overflow-hidden bg-[linear-gradient(180deg,#ffffff_0%,#fff8ea_100%)] shadow-[0_18px_36px_-28px_rgba(45,58,74,0.24)]">
+          <div className="space-y-6">
+            <div className="space-y-4">
+            <p className="inline-flex items-center gap-2 rounded-full border border-rakumo-mint/60 bg-rakumo-mint/20 px-3 py-1 text-xs font-medium tracking-[0.08em] text-rakumo-ink">
               <Sparkles className="size-4" />
               求人をランクで見極める就活ワークスペース
             </p>
             <div className="space-y-3">
               <h1 className="page-title text-balance">求人をランク付けして、そのまま就活の整理まで進める</h1>
-              <p className="max-w-3xl text-base leading-8 text-slate-600">
+              <p className="max-w-3xl text-base leading-8 text-rakumo-ink/75">
                 まずは求人票を貼って、固定残業や休日、福利厚生を自分の基準でランク付け。よかった求人だけを保存して、あとから応募状況まで追えるようにします。
               </p>
             </div>
@@ -212,26 +212,26 @@ export function HomeDemo() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-3xl border border-slate-200/80 bg-white p-4 shadow-[0_12px_28px_-24px_rgba(15,23,42,0.22)]">
-              <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Step 1</p>
-              <p className="mt-2 text-sm font-medium text-slate-900">求人をランク付け</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">求人票を貼ると、重要な観点ごとに評価が出ます。</p>
+            <div className="rounded-3xl border border-rakumo-border bg-white p-4 shadow-[0_12px_28px_-24px_rgba(45,58,74,0.2)]">
+              <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-rakumo-ink/60">Step 1</p>
+              <p className="mt-2 text-sm font-medium text-rakumo-ink">求人をランク付け</p>
+              <p className="mt-2 text-sm leading-6 text-rakumo-ink/75">求人票を貼ると、重要な観点ごとに評価が出ます。</p>
             </div>
-            <div className="rounded-3xl border border-slate-200/80 bg-white p-4 shadow-[0_12px_28px_-24px_rgba(15,23,42,0.22)]">
-              <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Step 2</p>
-              <p className="mt-2 text-sm font-medium text-slate-900">基準を作る・借りる</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">自分用の基準でも、公開基準でも判断軸をそろえられます。</p>
+            <div className="rounded-3xl border border-rakumo-border bg-white p-4 shadow-[0_12px_28px_-24px_rgba(45,58,74,0.2)]">
+              <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-rakumo-ink/60">Step 2</p>
+              <p className="mt-2 text-sm font-medium text-rakumo-ink">基準を作る・借りる</p>
+              <p className="mt-2 text-sm leading-6 text-rakumo-ink/75">自分用の基準でも、公開基準でも判断軸をそろえられます。</p>
             </div>
-            <div className="rounded-3xl border border-slate-200/80 bg-white p-4 shadow-[0_12px_28px_-24px_rgba(15,23,42,0.22)]">
-              <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Step 3</p>
-              <p className="mt-2 text-sm font-medium text-slate-900">良い求人だけ保存</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">保存した求人は、一覧と応募状況でそのまま管理できます。</p>
+            <div className="rounded-3xl border border-rakumo-border bg-white p-4 shadow-[0_12px_28px_-24px_rgba(45,58,74,0.2)]">
+              <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-rakumo-ink/60">Step 3</p>
+              <p className="mt-2 text-sm font-medium text-rakumo-ink">良い求人だけ保存</p>
+              <p className="mt-2 text-sm leading-6 text-rakumo-ink/75">保存した求人は、一覧と応募状況でそのまま管理できます。</p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-[28px] bg-[#1f1f1f] p-6 text-white shadow-[0_28px_70px_-38px_rgba(15,23,42,0.82)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#a8c7fa]">What You Get</p>
+        <div className="rounded-[28px] border border-rakumo-lavender/40 bg-[linear-gradient(180deg,#2d3a4a_0%,#3d4b5e_100%)] p-6 text-white shadow-[0_28px_70px_-38px_rgba(45,58,74,0.72)]">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rakumo-mint/80">What You Get</p>
           <div className="mt-5 space-y-4">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
               <p className="text-sm text-slate-300">最初に見るのは、求人の総合ランクと注意点です。</p>
@@ -249,7 +249,7 @@ export function HomeDemo() {
             <div className="space-y-3">
               {["ランク基準を自分用に調整できる", "公開基準を見て判断軸をそろえられる", "保存した求人はそのまま応募管理へつながる"].map((line) => (
                 <div key={line} className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-3">
-                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-400" />
+                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-rakumo-mint" />
                   <p className="text-sm leading-6 text-slate-200">{line}</p>
                 </div>
               ))}
@@ -373,12 +373,12 @@ export function HomeDemo() {
             </div>
           </div>
 
-          <div className="panel border-[#d2e3fc] bg-[#eef4ff]">
+          <div className="panel border-rakumo-peach/70 bg-rakumo-sand">
             <div className="flex items-start gap-3">
-              <ClipboardList className="mt-1 size-5 shrink-0 text-[#1967d2]" />
+              <ClipboardList className="mt-1 size-5 shrink-0 text-rakumo-ink" />
               <div>
-                <h2 className="section-title text-[#174ea6]">5. 良い求人だけ保存して管理する</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-700">
+                <h2 className="section-title">5. 良い求人だけ保存して管理する</h2>
+                <p className="mt-2 text-sm leading-6 text-rakumo-ink/80">
                   らくしゅうの価値は、ランク付けで終わらないことです。残したい求人だけ保存しておくと、一覧で見返しながら応募状況や次に見る予定まで追えるようになります。
                 </p>
                 <div className="mt-4 flex flex-wrap gap-3">

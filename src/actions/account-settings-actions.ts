@@ -37,10 +37,10 @@ function normalizeName(value: FormDataEntryValue | null) {
     };
   }
 
-  if (name.length > 100) {
+  if (name.length > 50) {
     return {
       ok: false as const,
-      message: "名前は100文字以内で入力してください。"
+      message: "名前は50文字以内で入力してください。"
     };
   }
 

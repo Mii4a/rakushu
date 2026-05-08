@@ -1,18 +1,34 @@
+import Image from "next/image";
 import Link from "next/link";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
-import { ArrowRight, BriefcaseBusiness, CalendarClock, CreditCard, Layers3, Plus } from "lucide-react";
+import {
+  ArrowRight,
+  Bookmark,
+  BriefcaseBusiness,
+  CalendarClock,
+  FileSearch,
+  Gauge,
+  Home,
+  Plane,
+  Scale,
+  Settings,
+  Sparkles,
+  Zap
+} from "lucide-react";
 
 import { getSession } from "@/lib/auth/session";
 import type { ParsedJob } from "@/lib/analysis";
+import { RakumoEmptyState } from "@/components/rakumo/RakumoEmptyState";
 import { isProductionBuildPhase } from "@/lib/env/build-phase";
 import { getLatestAnalysesByJobIds } from "@/lib/jobs/latest-analyses";
-import { PLAN_LIMITS } from "@/lib/plans";
+import { PLAN_LIMITS, type Plan } from "@/lib/plans";
+import rakumoImage from "../../../yuru-chara/rakumo_happy.jpg";
 
 export const dynamic = "force-dynamic";
 
 const statusLabel: Record<string, string> = {
-  saved: "整理中",
+  saved: "保存中",
   applied: "応募済み",
   screening: "選考中",
   interview: "面接予定",
@@ -20,62 +36,38 @@ const statusLabel: Record<string, string> = {
   rejected: "見送り"
 };
 
-function formatHours(value: number) {
-  const hours = Math.trunc(value);
-  const minutes = Math.round((value - hours) * 60);
-  if (minutes === 0) return `${hours}時間`;
-  return `${hours}時間${minutes}分`;
-}
+const statusToneClassName: Record<string, string> = {
+  saved: "dashboard-status-saved",
+  applied: "dashboard-status-applied",
+  screening: "dashboard-status-screening",
+  interview: "dashboard-status-interview",
+  offer: "dashboard-status-offer",
+  rejected: "dashboard-status-rejected"
+};
 
-function formatRankDetail(label: string, parsed: ParsedJob | null) {
-  if (!parsed) return "値なし";
+const planCopy: Record<Plan, { label: string; level: string }> = {
+  free: { label: "フリープラン", level: "Lv.1" },
+  starter: { label: "スタータープラン", level: "Lv.2" },
+  plus: { label: "プラスプラン", level: "Lv.3" },
+  pro: { label: "プロプラン", level: "Lv.4" }
+};
 
-  if (label === "総合") {
-    const warningCount = parsed.warnings.value?.length ?? 0;
-    return warningCount > 0 ? `警告 ${warningCount}件` : "警告なし";
-  }
-
-  if (label === "固定残業") {
-    if (parsed.fixedOvertimeHours.status === "none") return "固定残業なし";
-    if (parsed.fixedOvertimeHours.value == null) return "時間不明";
-    return formatHours(parsed.fixedOvertimeHours.value);
-  }
-
-  if (label === "年間休日") {
-    return parsed.annualHolidays.value != null ? `${parsed.annualHolidays.value}日` : "日数不明";
-  }
-
-  if (label === "休日制度") {
-    return parsed.holidayType.value ?? "制度不明";
-  }
-
-  if (label === "福利厚生") {
-    const count = parsed.benefits.value?.length ?? 0;
-    if (count === 0) return "項目なし";
-    return `${count}項目`;
-  }
-
-  return "値なし";
-}
-
-function renderRankBadge(label: string, rank: string | null | undefined, detail: string) {
-  return (
-    <div className="rounded-3xl border border-[#e3e7ee] bg-white px-4 py-4">
-      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#5f6368]">{label}</p>
-      <p className="mt-2 text-base font-medium text-[#202124]">{rank ?? "UNKNOWN"}</p>
-      <p className="mt-2 text-xs leading-5 text-[#5f6368]">{detail}</p>
-    </div>
-  );
-}
+const mobileNavItems = [
+  { href: "/dashboard", label: "ホーム", icon: Home },
+  { href: "/jobs", label: "求人", icon: BriefcaseBusiness },
+  { href: "/criteria", label: "保存", icon: Bookmark },
+  { href: "/jobs/new", label: "応募", icon: Plane },
+  { href: "/settings", label: "設定", icon: Settings }
+] as const;
 
 function renderStatusPill(status: string) {
-  return <span className="status-pill">{statusLabel[status] ?? "未設定"}</span>;
+  return <span className={`dashboard-status-pill ${statusToneClassName[status] ?? "dashboard-status-saved"}`}>{statusLabel[status] ?? "未設定"}</span>;
 }
 
 function getNextStepCopy(totalSavedJobs: number, upcomingActionsCount: number, latestAnalysisCount: number) {
   if (totalSavedJobs === 0) {
     return {
-      title: "まずは基準を決めて、1件だけランク付けしましょう",
+      title: "まずは保存中の求人を1件ランク付けして、判断を進めましょう。",
       body: "公開基準でも自分用基準でもかまいません。判断軸がひとつあるだけで、残す求人を選びやすくなります。",
       primaryHref: "/jobs/new",
       primaryLabel: "ランク付けを始める"
@@ -84,8 +76,8 @@ function getNextStepCopy(totalSavedJobs: number, upcomingActionsCount: number, l
 
   if (upcomingActionsCount > 0) {
     return {
-      title: "ランク付けした求人の中から、次に見る予定だけ追いましょう",
-      body: "保存した求人を全部一度に動かす必要はありません。今日見るぶんだけ整っていれば十分です。",
+      title: "次に見る予定が入っている求人から順に見れば十分です。",
+      body: "保存した求人を全部一度に動かす必要はありません。今日見るぶんだけ整っていれば進められます。",
       primaryHref: "/jobs",
       primaryLabel: "応募状況を見る"
     };
@@ -93,27 +85,55 @@ function getNextStepCopy(totalSavedJobs: number, upcomingActionsCount: number, l
 
   if (latestAnalysisCount < totalSavedJobs) {
     return {
-      title: "保存した求人の中に、まだランク付け前のものがあります",
-      body: "気になる1件だけ進めれば十分です。先にランクが付くと、残すかどうかの判断が揃います。",
+      title: "まだランク付け前の求人があります。気になる1件だけ進めましょう。",
+      body: "先にランクが付くと、残すかどうかの判断が揃います。まとめてやる必要はありません。",
       primaryHref: "/jobs/new",
-      primaryLabel: "ランク付けを続ける"
+      primaryLabel: "ランク付けを始める"
     };
   }
 
   return {
-    title: "基準とランクがそろっているので、あとは残した求人だけ見返せば十分です",
-    body: "判断軸が決まっているぶん、応募状況の整理に集中できます。必要なら基準の見直しもあとからできます。",
+    title: "基準とランクがそろっているので、残した求人だけ見返せば十分です。",
+    body: "応募状況の整理に集中できます。必要なら基準の見直しもあとからできます。",
     primaryHref: "/jobs/new",
-    primaryLabel: "求人をランク付けする"
+    primaryLabel: "ランク付けを始める"
   };
 }
 
 function toDateLabel(value: Date | null): string {
   if (!value) return "日付未設定";
-  const y = value.getUTCFullYear();
   const m = String(value.getUTCMonth() + 1).padStart(2, "0");
   const d = String(value.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+  return `${m}/${d}`;
+}
+
+function toDateWeekdayLabel(value: Date | null): string {
+  if (!value) return "";
+  const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
+  return `(${weekdays[value.getUTCDay()]})`;
+}
+
+function getDisplayRank(rank: string | null | undefined) {
+  return rank && rank !== "UNKNOWN" ? rank : "保留";
+}
+
+function getRankClassName(rank: string | null | undefined) {
+  if (rank?.startsWith("A")) return "dashboard-rank-a";
+  if (rank?.startsWith("B")) return "dashboard-rank-b";
+  if (rank?.startsWith("C")) return "dashboard-rank-c";
+  return "dashboard-rank-hold";
+}
+
+function getCompletionText(done: number, total: number) {
+  if (total === 0) return "0 / 0 件";
+  return `${done} / ${total} 件`;
+}
+
+function getDashboardDisplayName(name: string | null | undefined) {
+  if (!name) return "ユーザー";
+  const japaneseNameMatch = name.match(/\(([^)]+)\)/);
+  const displayName = japaneseNameMatch?.[1] ?? name;
+  return displayName.trim().split(/\s+/)[0] ?? displayName;
 }
 
 export default async function DashboardPage() {
@@ -166,224 +186,338 @@ export default async function DashboardPage() {
     limit: 6
   });
   const nextStep = getNextStepCopy(totalSavedJobs, upcomingActions.length, latestAnalysisCount);
+  const displayName = getDashboardDisplayName(session.user.name);
+  const recentJobsForList = recentJobsWithAnalyses.slice(0, 3).map((job) => {
+    const latest = job.analyses[0];
+    const parsed = latest?.evidenceJson ? (JSON.parse(latest.evidenceJson) as ParsedJob) : null;
+    return {
+      ...job,
+      parsed,
+      displayCompanyName: parsed?.companyName.value ?? job.companyName ?? "会社名不明",
+      displayTitle: parsed?.title.value ?? job.title ?? "職種不明",
+      displayRank: getDisplayRank(latest?.totalRank)
+    };
+  });
+  const planSummary = planCopy[plan];
 
   return (
-    <section className="page-stack">
-      <div className="google-surface page-hero page-hero-split p-7 md:p-9">
-        <div className="space-y-5">
-          <div>
-            <p className="inline-flex items-center rounded-full bg-[#e8f0fe] px-3 py-1 text-xs font-medium tracking-[0.08em] text-[#1967d2]">
-              Dashboard
-            </p>
-            <h1 className="mt-4 text-3xl font-medium tracking-tight text-[#1f1f1f] md:text-4xl">こんにちは、{session.user.name} さん</h1>
-            <p className="mt-4 max-w-2xl text-xl font-medium leading-8 text-[#202124]">{nextStep.title}</p>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-[#5f6368]">{nextStep.body}</p>
+    <section className="dashboard-frame">
+      <div className="dashboard-shell">
+        <aside className="dashboard-sidebar">
+          <div className="dashboard-logo-card">
+            <div className="dashboard-logo-mark">
+              <BriefcaseBusiness className="size-7" />
+            </div>
+            <div>
+              <p className="dashboard-logo-title">らくしゅう</p>
+              <p className="dashboard-logo-copy">就活求人管理アプリ</p>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <span className="google-chip">1. 基準を決める</span>
-            <span className="google-chip">2. ランク付けする</span>
-            <span className="google-chip">3. 良い求人だけ整理する</span>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <Link href={nextStep.primaryHref} className="google-primary">
-              <Plus className="size-4" />
-              {nextStep.primaryLabel}
-            </Link>
-            <Link href="/jobs" className="google-secondary">
-              <BriefcaseBusiness className="size-4" />
-              求人整理
-            </Link>
-            <Link href="/criteria" className="google-secondary">
-              <Layers3 className="size-4" />
-              判断基準を見る
-            </Link>
-          </div>
-        </div>
 
-        <div className="google-subtle space-y-4 p-5 md:p-6">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.14em] text-[#5f6368]">Today</p>
-            <h2 className="mt-2 text-xl font-medium tracking-tight text-[#1f1f1f]">今日の焦点</h2>
-            <p className="mt-2 text-sm leading-6 text-[#5f6368]">全体管理ではなく、今見れば十分な範囲だけをまとめています。</p>
-          </div>
-          <div className="space-y-3">
-            <div className="rounded-3xl border border-[#e3e7ee] bg-white px-4 py-4">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#5f6368]">求人整理</p>
-                <p className="mt-1 text-sm leading-6 text-[#5f6368]">手元に置いてある求人の数</p>
-              </div>
-              <div className="mt-3 flex items-end justify-between gap-3">
-                <p className="text-2xl font-medium tracking-tight text-[#202124]">{totalSavedJobs}</p>
-                <span className="text-sm font-medium text-[#5f6368]">/ {Number.isFinite(limits.maxJobs) ? limits.maxJobs : "∞"}</span>
-              </div>
-            </div>
-            <div className="rounded-3xl border border-[#e3e7ee] bg-white px-4 py-4">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#5f6368]">応募状況</p>
-                <p className="mt-1 text-sm leading-6 text-[#5f6368]">次に見直す予定がある求人</p>
-              </div>
-              <p className="mt-3 text-2xl font-medium tracking-tight text-[#202124]">{upcomingActions.length}</p>
-            </div>
-            <div className="rounded-3xl border border-[#e3e7ee] bg-white px-4 py-4">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#5f6368]">下ごしらえ</p>
-                <p className="mt-1 text-sm leading-6 text-[#5f6368]">見返しやすい形まで整った求人</p>
-              </div>
-              <p className="mt-3 text-2xl font-medium tracking-tight text-[#202124]">{latestAnalysisCount}</p>
-            </div>
-          </div>
-          <p className="text-xs leading-5 text-[#5f6368]">
-            {limits.analysisPeriod === "week" ? "今週" : "今月"}の解析: {analysisCount} / {limits.maxAnalyses}
-          </p>
-        </div>
-      </div>
+          <nav className="dashboard-nav">
+            <Link href="/dashboard" className="dashboard-nav-item dashboard-nav-item-active">
+              <Home className="size-5" />
+              <span>ダッシュボード</span>
+            </Link>
+            <Link href="/jobs/new" className="dashboard-nav-item">
+              <FileSearch className="size-5" />
+              <span>ランク付け</span>
+            </Link>
+            <Link href="/jobs" className="dashboard-nav-item">
+              <Bookmark className="size-5" />
+              <span>保存した求人</span>
+              <span className="dashboard-nav-count">{totalSavedJobs}</span>
+            </Link>
+            <Link href="/jobs" className="dashboard-nav-item">
+              <Plane className="size-5" />
+              <span>応募状況</span>
+            </Link>
+            <Link href="/criteria" className="dashboard-nav-item">
+              <Scale className="size-5" />
+              <span>判断基準</span>
+            </Link>
+            <Link href="/settings" className="dashboard-nav-item dashboard-nav-item-muted">
+              <Settings className="size-5" />
+              <span>設定</span>
+            </Link>
+          </nav>
 
-      <div className="google-surface panel border-[#dfe3eb] p-6">
-        <div className="section-heading">
-          <div>
-            <h2 className="text-xl font-medium text-[#1f1f1f]">求人整理</h2>
-            <p className="mt-2 text-sm leading-6 text-[#5f6368]">ランク付けして残した求人だけを置いています。気になる1件をすぐ開ける状態を優先します。</p>
+          <div className="dashboard-sidebar-note">
+            <p className="dashboard-sidebar-note-icon">i</p>
+            <p>求人が0件のときは「求人を1つ入れてみる」が表示されます</p>
           </div>
-          <Link href="/jobs" className="google-secondary">
-            一覧へ
-            <ArrowRight className="size-4" />
+
+          <Link href="/settings/account" className="dashboard-profile-card">
+            <div className="dashboard-profile-avatar">{session.user.name?.slice(0, 1) ?? "ら"}</div>
+            <div className="min-w-0">
+              <p className="truncate text-base font-semibold text-rakumo-ink">{session.user.name ?? "プロフィール"}</p>
+              <p className="text-sm text-rakumo-ink/65">プロフィール</p>
+            </div>
+            <ArrowRight className="size-4 shrink-0 text-rakumo-ink/45" />
           </Link>
-        </div>
-        <div className="mt-5 grid gap-3 md:grid-cols-3">
-          <div className="rounded-3xl border border-[#e3e7ee] bg-white px-4 py-4">
-            <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#5f6368]">Step 1</p>
-            <p className="mt-2 text-sm font-medium text-[#202124]">判断基準を確認する</p>
-            <p className="mt-2 text-sm leading-6 text-[#5f6368]">迷ったら公開基準を借りて、残す求人の基準をそろえます。</p>
-          </div>
-          <div className="rounded-3xl border border-[#e3e7ee] bg-white px-4 py-4">
-            <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#5f6368]">Step 2</p>
-            <p className="mt-2 text-sm font-medium text-[#202124]">求人をランク付けする</p>
-            <p className="mt-2 text-sm leading-6 text-[#5f6368]">求人本文を貼ると、その場で総合ランクと注意点がそろいます。</p>
-          </div>
-          <div className="rounded-3xl border border-[#e3e7ee] bg-white px-4 py-4">
-            <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#5f6368]">Step 3</p>
-            <p className="mt-2 text-sm font-medium text-[#202124]">残した求人だけ追う</p>
-            <p className="mt-2 text-sm leading-6 text-[#5f6368]">応募状況や次に見る予定は、残した求人だけに絞って進めます。</p>
-          </div>
-        </div>
+        </aside>
 
-        {recentJobsWithAnalyses.length === 0 ? (
-          <div className="google-subtle mt-5 p-5">
-            <p className="text-sm leading-6 text-[#5f6368]">まだ求人はありません。まずは基準を確認してから1件だけランク付けすると、この画面から少しずつ整理できるようになります。</p>
-            <Link href="/jobs/new" className="google-primary mt-4">
-              ランク付けを始める
+        <div className="dashboard-main">
+          <div className="dashboard-mobile-top">
+            <div className="dashboard-mobile-brand">
+              <div className="dashboard-logo-mark">
+                <BriefcaseBusiness className="size-6" />
+              </div>
+              <div>
+                <p className="dashboard-logo-title">らくしゅう</p>
+              </div>
+            </div>
+            <Link href="/pricing" className="dashboard-plan-card">
+              <div className="dashboard-level-badge">
+                <span className="text-xs font-semibold">Lv.</span>
+                <span className="text-3xl font-bold leading-none">{planSummary.level.replace("Lv.", "")}</span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-rakumo-ink">{planSummary.label}</p>
+                <p className="mt-1 text-xs text-rakumo-ink/70">{limits.analysisPeriod === "week" ? "今週" : "今月"}の解析使用数</p>
+                <p className="mt-1 text-2xl font-bold tracking-tight text-rakumo-ink">
+                  {analysisCount} <span className="text-base font-medium">/ {limits.maxAnalyses} 件</span>
+                </p>
+                <div className="dashboard-progress mt-2">
+                  <div className="dashboard-progress-bar" style={{ width: `${Math.min(100, (analysisCount / limits.maxAnalyses) * 100)}%` }} />
+                </div>
+              </div>
+              <ArrowRight className="size-5 shrink-0 text-rakumo-ink/45" />
             </Link>
           </div>
-        ) : (
-          <div className="mt-5 grid gap-4 xl:grid-cols-3">
-            {recentJobsWithAnalyses.slice(0, 3).map((job) => {
-              const latest = job.analyses[0];
-              const parsed = latest?.evidenceJson ? (JSON.parse(latest.evidenceJson) as ParsedJob) : null;
-              const displayCompanyName = parsed?.companyName.value ?? job.companyName ?? "会社名不明";
-              const displayTitle = parsed?.title.value ?? job.title ?? "職種不明";
-              const totalRankDetail = latest ? formatRankDetail("総合", parsed) : "まだ整っていません";
-              const warningCount = parsed?.warnings.value?.length ?? 0;
+
+          <div className="dashboard-hero-grid">
+            <div className="dashboard-hero-card">
+              <div className="dashboard-hero-rakumo">
+                <div className="dashboard-rakumo-wrap">
+                  <Image src={rakumoImage} alt="らくも" fill className="object-cover" sizes="(max-width: 767px) 120px, 180px" priority />
+                </div>
+              </div>
+              <div className="dashboard-hero-copy">
+                <div className="dashboard-sparkle dashboard-sparkle-left" aria-hidden="true">
+                  <Sparkles className="size-4" />
+                </div>
+                <div className="dashboard-sparkle dashboard-sparkle-right" aria-hidden="true">
+                  <Sparkles className="size-4" />
+                </div>
+                <h1 className="dashboard-hero-title">{displayName}さん、おかえりなさい</h1>
+                <p className="dashboard-hero-text">{nextStep.title}</p>
+                <p className="dashboard-hero-subtext">{nextStep.body}</p>
+                <div className="dashboard-hero-actions">
+                  <Link href={nextStep.primaryHref} className="dashboard-cta dashboard-cta-primary">
+                    <FileSearch className="size-5" />
+                    {nextStep.primaryLabel}
+                  </Link>
+                  <Link href="/jobs" className="dashboard-cta">
+                    <Plane className="size-5" />
+                    応募状況を見る
+                  </Link>
+                  <Link href="/criteria" className="dashboard-cta">
+                    <Scale className="size-5" />
+                    判断基準を見る
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            <Link href="/pricing" className="dashboard-plan-card desktop-only">
+              <div className="dashboard-level-badge">
+                <span className="text-xs font-semibold">Lv.</span>
+                <span className="text-3xl font-bold leading-none">{planSummary.level.replace("Lv.", "")}</span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-base font-semibold text-rakumo-ink">{planSummary.label}</p>
+                <p className="mt-1 text-sm text-rakumo-ink/70">{limits.analysisPeriod === "week" ? "今週" : "今月"}の解析使用数</p>
+                <p className="mt-1 text-2xl font-bold tracking-tight text-rakumo-ink">
+                  {analysisCount} <span className="text-base font-medium">/ {limits.maxAnalyses} 件</span>
+                </p>
+                <div className="dashboard-progress mt-3">
+                  <div className="dashboard-progress-bar" style={{ width: `${Math.min(100, (analysisCount / limits.maxAnalyses) * 100)}%` }} />
+                </div>
+              </div>
+              <span className="dashboard-plan-button">プラン詳細</span>
+            </Link>
+          </div>
+
+          <section className="dashboard-panel">
+            <div className="dashboard-section-title">
+              <Gauge className="size-6 text-[#20a754]" />
+              <h2>今日の焦点</h2>
+            </div>
+            <div className="dashboard-metric-grid">
+              <article className="dashboard-metric-card">
+                <div className="dashboard-metric-icon dashboard-metric-icon-green">
+                  <Bookmark className="size-6" />
+                </div>
+                <div>
+                  <p className="dashboard-metric-label">保存中の求人</p>
+                  <p className="dashboard-metric-value">{totalSavedJobs} <span>件</span></p>
+                </div>
+              </article>
+              <article className="dashboard-metric-card">
+                <div className="dashboard-metric-icon dashboard-metric-icon-amber">
+                  <CalendarClock className="size-6" />
+                </div>
+                <div>
+                  <p className="dashboard-metric-label">次に見直す予定</p>
+                  <p className="dashboard-metric-value">{upcomingActions.length} <span>件</span></p>
+                </div>
+              </article>
+              <article className="dashboard-metric-card">
+                <div className="dashboard-metric-icon dashboard-metric-icon-blue">
+                  <Gauge className="size-6" />
+                </div>
+                <div>
+                  <p className="dashboard-metric-label">直近求人の解析済み</p>
+                  <p className="dashboard-metric-value">{getCompletionText(latestAnalysisCount, recentJobs.length)}</p>
+                </div>
+              </article>
+              <article className="dashboard-metric-card">
+                <div className="dashboard-metric-icon dashboard-metric-icon-purple">
+                  <Zap className="size-6" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="dashboard-metric-label">{limits.analysisPeriod === "week" ? "今週" : "今月"}の解析使用数</p>
+                  <p className="dashboard-metric-value">
+                    {analysisCount} <span>/ {limits.maxAnalyses} 件</span>
+                  </p>
+                  <div className="dashboard-progress mt-3">
+                    <div className="dashboard-progress-bar dashboard-progress-bar-purple" style={{ width: `${Math.min(100, (analysisCount / limits.maxAnalyses) * 100)}%` }} />
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <div className="dashboard-content-grid">
+            <section className="dashboard-panel">
+              <div className="dashboard-panel-heading">
+                <div className="dashboard-section-title">
+                  <BriefcaseBusiness className="size-6 text-[#20a754]" />
+                  <h2>求人整理</h2>
+                </div>
+                <div className="dashboard-stepper">
+                  <span className="dashboard-step dashboard-step-active">1 保存</span>
+                  <span className="dashboard-step dashboard-step-active">2 ランク付け</span>
+                  <span className="dashboard-step">3 判断・応募</span>
+                </div>
+              </div>
+
+              <div className="dashboard-comment">
+                <div className="dashboard-comment-avatar">
+                  <Image src={rakumoImage} alt="らくものコメント" fill className="object-cover" sizes="72px" />
+                </div>
+                <div className="dashboard-comment-bubble">
+                  <p className="dashboard-comment-title">らくものコメント</p>
+                  <p className="dashboard-comment-text">
+                    {totalSavedJobs === 0 ? "まずは気になる求人を1つ入れてみましょう。" : "直近の求人から順に見ていくと、迷いが減ります。"}
+                  </p>
+                </div>
+              </div>
+
+              {recentJobsForList.length === 0 ? (
+                <div className="dashboard-empty">
+                  <RakumoEmptyState
+                    title="まだ求人がないね"
+                    body="まずは気になる求人を1つ入れてみよう。完璧に整理しなくて大丈夫。雑に入れてから整えよう。"
+                    ctaHref="/jobs/new"
+                    ctaLabel="求人を1つ入れてみる"
+                  />
+                </div>
+              ) : (
+                <div className="dashboard-job-list">
+                  <div className="dashboard-subheading">最近の求人（最大3件）</div>
+                  {recentJobsForList.map((job) => (
+                    <article key={job.id} className="dashboard-job-row">
+                      <div className="dashboard-job-main">
+                        <div className="dashboard-job-status">{renderStatusPill(job.selectionStatus)}</div>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm text-rakumo-ink/70">{job.displayCompanyName}</p>
+                          <p className="truncate text-[1.05rem] font-semibold text-rakumo-ink">{job.displayTitle}</p>
+                        </div>
+                      </div>
+                      <div className={`dashboard-rank-box ${getRankClassName(job.displayRank)}`}>
+                        <p className="dashboard-rank-label">総合ランク</p>
+                        <p className="dashboard-rank-value">{job.displayRank}</p>
+                      </div>
+                      <Link href={`/jobs/${job.id}`} className="dashboard-row-link">
+                        詳細を見る
+                        <ArrowRight className="size-4" />
+                      </Link>
+                    </article>
+                  ))}
+                  <Link href="/jobs" className="dashboard-inline-link">
+                    求人一覧へ
+                    <ArrowRight className="size-4" />
+                  </Link>
+                </div>
+              )}
+            </section>
+
+            <section className="dashboard-panel">
+              <div className="dashboard-panel-heading">
+                <div className="dashboard-section-title">
+                  <CalendarClock className="size-6 text-[#20a754]" />
+                  <h2>次に見る予定</h2>
+                </div>
+                <Link href="/jobs" className="dashboard-inline-chip">
+                  すべて見る
+                  <ArrowRight className="size-4" />
+                </Link>
+              </div>
+
+              {upcomingActions.length === 0 ? (
+                <div className="dashboard-empty-copy">
+                  今すぐ確認が必要な予定はありません。気になる求人が出てきたときに、次の確認日を入れておけば十分です。
+                </div>
+              ) : (
+                <div className="dashboard-schedule-list">
+                  {upcomingActions.map((job) => (
+                    <Link key={job.id} href={`/jobs/${job.id}`} className="dashboard-schedule-row">
+                      <div className="dashboard-schedule-date">
+                        <p>{toDateLabel(job.nextActionAt)}</p>
+                        <span>{toDateWeekdayLabel(job.nextActionAt)}</span>
+                      </div>
+                      <div>{renderStatusPill(job.selectionStatus)}</div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm text-rakumo-ink/70">{job.companyName ?? "会社名不明"}</p>
+                        <p className="truncate text-[1.02rem] font-semibold text-rakumo-ink">{job.title ?? "職種不明"}</p>
+                      </div>
+                      <span className="dashboard-row-link dashboard-row-link-inline">
+                        詳細を見る
+                        <ArrowRight className="size-4" />
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
+
+          <div className="dashboard-bottom-note">
+            <div className="dashboard-bottom-note-copy">
+              <p className="dashboard-bottom-note-icon">i</p>
+              <p>求人が0件のときは「求人を1つ入れてみる」が表示されます</p>
+            </div>
+            <div className="dashboard-bottom-note-rakumo">
+              <Sparkles className="size-4 text-[#f5bf28]" />
+              <BriefcaseBusiness className="size-8 text-[#8fc8ff]" />
+            </div>
+          </div>
+
+          <nav className="dashboard-mobile-nav">
+            {mobileNavItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = item.href === "/dashboard";
 
               return (
-                <article key={job.id} className="google-subtle p-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <div className="mb-3">{renderStatusPill(job.selectionStatus)}</div>
-                      <p className="text-lg font-medium text-[#202124]">{displayCompanyName}</p>
-                      <p className="mt-1 text-sm leading-6 text-[#5f6368]">{displayTitle}</p>
-                    </div>
-                    <Link href={`/jobs/${job.id}`} className="google-secondary px-4 py-2">
-                      詳細
-                    </Link>
-                  </div>
-
-                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                    {renderRankBadge("総合", latest?.totalRank, totalRankDetail)}
-                    <div className="rounded-3xl border border-[#e3e7ee] bg-white px-4 py-4">
-                      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#5f6368]">ひとこと</p>
-                      <p className="mt-2 text-sm leading-6 text-[#5f6368]">
-                        {latest
-                          ? warningCount > 0
-                            ? "気になる点があれば詳細で根拠文だけ確認できます。"
-                            : "必要なら詳細で中身を見返せます。"
-                          : "まだ解析前です。必要になったタイミングで整えれば十分です。"}
-                      </p>
-                    </div>
-                  </div>
-                </article>
+                <Link key={item.href} href={item.href} className={`dashboard-mobile-nav-item ${isActive ? "dashboard-mobile-nav-item-active" : ""}`}>
+                  <Icon className="size-6" />
+                  <span>{item.label}</span>
+                </Link>
               );
             })}
-          </div>
-        )}
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="google-surface panel border-[#dfe3eb] p-6 lg:col-span-3">
-          <div className="section-heading">
-            <div>
-              <h2 className="text-xl font-medium text-[#1f1f1f]">応募状況</h2>
-              <p className="mt-2 text-sm leading-6 text-[#5f6368]">次に見返す予定がある求人だけを並べています。急がせるためではなく、迷いを減らすための一覧です。</p>
-            </div>
-            <CalendarClock className="size-5 text-[#1a73e8]" />
-          </div>
-          {upcomingActions.length === 0 ? (
-            <div className="google-subtle mt-4 p-5">
-              <p className="text-sm leading-6 text-[#5f6368]">今すぐ確認が必要な予定はありません。気になる求人が出てきたときに、次の確認日を入れておけば十分です。</p>
-            </div>
-          ) : (
-            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {upcomingActions.map((job) => (
-                <Link key={job.id} href={`/jobs/${job.id}`} className="google-subtle p-4">
-                  <div className="mb-3">{renderStatusPill(job.selectionStatus)}</div>
-                  <p className="text-sm font-medium text-[#202124]">{job.companyName ?? "会社名不明"}</p>
-                  <p className="mt-1 text-sm text-[#5f6368]">{job.title ?? "職種不明"}</p>
-                  <p className="mt-3 text-xs text-[#5f6368]">次に見る予定: {toDateLabel(job.nextActionAt)}</p>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="google-surface panel border-[#dfe3eb] p-6">
-          <h2 className="text-lg font-medium text-[#1f1f1f]">次にやること</h2>
-          <div className="mt-4 space-y-3 text-sm text-[#5f6368]">
-            <p>判断軸を見直すなら基準へ、求人を増やすならランク付けへ、整理を続けるなら求人一覧へ進めます。</p>
-            <div className="flex flex-wrap gap-2">
-              <Link href="/criteria" className="google-secondary mt-1">
-                基準を見る
-              </Link>
-              <Link href="/jobs/new" className="google-secondary mt-1">
-                ランク付けする
-              </Link>
-              <Link href="/jobs" className="google-secondary mt-1">
-                求人一覧を開く
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        <div className="google-surface panel border-[#dfe3eb] p-6">
-          <div className="flex items-center gap-2">
-            <CreditCard className="size-4 text-[#5f6368]" />
-            <h2 className="text-lg font-medium text-[#1f1f1f]">利用枠</h2>
-          </div>
-          <p className="mt-4 text-sm leading-6 text-[#5f6368]">
-            {limits.analysisPeriod === "week" ? "今週" : "今月"}の解析は {analysisCount} / {limits.maxAnalyses} 件です。細かい制限確認は必要なときだけで十分です。
-          </p>
-          <Link href="/pricing" className="google-secondary mt-4">
-            プラン詳細
-          </Link>
-        </div>
-
-        <div className="google-surface panel border-[#dfe3eb] p-6">
-          <div className="flex items-center gap-2">
-            <Layers3 className="size-4 text-[#5f6368]" />
-            <h2 className="text-lg font-medium text-[#1f1f1f]">判断基準</h2>
-          </div>
-          <p className="mt-4 text-sm leading-6 text-[#5f6368]">求人を追加する前に基準を一度決めておくと、残す求人の判断がぶれにくくなります。迷ったときは公開基準をそのまま借りられます。</p>
-          <Link href="/criteria" className="google-secondary mt-4">
-            基準を見る
-          </Link>
+          </nav>
         </div>
       </div>
     </section>

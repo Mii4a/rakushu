@@ -22,7 +22,7 @@ export default async function LoginPage() {
           <p className="page-copy mt-3">保存、再解析、公開基準の閲覧、料金プランの管理はログイン後に使えます。今の設計では Google ログインが最短導線です。</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <span className="soft-pill">
-              <Sparkles className="size-4 text-rakushu-500" />
+              <Sparkles className="size-4 text-rakumo-peach" />
               求人解析の保存
             </span>
             <span className="soft-pill">自分用ランク設定</span>
@@ -32,12 +32,12 @@ export default async function LoginPage() {
 
         <div className="panel">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-2xl bg-slate-950 text-white">
+            <div className="flex size-10 items-center justify-center rounded-2xl border border-rakumo-mint/50 bg-rakumo-mint/85 text-rakumo-ink">
               <LockKeyhole className="size-5" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-slate-950">ログイン</h2>
-              <p className="text-sm text-slate-500">1クリックで開始できます。</p>
+              <h2 className="text-lg font-semibold text-rakumo-ink">ログイン</h2>
+              <p className="text-sm text-rakumo-ink/65">1クリックで開始できます。</p>
             </div>
           </div>
           <div className="mt-6">
