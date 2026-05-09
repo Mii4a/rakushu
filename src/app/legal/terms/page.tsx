@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 export default function TermsPage() {
   return (
     <section className="page-stack">
