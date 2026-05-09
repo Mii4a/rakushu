@@ -139,6 +139,20 @@ export const subscriptions = sqliteTable(
   ]
 );
 
+
+
+export const stripeWebhookEvents = sqliteTable(
+  "stripe_webhook_events",
+  {
+    id: text("id").primaryKey(),
+    stripeEventId: text("stripe_event_id").notNull().unique(),
+    eventType: text("event_type").notNull(),
+    processedAt: integer("processed_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
+  },
+  (table) => [index("stripe_webhook_events_event_type_idx").on(table.eventType)]
+);
+
 export const rankSettings = sqliteTable(
   "rank_settings",
   {
