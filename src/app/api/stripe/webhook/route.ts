@@ -85,6 +85,11 @@ export async function POST(request: Request) {
       await setSubscriptionCanceled(subscription.id);
     }
 
+    const didRecordEvent = await markStripeEventProcessed({ stripeEventId: event.id, eventType: event.type });
+
+    if (!didRecordEvent) {
+      return NextResponse.json({ received: true, duplicate: true });
+    }
     await markStripeEventProcessed({ stripeEventId: event.id, eventType: event.type });
 
     return NextResponse.json({ received: true });

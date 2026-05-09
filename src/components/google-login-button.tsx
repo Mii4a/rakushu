@@ -13,6 +13,14 @@ export function GoogleLoginButton() {
 
     try {
       const callbackURL = `${window.location.origin}/dashboard`;
+      const result = await authClient.signIn.social({
+        provider: "google",
+        callbackURL
+      });
+
+      if (result.error) {
+        setError(result.error.message ?? "Googleログインを開始できませんでした。");
+      }
       const signInURL = `/api/auth/sign-in/social?provider=google&callbackURL=${encodeURIComponent(callbackURL)}`;
       window.location.assign(signInURL);
       return;
