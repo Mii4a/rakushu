@@ -50,7 +50,7 @@ async function putSecret(key, value) {
   await new Promise((resolve, reject) => {
     const child = spawn(
       "npx",
-      ["wrangler", "secret", "put", key, "--config", "wrangler.jsonc"],
+      ["wrangler", "versions", "secret", "put", key, "--config", "wrangler.jsonc"],
       {
         stdio: ["pipe", "inherit", "inherit"]
       }
