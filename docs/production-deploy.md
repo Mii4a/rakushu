@@ -249,3 +249,40 @@ Cloudflare 側でも確認します。
 - [ ] `npm run deploy` を実行済み
 - [ ] `/dashboard` `/jobs` `/pricing` を目視確認済み
 - [ ] Stripe の購読同期を確認済み
+
+
+## 10. Stripe ローカル検証（Checkout / Webhook / Portal）
+
+Stripe 課金周りの変更時は、次の順で再現検証します。
+
+1. 開発サーバー起動
+   ```bash
+   npm run dev
+   ```
+2. Stripe CLI で webhook 転送
+   ```bash
+   stripe listen --forward-to localhost:3000/api/stripe/webhook
+   ```
+3. 表示された `whsec_...` を `.env.local` の `STRIPE_WEBHOOK_SECRET` に設定
+4. ログイン後 `/pricing` で Checkout 実行
+5. Stripe checkout 完了後、`subscriptions` テーブルの `stripe_customer_id` / `stripe_subscription_id` / `plan` / `status` を確認
+6. `/pricing` の「請求情報を管理する（解約・支払い方法）」から Customer Portal を開けることを確認
+7. Portal 上で解約予約 or 支払い方法更新を行い、`customer.subscription.updated` が到達することを確認
+
+### よくあるエラー対応（再現手順 / 原因 / 対策）
+
+#### A. `Webhook処理に失敗しました`（400）
+- 再現手順: `stripe listen` を起動せずに Checkout を実行、または古い `STRIPE_WEBHOOK_SECRET` のまま実行
+- 原因: `stripe-signature` の検証に失敗（署名シークレット不一致）
+- 対策: `stripe listen` を再起動し、新しく表示された `whsec_...` を設定して再実行
+
+#### B. `Stripe顧客情報が見つかりません`（portal API 400）
+- 再現手順: 一度も有料購読していないユーザーで Portal ボタンを押す
+- 原因: `subscriptions.stripe_customer_id` が未保存
+- 対策: 先に Checkout を完了し、webhook で subscription が upsert されることを確認
+
+#### C. `customer.subscription.updated` でプランが同期されない
+- 再現手順: metadata が無い更新イベントを受信する
+- 原因: `metadata.userId` だけに依存した実装だと対象ユーザーを特定できない
+- 対策: 現行実装は `stripeCustomerId` からユーザー逆引きフォールバックあり。`subscriptions.stripe_customer_id` が保存済みか確認する
+

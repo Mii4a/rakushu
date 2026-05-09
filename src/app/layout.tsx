@@ -57,6 +57,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </div>
         </header>
         <main className="page-shell">{children}</main>
+        <footer className="border-t border-rakumo-border/80 bg-white">
+          <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-6 text-xs text-rakumo-ink/70 md:flex-row md:items-center md:justify-between md:px-6">
+            <p>© {new Date().getFullYear()} らくしゅう</p>
+            <nav className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <Link href="/legal/commerce" className="underline-offset-2 hover:underline">特定商取引法に基づく表記</Link>
+              <Link href="/legal/terms" className="underline-offset-2 hover:underline">利用規約</Link>
+              <Link href="/legal/privacy" className="underline-offset-2 hover:underline">プライバシーポリシー</Link>
+              <Link href="/legal/refund" className="underline-offset-2 hover:underline">返金・キャンセルポリシー</Link>
+            </nav>
+          </div>
+        </footer>
       </body>
     </html>
   );

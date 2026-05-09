@@ -3,6 +3,7 @@ import { CreditCard, Layers3, Settings2, Sparkles } from "lucide-react";
 
 import { updateRankSettingsAction } from "@/actions/rank-settings-actions";
 import { CheckoutButton } from "@/components/checkout-button";
+import { CustomerPortalButton } from "@/components/customer-portal-button";
 import { DEFAULT_RANK_SETTINGS } from "@/lib/analysis";
 import { requireUser } from "@/lib/auth/require-user";
 import { isProductionBuildPhase } from "@/lib/env/build-phase";
@@ -218,6 +219,29 @@ export default async function PricingPage() {
             {DEFAULT_RANK_SETTINGS.annualHolidays.cMinDays} / D≥{DEFAULT_RANK_SETTINGS.annualHolidays.dMinDays} です。
           </div>
         )}
+      </article>
+
+
+
+      {plan !== "free" ? (
+        <article className="panel">
+          <h2 className="section-title">ご契約内容の管理</h2>
+          <p className="section-copy mt-2">解約、支払い方法変更、請求履歴の確認はStripeの請求ポータルから行えます。</p>
+          <div className="mt-4">
+            <CustomerPortalButton />
+          </div>
+        </article>
+      ) : null}
+
+      <article className="panel">
+        <h2 className="section-title">ご契約前の確認事項</h2>
+        <p className="section-copy mt-2">課金開始前に、契約条件・個人情報の取り扱い・返金条件をご確認ください。</p>
+        <div className="mt-4 flex flex-wrap gap-3 text-sm">
+          <Link href="/legal/commerce" className="button-secondary">特定商取引法に基づく表記</Link>
+          <Link href="/legal/terms" className="button-secondary">利用規約</Link>
+          <Link href="/legal/privacy" className="button-secondary">プライバシーポリシー</Link>
+          <Link href="/legal/refund" className="button-secondary">返金・キャンセルポリシー</Link>
+        </div>
       </article>
 
       <article className="panel">
