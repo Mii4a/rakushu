@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
-import { authClient } from "@/lib/auth/client";
-
 export function GoogleLoginButton() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
