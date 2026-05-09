@@ -69,3 +69,11 @@ export async function setSubscriptionCanceled(stripeSubscriptionId: string) {
     })
     .where(eq(subscriptions.stripeSubscriptionId, stripeSubscriptionId));
 }
+
+export async function findUserIdByStripeCustomerId(stripeCustomerId: string): Promise<string | null> {
+  const record = await db.query.subscriptions.findFirst({
+    where: eq(subscriptions.stripeCustomerId, stripeCustomerId)
+  });
+
+  return record?.userId ?? null;
+}

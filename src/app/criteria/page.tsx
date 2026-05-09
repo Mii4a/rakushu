@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { and, eq, sql } from "drizzle-orm";
 import {
   ArrowRight,
@@ -162,67 +163,7 @@ export default async function CriteriaPage({
   return (
     <section className="dashboard-frame">
       <div className="dashboard-shell">
-        <aside className="dashboard-sidebar">
-          <div className="rounded-[28px] border border-rakumo-border bg-white px-5 py-4 shadow-[0_16px_32px_-28px_rgba(45,58,74,0.18)]">
-            <div className="flex items-center gap-3">
-              <RakumoAvatar tone="neutral" className="h-14 w-14 border-[#d7eedf]" />
-              <div>
-                <p className="text-[2.2rem] font-black leading-none tracking-[0.06em] text-[#18a35b]">らくしゅう</p>
-                <p className="mt-2 text-sm text-rakumo-ink/65">就活求人解析アプリ</p>
-              </div>
-            </div>
-          </div>
-
-          <nav className="dashboard-nav">
-            <Link href="/dashboard" className="dashboard-nav-item">
-              <Home className="size-5" />
-              <span>ダッシュボード</span>
-            </Link>
-            <Link href="/jobs/new" className="dashboard-nav-item">
-              <FileSearch className="size-5" />
-              <span>ランク付け</span>
-            </Link>
-            <Link href="/jobs" className="dashboard-nav-item">
-              <Bookmark className="size-5" />
-              <span>保存した求人</span>
-            </Link>
-            <Link href="/jobs" className="dashboard-nav-item">
-              <Plane className="size-5" />
-              <span>応募状況</span>
-            </Link>
-            <Link href="/criteria" className="dashboard-nav-item dashboard-nav-item-active">
-              <Scale className="size-5" />
-              <span>判断基準</span>
-            </Link>
-            <Link href="/settings" className="dashboard-nav-item dashboard-nav-item-muted">
-              <Settings className="size-5" />
-              <span>設定</span>
-            </Link>
-          </nav>
-
-          <div className="rounded-[24px] border border-rakumo-border bg-white px-4 py-4 text-sm leading-7 text-rakumo-ink/75 shadow-[0_14px_30px_-26px_rgba(45,58,74,0.2)]">
-            <div className="flex items-start gap-3">
-              <RakumoAvatar tone="good" className="h-11 w-11 border-[#d9f0dd]" />
-              <div>
-                <p className="font-bold text-rakumo-ink">判断基準の使い方</p>
-                <p className="mt-2">自分に合う基準を選ぶと、求人の比較がもっとラクになりますよ。</p>
-              </div>
-            </div>
-            <Link href="/jobs/new" className="mt-3 inline-flex items-center gap-2 font-bold text-[#20a257]">
-              使い方を見る
-              <ArrowRight className="size-4" />
-            </Link>
-          </div>
-
-          <Link href="/settings/account" className="dashboard-profile-card">
-            <div className="dashboard-profile-avatar">{profileInitial}</div>
-            <div className="min-w-0">
-              <p className="truncate text-base font-semibold text-rakumo-ink">{displayName}</p>
-              <p className="text-sm text-rakumo-ink/65">プロフィール</p>
-            </div>
-            <ArrowRight className="size-4 shrink-0 text-rakumo-ink/45" />
-          </Link>
-        </aside>
+        <DashboardSidebar activeKey="criteria" note="ランク付けから求人整理まで、同じ流れで進められます。" />
 
         <div className="dashboard-main">
           <div className="dashboard-mobile-top">

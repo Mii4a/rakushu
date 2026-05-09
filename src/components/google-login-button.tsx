@@ -14,9 +14,10 @@ export function GoogleLoginButton() {
     setLoading(true);
 
     try {
+      const callbackURL = `${window.location.origin}/dashboard`;
       const result = await authClient.signIn.social({
         provider: "google",
-        callbackURL: "/dashboard"
+        callbackURL
       });
 
       if (result.error) {
