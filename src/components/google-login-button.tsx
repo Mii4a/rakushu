@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
-import { authClient } from "@/lib/auth/client";
-
 export function GoogleLoginButton() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -14,14 +12,10 @@ export function GoogleLoginButton() {
     setLoading(true);
 
     try {
-      const result = await authClient.signIn.social({
-        provider: "google",
-        callbackURL: "/dashboard"
-      });
-
-      if (result.error) {
-        setError(result.error.message ?? "Googleログインを開始できませんでした。");
-      }
+      const callbackURL = `${window.location.origin}/dashboard`;
+      const signInURL = `/api/auth/sign-in/social?provider=google&callbackURL=${encodeURIComponent(callbackURL)}`;
+      window.location.assign(signInURL);
+      return;
     } catch {
       setError("Googleログインの開始に失敗しました。設定を確認してください。");
     } finally {
