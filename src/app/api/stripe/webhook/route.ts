@@ -4,7 +4,8 @@ import { NextResponse } from "next/server";
 import { serverEnv } from "@/lib/env/server";
 import type { PaidPlan } from "@/lib/plans";
 import { getStripeServerClient } from "@/lib/stripe/server";
-import { setSubscriptionCanceled, upsertSubscriptionFromStripe } from "@/lib/subscription";
+import { hasProcessedStripeEvent, markStripeEventProcessed } from "@/lib/stripe/webhook-events";
+import { findUserIdByStripeCustomerId, setSubscriptionCanceled, upsertSubscriptionFromStripe } from "@/lib/subscription";
 
 function getHeader(headers: Headers, key: string): string {
   const value = headers.get(key);
@@ -31,6 +32,10 @@ export async function POST(request: Request) {
     const rawBody = await request.text();
 
     const event = stripe.webhooks.constructEvent(rawBody, signature, serverEnv.STRIPE_WEBHOOK_SECRET);
+
+    if (await hasProcessedStripeEvent(event.id)) {
+      return NextResponse.json({ received: true, duplicate: true });
+    }
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
@@ -61,8 +66,7 @@ export async function POST(request: Request) {
       const subscription = event.data.object as Stripe.Subscription;
       const customerId = typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
 
-      // NOTE: metadata.userIdが無い更新イベントを考慮し、customer検索は今後改善余地あり。
-      const userId = subscription.metadata.userId;
+      const userId = subscription.metadata.userId || (await findUserIdByStripeCustomerId(customerId));
       const plan = normalizePaidPlan(subscription.metadata.plan);
       if (userId) {
         await upsertSubscriptionFromStripe({
@@ -79,6 +83,12 @@ export async function POST(request: Request) {
     if (event.type === "customer.subscription.deleted") {
       const subscription = event.data.object as Stripe.Subscription;
       await setSubscriptionCanceled(subscription.id);
+    }
+
+    const didRecordEvent = await markStripeEventProcessed({ stripeEventId: event.id, eventType: event.type });
+
+    if (!didRecordEvent) {
+      return NextResponse.json({ received: true, duplicate: true });
     }
 
     return NextResponse.json({ received: true });
