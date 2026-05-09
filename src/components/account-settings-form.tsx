@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { useEffect, useActionState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -80,58 +81,7 @@ export function AccountSettingsForm({
   return (
     <section className="dashboard-frame">
       <div className="dashboard-shell">
-        <aside className="dashboard-sidebar">
-          <div className="dashboard-logo-card">
-            <div className="dashboard-logo-mark">
-              <BriefcaseBusiness className="size-7" />
-            </div>
-            <div>
-              <p className="dashboard-logo-title">らくしゅう</p>
-              <p className="dashboard-logo-copy">就活求人管理アプリ</p>
-            </div>
-          </div>
-
-          <nav className="dashboard-nav">
-            <Link href="/dashboard" className="dashboard-nav-item">
-              <Home className="size-5" />
-              <span>ダッシュボード</span>
-            </Link>
-            <Link href="/jobs" className="dashboard-nav-item">
-              <BriefcaseBusiness className="size-5" />
-              <span>求人一覧</span>
-            </Link>
-            <Link href="/jobs" className="dashboard-nav-item">
-              <Bookmark className="size-5" />
-              <span>保存した求人</span>
-            </Link>
-            <Link href="/jobs/new" className="dashboard-nav-item">
-              <Plane className="size-5" />
-              <span>応募状況</span>
-            </Link>
-            <Link href="/criteria" className="dashboard-nav-item">
-              <Scale className="size-5" />
-              <span>判断基準</span>
-            </Link>
-            <Link href="/settings" className="dashboard-nav-item dashboard-nav-item-active dashboard-nav-item-muted">
-              <Settings className="size-5" />
-              <span>設定</span>
-            </Link>
-          </nav>
-
-          <div className="dashboard-sidebar-note">
-            <p className="dashboard-sidebar-note-icon">i</p>
-            <p>表示名だけ更新できます。メールアドレスとサインイン方法は確認専用です。</p>
-          </div>
-
-          <div className="dashboard-profile-card">
-            <div className="dashboard-profile-avatar">{name.slice(0, 1) || "ら"}</div>
-            <div className="min-w-0">
-              <p className="truncate text-base font-semibold text-rakumo-ink">{name}</p>
-              <p className="text-sm text-rakumo-ink/65">プロフィール</p>
-            </div>
-            <ChevronRight className="size-4 shrink-0 text-rakumo-ink/45" />
-          </div>
-        </aside>
+        <DashboardSidebar activeKey="settings" note="表示名だけ更新できます。メールアドレスとサインイン方法は確認専用です。" />
 
         <div className="dashboard-main space-y-5">
           <div className="dashboard-mobile-top">
