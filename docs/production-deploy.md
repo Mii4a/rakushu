@@ -286,3 +286,4 @@ Stripe 課金周りの変更時は、次の順で再現検証します。
 - 再現手順: metadata が無い更新イベントを受信する
 - 原因: `metadata.userId` だけに依存した実装だと対象ユーザーを特定できない
 - 対策: 現行実装は `stripeCustomerId` からユーザー逆引きフォールバックあり。`subscriptions.stripe_customer_id` が保存済みか確認する
+
