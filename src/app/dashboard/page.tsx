@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import {
@@ -203,59 +204,7 @@ export default async function DashboardPage() {
   return (
     <section className="dashboard-frame">
       <div className="dashboard-shell">
-        <aside className="dashboard-sidebar">
-          <div className="dashboard-logo-card">
-            <div className="dashboard-logo-mark">
-              <BriefcaseBusiness className="size-7" />
-            </div>
-            <div>
-              <p className="dashboard-logo-title">らくしゅう</p>
-              <p className="dashboard-logo-copy">就活求人管理アプリ</p>
-            </div>
-          </div>
-
-          <nav className="dashboard-nav">
-            <Link href="/dashboard" className="dashboard-nav-item dashboard-nav-item-active">
-              <Home className="size-5" />
-              <span>ダッシュボード</span>
-            </Link>
-            <Link href="/jobs/new" className="dashboard-nav-item">
-              <FileSearch className="size-5" />
-              <span>ランク付け</span>
-            </Link>
-            <Link href="/jobs" className="dashboard-nav-item">
-              <Bookmark className="size-5" />
-              <span>保存した求人</span>
-              <span className="dashboard-nav-count">{totalSavedJobs}</span>
-            </Link>
-            <Link href="/jobs" className="dashboard-nav-item">
-              <Plane className="size-5" />
-              <span>応募状況</span>
-            </Link>
-            <Link href="/criteria" className="dashboard-nav-item">
-              <Scale className="size-5" />
-              <span>判断基準</span>
-            </Link>
-            <Link href="/settings" className="dashboard-nav-item dashboard-nav-item-muted">
-              <Settings className="size-5" />
-              <span>設定</span>
-            </Link>
-          </nav>
-
-          <div className="dashboard-sidebar-note">
-            <p className="dashboard-sidebar-note-icon">i</p>
-            <p>求人が0件のときは「求人を1つ入れてみる」が表示されます</p>
-          </div>
-
-          <Link href="/settings/account" className="dashboard-profile-card">
-            <div className="dashboard-profile-avatar">{session.user.name?.slice(0, 1) ?? "ら"}</div>
-            <div className="min-w-0">
-              <p className="truncate text-base font-semibold text-rakumo-ink">{session.user.name ?? "プロフィール"}</p>
-              <p className="text-sm text-rakumo-ink/65">プロフィール</p>
-            </div>
-            <ArrowRight className="size-4 shrink-0 text-rakumo-ink/45" />
-          </Link>
-        </aside>
+        <DashboardSidebar activeKey="dashboard" note="ランク付けから求人整理まで、同じ流れで進められます。" />
 
         <div className="dashboard-main">
           <div className="dashboard-mobile-top">
