@@ -1,5 +1,9 @@
+"use client";
+
 import Link from "next/link";
-import { Bookmark, BriefcaseBusiness, CreditCard, Home, Plane, Scale, Settings } from "lucide-react";
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { Bookmark, BriefcaseBusiness, CreditCard, Home, Menu, Plane, Scale, Settings, X } from "lucide-react";
 
 const navItems = [
   { href: "/dashboard", label: "ダッシュボード", icon: Home, key: "dashboard" },
@@ -14,8 +18,15 @@ const navItems = [
 type SidebarKey = (typeof navItems)[number]["key"];
 
 export function DashboardSidebar({ activeKey, note }: { activeKey: SidebarKey; note: string }) {
-  return (
-    <aside className="dashboard-sidebar">
+  const pathname = usePathname();
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  useEffect(() => {
+    setIsMobileOpen(false);
+  }, [pathname]);
+
+  const content = (
+    <>
       <div className="dashboard-logo-card">
         <div className="dashboard-logo-mark">
           <BriefcaseBusiness className="size-7" />
@@ -51,6 +62,42 @@ export function DashboardSidebar({ activeKey, note }: { activeKey: SidebarKey; n
         <p className="dashboard-sidebar-note-icon">i</p>
         <p>{note}</p>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="サイドバーを開く"
+        aria-expanded={isMobileOpen}
+        onClick={() => setIsMobileOpen(true)}
+        className="dashboard-mobile-sidebar-toggle"
+      >
+        <Menu className="size-5" />
+        <span>メニュー</span>
+      </button>
+
+      {isMobileOpen ? (
+        <div className="dashboard-mobile-sidebar-overlay" onClick={() => setIsMobileOpen(false)}>
+          <aside className="dashboard-mobile-sidebar" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-bold uppercase tracking-[0.18em] text-rakumo-ink/55">Navigation</p>
+              <button
+                type="button"
+                aria-label="サイドバーを閉じる"
+                onClick={() => setIsMobileOpen(false)}
+                className="inline-flex size-11 items-center justify-center rounded-2xl border border-rakumo-border text-rakumo-ink/65"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+            <div className="mt-5 flex h-full min-h-0 flex-col gap-5">{content}</div>
+          </aside>
+        </div>
+      ) : null}
+
+      <aside className="dashboard-sidebar">{content}</aside>
+    </>
   );
 }
