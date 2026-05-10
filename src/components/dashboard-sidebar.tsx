@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bookmark, BriefcaseBusiness, Home, Plane, Scale, Settings } from "lucide-react";
+import { Bookmark, BriefcaseBusiness, CreditCard, Home, Plane, Scale, Settings } from "lucide-react";
 
 const navItems = [
   { href: "/dashboard", label: "ダッシュボード", icon: Home, key: "dashboard" },
@@ -7,6 +7,7 @@ const navItems = [
   { href: "/jobs", label: "求人一覧", icon: BriefcaseBusiness, key: "jobs" },
   { href: "/jobs", label: "保存した求人", icon: Bookmark, key: "saved-jobs" },
   { href: "/criteria", label: "判断基準", icon: Scale, key: "criteria" },
+  { href: "/pricing", label: "料金", icon: CreditCard, key: "pricing" },
   { href: "/settings", label: "設定", icon: Settings, key: "settings", muted: true }
 ] as const;
 
