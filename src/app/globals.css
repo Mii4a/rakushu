@@ -30,6 +30,16 @@ body:has(.dashboard-frame) .page-shell {
   padding: 0;
 }
 
+body:has(.home-demo-shell) > header,
+body:has(.home-demo-shell) > footer {
+  display: none;
+}
+
+body:has(.home-demo-shell) .page-shell {
+  max-width: none;
+  padding: 0;
+}
+
 a,
 button,
 input,
