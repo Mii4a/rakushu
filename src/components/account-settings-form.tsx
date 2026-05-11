@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
-import { useEffect, useActionState } from "react";
+import { useEffect, useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bookmark,
@@ -13,6 +13,7 @@ import {
   FilePenLine,
   Home,
   Info,
+  LogOut,
   Mail,
   Plane,
   Scale,
@@ -21,6 +22,7 @@ import {
 } from "lucide-react";
 
 import { updateAccountNameAction, type AccountSettingsActionState } from "@/actions/account-settings-actions";
+import { authClient } from "@/lib/auth/client";
 
 type AccountSettingsFormProps = {
   name: string;
@@ -70,6 +72,7 @@ export function AccountSettingsForm({
 }: AccountSettingsFormProps) {
   const router = useRouter();
   const [state, formAction, isPending] = useActionState(updateAccountNameAction, initialState);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const progressWidth = analysisMax > 0 ? Math.min(100, (analysisCount / analysisMax) * 100) : 0;
 
   useEffect(() => {
@@ -77,6 +80,18 @@ export function AccountSettingsForm({
       router.refresh();
     }
   }, [router, state.status]);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+
+    try {
+      await authClient.signOut();
+      router.push("/");
+      router.refresh();
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <section className="dashboard-frame">
@@ -212,6 +227,18 @@ export function AccountSettingsForm({
               </div>
             </article>
           </div>
+
+          <article className="account-settings-subpanel">
+            <div className="account-settings-field-title">
+              <LogOut className="size-6 text-[#2ca100]" />
+              <h2>ログアウト</h2>
+            </div>
+            <p className="mt-4 text-sm leading-7 text-rakumo-ink/75">この端末でのログイン状態を解除して、トップページへ戻ります。</p>
+            <button type="button" onClick={handleLogout} disabled={isLoggingOut} className="account-settings-logout-button">
+              <LogOut className="size-5" />
+              {isLoggingOut ? "ログアウト中..." : "ログアウトする"}
+            </button>
+          </article>
 
           <nav className="dashboard-mobile-nav">
             {mobileNavItems.map((item) => {
