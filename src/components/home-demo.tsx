@@ -36,6 +36,8 @@ const demoSampleText = `株式会社サンプルテック
 
 年間休日125日
 完全週休2日制（土日祝）
+賞与 年2回
+退職金制度あり
 有給休暇、夏季休暇、年末年始休暇、慶弔休暇
 社会保険完備、交通費支給、住宅手当、資格取得支援制度、
 書籍購入補助、リモートワーク可`;
@@ -193,6 +195,8 @@ export function HomeDemo() {
     { label: "固定残業ランク", rank: scored.fixedOvertimeRank, note: "やや注意" },
     { label: "年間休日ランク", rank: scored.holidayRank, note: "良好" },
     { label: "休日制度ランク", rank: scored.holidayTypeRank, note: "良好" },
+    { label: "賞与制度ランク", rank: scored.bonusRank, note: "まずまず" },
+    { label: "退職金制度ランク", rank: scored.retirementAllowanceRank, note: "確認推奨" },
     { label: "福利厚生ランク", rank: scored.benefitRank, note: "標準的" }
   ];
 
@@ -234,6 +238,16 @@ export function HomeDemo() {
         "項目ごとに評価し、総合して",
         "ランクを付けます。"
       ]
+    },
+    {
+      title: "賞与制度の判定",
+      icon: Sparkles,
+      lines: ["年3回以上はS、年2回はA、", "年1回はC、制度なしはD、", "不明な場合は保留で扱います。"]
+    },
+    {
+      title: "退職金制度の判定",
+      icon: CheckCircle2,
+      lines: ["退職金制度ありはA、", "制度なしはD、", "明記なしは保留で扱います。"]
     }
   ] as const;
 
@@ -485,6 +499,20 @@ export function HomeDemo() {
                 <InfoRow label="固定残業代" value={parsed.fixedOvertimePay.status === "none" ? "固定残業制なし" : formatYen(parsed.fixedOvertimePay.value)} />
                 <InfoRow label="年間休日" value={formatDays(parsed.annualHolidays.value)} />
                 <InfoRow label="休日制度" value={parsed.holidayType.value ?? "完全週休2日制（土日祝）"} />
+                <InfoRow
+                  label="賞与制度"
+                  value={
+                    parsed.bonusCount?.status === "none"
+                      ? "なし"
+                      : parsed.bonusCount?.value != null
+                        ? `年${parsed.bonusCount.value}回${parsed.bonusPerformanceLinked?.status === "found" ? "（業績連動）" : ""}`
+                        : "不明"
+                  }
+                />
+                <InfoRow
+                  label="退職金制度"
+                  value={parsed.retirementAllowance?.status === "found" ? "あり" : parsed.retirementAllowance?.status === "none" ? "なし" : "不明"}
+                />
                 <InfoRow
                   label="主な制度・福利厚生"
                   value={parsed.benefits.value?.length ? parsed.benefits.value.join("、") : "リモートワーク可、住宅手当、資格取得支援、書籍購入補助 など"}

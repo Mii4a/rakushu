@@ -48,6 +48,26 @@ export function getChecklistItems(parsed: ParsedJob | null): Item[] {
       tone: parsed.holidayType.value === "完全週休2日制" ? "good" : parsed.holidayType.value === "週休2日制" ? "neutral" : "caution"
     },
     {
+      label: "賞与制度",
+      value:
+        parsed.bonusCount?.status === "none"
+          ? "なし"
+          : parsed.bonusCount?.value != null
+            ? `年${parsed.bonusCount.value}回${parsed.bonusPerformanceLinked?.status === "found" ? "（業績連動）" : ""}`
+            : "不明",
+      tone:
+        parsed.bonusCount?.value != null && parsed.bonusCount.value >= 2 && parsed.bonusPerformanceLinked?.status !== "found"
+          ? "good"
+          : parsed.bonusCount?.status === "none"
+            ? "caution"
+            : "neutral"
+    },
+    {
+      label: "退職金制度",
+      value: parsed.retirementAllowance?.status === "found" ? "あり" : parsed.retirementAllowance?.status === "none" ? "なし" : "不明",
+      tone: parsed.retirementAllowance?.status === "found" ? "good" : parsed.retirementAllowance?.status === "none" ? "caution" : "neutral"
+    },
+    {
       label: "福利厚生",
       value: benefitsCount > 0 ? `${benefitsCount}項目` : "不明",
       tone: benefitsCount >= 4 ? "good" : benefitsCount >= 1 ? "neutral" : "caution"

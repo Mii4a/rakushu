@@ -1,6 +1,6 @@
 import type { ExtractedValue, JobWarnings, ParsedJob } from "@/lib/analysis/types";
 
-export const PARSER_VERSION = "v1.3.2";
+export const PARSER_VERSION = "v1.4.0";
 
 function found<T>(value: T, evidence: string): ExtractedValue<T> {
   return { status: "found", value, evidence };
@@ -133,6 +133,10 @@ function normalizeJPY(value: string): number {
   return Number(numeric || 0);
 }
 
+function normalizeAsciiDigits(value: string): string {
+  return value.replace(/[０-９]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xfee0));
+}
+
 function extractMonthlyAmounts(text: string): number[] {
   const matches = text.matchAll(/月給[:：]?\s*([\d,]+)円/g);
   return [...matches].map((match) => normalizeJPY(match[1]));
@@ -244,6 +248,41 @@ function extractHolidayType(text: string): ExtractedValue<"完全週休2日制" 
   return unknown();
 }
 
+function extractBonusCount(text: string): ExtractedValue<number> {
+  const noneMatch = /賞与\s*(?:なし|無|無し|支給なし)/.exec(text);
+  if (noneMatch) return none(noneMatch[0]);
+
+  const exactMatch = captureByRegex(text, [
+    /賞与[^\n]{0,20}?年\s*([0-9０-９])\s*回/,
+    /賞与[^\n]{0,20}?([0-9０-９])回/,
+    /年\s*([0-9０-９])\s*回[^\n]{0,12}?賞与/,
+    /([0-9０-９])回[^\n]{0,12}?賞与/
+  ]);
+  if (exactMatch) return found(Number(normalizeAsciiDigits(exactMatch[1])), exactMatch[0]);
+
+  const bonusSection = extractSection(text, "昇給・賞与");
+  if (bonusSection) {
+    if (/賞与\s*(?:なし|無|無し|支給なし)/.test(bonusSection)) {
+      const sectionNone = /賞与\s*(?:なし|無|無し|支給なし)/.exec(bonusSection);
+      if (sectionNone) return none(sectionNone[0]);
+    }
+
+    const sectionCount = captureByRegex(bonusSection, [/年\s*([0-9０-９])\s*回/, /([0-9０-９])回/]);
+    if (sectionCount) return found(Number(normalizeAsciiDigits(sectionCount[1])), sectionCount[0]);
+  }
+
+  return unknown();
+}
+
+function extractBonusPerformanceLinked(text: string): ExtractedValue<boolean> {
+  const linkedMatch =
+    /賞与[^\n]{0,24}?(?:業績により|会社業績により|業績による|業績連動|業績次第|業績により有無を検討)|(?:業績により|会社業績により|業績による|業績連動|業績次第|業績により有無を検討)[^\n]{0,24}?賞与/.exec(
+      text
+    );
+  if (linkedMatch) return found(true, linkedMatch[0]);
+  return unknown();
+}
+
 function extractHousingAllowance(text: string): ExtractedValue<boolean> {
   const noneMatch = /住宅手当\s*(?:なし|無)/.exec(text);
   if (noneMatch) return none(noneMatch[0]);
@@ -258,6 +297,15 @@ function extractCompanyHousing(text: string): ExtractedValue<boolean> {
   if (noneMatch) return none(noneMatch[0]);
 
   const hasMatch = /(社宅|借上社宅)(?:あり|制度あり|利用可)/.exec(text);
+  if (!hasMatch) return unknown();
+  return found(true, hasMatch[0]);
+}
+
+function extractRetirementAllowance(text: string): ExtractedValue<boolean> {
+  const noneMatch = /退職金(?:制度)?\s*(?:なし|無|無し)/.exec(text);
+  if (noneMatch) return none(noneMatch[0]);
+
+  const hasMatch = /退職金(?:制度)?(?:あり|有|支給|制度あり|共済加入)/.exec(text);
   if (!hasMatch) return unknown();
   return found(true, hasMatch[0]);
 }
@@ -326,8 +374,11 @@ export function parseJobText(rawText: string): ParsedJob {
     fixedOvertimePay: extractFixedOvertimePay(rawText),
     annualHolidays: extractAnnualHolidays(rawText),
     holidayType: extractHolidayType(rawText),
+    bonusCount: extractBonusCount(rawText),
+    bonusPerformanceLinked: extractBonusPerformanceLinked(rawText),
     housingAllowance: extractHousingAllowance(rawText),
     companyHousing: extractCompanyHousing(rawText),
+    retirementAllowance: extractRetirementAllowance(rawText),
     benefits: extractBenefits(rawText),
     warnings: extractWarnings(rawText)
   };

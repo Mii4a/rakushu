@@ -20,6 +20,12 @@ export function JobRankCard({ rank, parsed, companyName, title, className, showC
   const comment = getRakumoJobComment({ rank, parsed });
   const displayRank = rank && rank !== "UNKNOWN" ? rank : "保留";
   const annualHolidays = parsed?.annualHolidays.value != null ? `${parsed.annualHolidays.value}日` : "不明";
+  const bonus =
+    parsed?.bonusCount?.status === "none"
+      ? "なし"
+      : parsed?.bonusCount?.value != null
+        ? `年${parsed.bonusCount.value}回${parsed?.bonusPerformanceLinked?.status === "found" ? "（業績連動）" : ""}`
+        : "不明";
   const fixedOvertime =
     parsed?.fixedOvertimeHours.status === "none"
       ? "なし"
@@ -27,6 +33,12 @@ export function JobRankCard({ rank, parsed, companyName, title, className, showC
         ? `${parsed.fixedOvertimeHours.value}時間`
         : "不明";
   const benefitsCount = parsed?.benefits.value?.length ?? 0;
+  const retirementAllowance =
+    parsed?.retirementAllowance?.status === "found"
+      ? "あり"
+      : parsed?.retirementAllowance?.status === "none"
+        ? "なし"
+        : "不明";
   const metricGridClassName = compact ? "mt-5 grid gap-3 sm:grid-cols-2" : "mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3";
 
   return (
@@ -64,9 +76,13 @@ export function JobRankCard({ rank, parsed, companyName, title, className, showC
             <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500">福利厚生</p>
             <p className="mt-2 text-sm font-medium leading-6 text-rakumo-ink">{benefitsCount > 0 ? `${benefitsCount}項目` : "不明"}</p>
           </div>
+          <div className="rounded-2xl bg-rakumo-cream px-4 py-3">
+            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500">賞与制度</p>
+            <p className="mt-2 text-sm font-medium leading-6 text-rakumo-ink">{bonus}</p>
+          </div>
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
           <div className="rounded-2xl border border-rakumo-border bg-rakumo-sand/70 px-4 py-3">
             <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500">年間休日</p>
             <p className="mt-2 text-sm font-medium leading-6 text-rakumo-ink">{annualHolidays}</p>
@@ -74,6 +90,10 @@ export function JobRankCard({ rank, parsed, companyName, title, className, showC
           <div className="rounded-2xl border border-rakumo-border bg-rakumo-sand/70 px-4 py-3">
             <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500">休日制度</p>
             <p className="mt-2 text-sm font-medium leading-6 text-rakumo-ink">{parsed?.holidayType.value ?? "不明"}</p>
+          </div>
+          <div className="rounded-2xl border border-rakumo-border bg-rakumo-sand/70 px-4 py-3">
+            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500">退職金制度</p>
+            <p className="mt-2 text-sm font-medium leading-6 text-rakumo-ink">{retirementAllowance}</p>
           </div>
         </div>
       </div>

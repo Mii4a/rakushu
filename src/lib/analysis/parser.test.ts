@@ -12,6 +12,8 @@ describe("parseJobText", () => {
 固定残業代 20時間分 30,000円
 年間休日: 125日
 完全週休2日制
+賞与 年2回（会社業績により変動）
+退職金制度あり
 住宅手当あり
 社宅あり
 福利厚生: 社会保険完備 / 通勤手当
@@ -28,6 +30,9 @@ describe("parseJobText", () => {
     expect(parsed.fixedOvertimePay.value).toBe(30000);
     expect(parsed.annualHolidays.value).toBe(125);
     expect(parsed.holidayType.value).toBe("完全週休2日制");
+    expect(parsed.bonusCount.value).toBe(2);
+    expect(parsed.bonusPerformanceLinked.status).toBe("found");
+    expect(parsed.retirementAllowance.status).toBe("found");
     expect(parsed.housingAllowance.status).toBe("found");
     expect(parsed.companyHousing.status).toBe("found");
     expect(parsed.warnings.value).toEqual(expect.arrayContaining(["アットホーム", "若手活躍"]));
@@ -75,6 +80,11 @@ describe("parseJobText", () => {
 福利厚生
 ■社会保険完備
 
+昇給・賞与
+■賞与年3回
+
+退職金制度あり
+
 連絡先
 〒101-0044　東京都千代田区鍛冶町1-7-11 KCAビル2階
 ITカンファー株式会社　採用担当
@@ -91,9 +101,39 @@ ITカンファー株式会社　採用担当
     expect(parsed.fixedOvertimePay.status).toBe("none");
     expect(parsed.annualHolidays.value).toBe(134);
     expect(parsed.holidayType.value).toBe("完全週休2日制");
+    expect(parsed.bonusCount.value).toBe(3);
+    expect(parsed.retirementAllowance.status).toBe("found");
     expect(parsed.benefits.value).toEqual(
       expect.arrayContaining(["社会保険完備", "交通費（全額支給）", "資格手当", "引越手当", "通信費補助"])
     );
+  });
+
+  it("extracts bonus count and lowers confidence hint when bonus is performance-linked", () => {
+    const raw = `
+昇給・賞与
+賞与 年2回（業績による）
+
+福利厚生
+退職金制度あり
+`;
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.bonusCount.value).toBe(2);
+    expect(parsed.bonusPerformanceLinked.status).toBe("found");
+    expect(parsed.retirementAllowance.status).toBe("found");
+  });
+
+  it("extracts full-width annual bonus count when payout is under review by performance", () => {
+    const raw = `
+昇給・賞与
+賞与 年１回（業績により有無を検討）
+`;
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.bonusCount.value).toBe(1);
+    expect(parsed.bonusPerformanceLinked.status).toBe("found");
   });
 
   it("extracts skeptical warnings from hype-heavy sns job posts", () => {

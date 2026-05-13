@@ -34,8 +34,11 @@ export type ParsedJob = {
   fixedOvertimePay: ExtractedValue<number>;
   annualHolidays: ExtractedValue<number>;
   holidayType: ExtractedValue<"完全週休2日制" | "週休2日制">;
+  bonusCount: ExtractedValue<number>;
+  bonusPerformanceLinked: ExtractedValue<boolean>;
   housingAllowance: ExtractedValue<boolean>;
   companyHousing: ExtractedValue<boolean>;
+  retirementAllowance: ExtractedValue<boolean>;
   benefits: ExtractedValue<string[]>;
   warnings: ExtractedValue<JobWarnings[]>;
 };
@@ -46,6 +49,8 @@ export type ScoredJob = {
   fixedOvertimeRank: Rank;
   holidayRank: Rank;
   holidayTypeRank: Rank;
+  bonusRank: Rank;
+  retirementAllowanceRank: Rank;
   benefitRank: Rank;
   totalRank: Rank;
 };

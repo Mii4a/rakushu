@@ -107,6 +107,8 @@ export async function updateRankSettingsAction(formData: FormData) {
           salaryRank: rescored.fixedOvertimeRank,
           holidayRank: rescored.holidayRank,
           holidayTypeRank: rescored.holidayTypeRank,
+          bonusRank: rescored.bonusRank,
+          retirementAllowanceRank: rescored.retirementAllowanceRank,
           benefitRank: rescored.benefitRank,
           totalRank: rescored.totalRank,
           updatedAt: now

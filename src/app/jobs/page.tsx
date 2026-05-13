@@ -143,6 +143,16 @@ function buildAnalysisNotes(parsed: ParsedJob | null, warnings: string[]) {
   const notes = [
     parsed.annualHolidays.value != null ? `年間休日は ${parsed.annualHolidays.value} 日です。` : "年間休日は求人票から読み取れませんでした。",
     parsed.holidayType.value ? `休日制度は「${parsed.holidayType.value}」です。` : "休日制度の明記は確認できませんでした。",
+    parsed.bonusCount?.status === "none"
+      ? "賞与制度は見当たりませんでした。"
+      : parsed.bonusCount?.value != null
+        ? `賞与制度は年 ${parsed.bonusCount.value} 回${parsed.bonusPerformanceLinked?.status === "found" ? "で、業績により変動します。" : "です。"}`
+        : "賞与制度の回数は求人票から読み取れませんでした。",
+    parsed.retirementAllowance?.status === "found"
+      ? "退職金制度の記載があります。"
+      : parsed.retirementAllowance?.status === "none"
+        ? "退職金制度は見当たりませんでした。"
+        : "退職金制度の明記は確認できませんでした。",
     parsed.fixedOvertimeHours.status === "none"
       ? "固定残業制度は見当たりませんでした。"
       : parsed.fixedOvertimeHours.value != null
@@ -254,6 +264,8 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
         { label: "固定残業", value: getDisplayRank(selectedJob.latest?.salaryRank) },
         { label: "年間休日", value: getDisplayRank(selectedJob.latest?.holidayRank) },
         { label: "休日制度", value: getDisplayRank(selectedJob.latest?.holidayTypeRank) },
+        { label: "賞与制度", value: getDisplayRank(selectedJob.latest?.bonusRank) },
+        { label: "退職金制度", value: getDisplayRank(selectedJob.latest?.retirementAllowanceRank) },
         { label: "福利厚生", value: getDisplayRank(selectedJob.latest?.benefitRank) }
       ]
     : [];
@@ -451,11 +463,25 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
                           ? `${job.parsed.fixedOvertimeHours.value}時間`
                           : "－";
                     const benefitsCount = job.parsed?.benefits.value?.length ?? 0;
+                    const bonus =
+                      job.parsed?.bonusCount?.status === "none"
+                        ? "なし"
+                        : job.parsed?.bonusCount?.value != null
+                          ? `年${job.parsed.bonusCount.value}回${job.parsed?.bonusPerformanceLinked?.status === "found" ? "（業績連動）" : ""}`
+                          : "－";
                     const quickItems = [
                       { label: "年間休日", value: annualHolidays, tone: job.parsed?.annualHolidays.value != null && job.parsed.annualHolidays.value >= 120 ? "good" : "neutral" },
                       { label: "福利厚生", value: benefitsCount > 0 ? `${benefitsCount}件` : "－", tone: benefitsCount >= 4 ? "good" : benefitsCount >= 1 ? "neutral" : "neutral" },
                       { label: "固定残業", value: fixedOvertime, tone: warnings.some((warning) => warning.includes("残業")) ? "warn" : "good" },
-                      { label: "休日制度", value: job.parsed?.holidayType.value ?? "－", tone: job.parsed?.holidayType.value === "完全週休2日制" ? "good" : "neutral" }
+                      { label: "休日制度", value: job.parsed?.holidayType.value ?? "－", tone: job.parsed?.holidayType.value === "完全週休2日制" ? "good" : "neutral" },
+                      {
+                        label: "賞与制度",
+                        value: bonus,
+                        tone:
+                          job.parsed?.bonusCount?.value != null && job.parsed.bonusCount.value >= 2 && job.parsed?.bonusPerformanceLinked?.status !== "found"
+                            ? "good"
+                            : "neutral"
+                      }
                     ];
 
                     return (
@@ -580,6 +606,22 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
                         <div className="grid gap-3 sm:grid-cols-2">
                           {[
                             ["年間休日", formatMetricValue(selectedJob.parsed?.annualHolidays.value, "日")],
+                            [
+                              "賞与制度",
+                              selectedJob.parsed?.bonusCount?.status === "none"
+                                ? "なし"
+                                : selectedJob.parsed?.bonusCount?.value != null
+                                  ? `年${selectedJob.parsed.bonusCount.value}回${selectedJob.parsed?.bonusPerformanceLinked?.status === "found" ? "（業績連動）" : ""}`
+                                  : "不明"
+                            ],
+                            [
+                              "退職金制度",
+                              selectedJob.parsed?.retirementAllowance?.status === "found"
+                                ? "あり"
+                                : selectedJob.parsed?.retirementAllowance?.status === "none"
+                                  ? "なし"
+                                  : "不明"
+                            ],
                             ["福利厚生", formatMetricValue(selectedJob.parsed?.benefits.value?.length ?? 0, "件")],
                             [
                               "固定残業の有無",

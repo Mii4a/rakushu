@@ -35,11 +35,43 @@ function rankHolidayType(parsed: ParsedJob): Rank {
   return "UNKNOWN";
 }
 
+function rankBonus(parsed: ParsedJob): Rank {
+  const isPerformanceLinked = parsed.bonusPerformanceLinked?.status === "found" && parsed.bonusPerformanceLinked.value === true;
+
+  if (parsed.bonusCount?.status === "found" && parsed.bonusCount.value != null) {
+    const baseRank =
+      parsed.bonusCount.value >= 3
+        ? "S"
+        : parsed.bonusCount.value >= 2
+          ? "A"
+          : parsed.bonusCount.value >= 1
+            ? "C"
+            : "UNKNOWN";
+
+    return isPerformanceLinked ? downgradeRank(baseRank, 1) : baseRank;
+  }
+  if (parsed.bonusCount?.status === "none") {
+    return "D";
+  }
+  return "UNKNOWN";
+}
+
+function rankRetirementAllowance(parsed: ParsedJob): Rank {
+  if (parsed.retirementAllowance?.status === "found" && parsed.retirementAllowance.value === true) {
+    return "A";
+  }
+  if (parsed.retirementAllowance?.status === "none") {
+    return "D";
+  }
+  return "UNKNOWN";
+}
+
 function rankBenefits(parsed: ParsedJob): Rank {
   const benefits = parsed.benefits.value ?? [];
   const housingAllowancePoint = parsed.housingAllowance.status === "found" && parsed.housingAllowance.value === true ? 1 : 0;
   const companyHousingPoint = parsed.companyHousing.status === "found" && parsed.companyHousing.value === true ? 1 : 0;
-  const score = benefits.length + housingAllowancePoint + companyHousingPoint;
+  const retirementAllowancePoint = parsed.retirementAllowance?.status === "found" && parsed.retirementAllowance.value === true ? 1 : 0;
+  const score = benefits.length + housingAllowancePoint + companyHousingPoint + retirementAllowancePoint;
 
   if (score >= 6) return "S";
   if (score >= 5) return "A";
@@ -107,13 +139,17 @@ export function scoreParsedJob(parsed: ParsedJob, settings: RankSettings = DEFAU
   const fixedOvertimeRank = rankFixedOvertime(parsed, settings);
   const holidayRank = rankHolidays(parsed, settings);
   const holidayTypeRank = rankHolidayType(parsed);
+  const bonusRank = rankBonus(parsed);
+  const retirementAllowanceRank = rankRetirementAllowance(parsed);
   const benefitRank = rankBenefits(parsed);
-  const baseTotalRank = averageRank([fixedOvertimeRank, holidayRank, holidayTypeRank, benefitRank]);
+  const baseTotalRank = averageRank([fixedOvertimeRank, holidayRank, holidayTypeRank, bonusRank, retirementAllowanceRank, benefitRank]);
 
   return {
     fixedOvertimeRank,
     holidayRank,
     holidayTypeRank,
+    bonusRank,
+    retirementAllowanceRank,
     benefitRank,
     totalRank: applyWarningPenalty(parsed, baseTotalRank)
   };
