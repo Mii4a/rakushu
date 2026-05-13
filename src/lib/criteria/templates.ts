@@ -98,9 +98,10 @@ export async function ensureDefaultPublicCriteria(ownerUserId: string) {
     userId: ownerUserId,
     sourceTemplateId: DEFAULT_PUBLIC_CRITERIA_SOURCE_ID,
     title: "固定残業・休日重視の働きやすさ基準",
-    description: "ワークライフバランスを重視したい方におすすめの基準です。長く働き続けられる環境かどうかを、固定残業時間と年間休日の2軸で判断します。",
+    description:
+      "ワークライフバランスを重視したい方におすすめの基準です。長く働き続けられる環境かどうかを、固定残業時間と年間休日を主軸に、賞与制度・退職金制度・福利厚生も含めて判断します。",
     category: "work-life",
-    tagsJson: JSON.stringify(["固定残業", "年間休日", "ワークライフバランス", "安定志向"]),
+    tagsJson: JSON.stringify(["固定残業", "年間休日", "賞与制度", "退職金制度", "ワークライフバランス", "安定志向"]),
     visibility: "public",
     editable: false,
     overtimeAMaxHours: 10,

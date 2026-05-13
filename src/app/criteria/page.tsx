@@ -570,16 +570,19 @@ export default async function CriteriaPage({
                         </div>
 
                         <div className="rounded-[18px] border border-rakumo-border bg-white p-4">
-                          <p className="text-[1.1rem] font-black text-rakumo-ink">3. 休日制度・福利厚生の見方</p>
+                          <p className="text-[1.1rem] font-black text-rakumo-ink">3. 休日制度・賞与・退職金・福利厚生の見方</p>
                           <div className="mt-3 flex flex-wrap gap-2 text-sm">
-                            {["完全週休2日制", "各種休暇あり", "有給取得率", "育休・産休制度", "フレックスタイム制"].map((item) => (
+                            {["完全週休2日制", "各種休暇あり", "賞与年2回以上", "退職金制度あり", "育休・産休制度", "フレックスタイム制"].map((item) => (
                               <span key={item} className="inline-flex items-center gap-2 rounded-full border border-[#d7eedf] bg-[#fbfff9] px-3 py-2 font-semibold text-rakumo-ink">
                                 <span className="inline-flex size-5 items-center justify-center rounded-full bg-[#1ea54c] text-white">✓</span>
                                 {item}
                               </span>
                             ))}
                           </div>
-                          <p className="mt-3 text-sm leading-7 text-rakumo-ink/70">上記の制度が整っているほど評価が高くなります。実績が複数社で総合的に判断しましょう。</p>
+                          <p className="mt-3 text-sm leading-7 text-rakumo-ink/70">
+                            休日制度、賞与制度、退職金制度、福利厚生の明記がそろっているほど評価が高くなります。賞与は年2回以上が高評価で、業績連動の注記がある場合は一段慎重に見ます。
+                          </p>
+                          <p className="mt-2 text-sm leading-7 text-rakumo-ink/70">退職金制度は「あり」で加点、「なし」は低め、不明は保留として扱います。</p>
                         </div>
 
                         <div className="rounded-[18px] border border-rakumo-border bg-white p-4">
@@ -587,7 +590,7 @@ export default async function CriteriaPage({
                             <div>
                               <p className="text-[1.1rem] font-black text-rakumo-ink">4. この基準の使いどころ</p>
                               <p className="mt-3 text-sm leading-7 text-rakumo-ink/72">{selectedTemplate.description}</p>
-                              <p className="mt-3 text-sm leading-7 text-rakumo-ink/72">長く働き続けられる環境かどうかを、固定残業時間と年間休日の2軸で判断しやすい構成です。</p>
+                              <p className="mt-3 text-sm leading-7 text-rakumo-ink/72">長く働き続けられる環境かどうかを、固定残業時間と年間休日を主軸に、賞与制度・退職金制度・福利厚生も含めて総合的に判断しやすい構成です。</p>
                             </div>
                             <RakumoAvatar tone="good" className="hidden h-20 w-20 border-[#d7eedf] md:block" />
                           </div>
