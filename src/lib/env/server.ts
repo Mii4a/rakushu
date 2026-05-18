@@ -17,6 +17,7 @@ const serverEnvSchema = z.object({
   STRIPE_PRICE_PRO: z.string().optional(),
   STRIPE_ALLOW_PROMOTION_CODES: z.enum(["true", "false"]).default("true"),
   STRIPE_CAMPAIGN_PROMOTION_CODE_ID: z.string().optional(),
+  GOOGLE_MAPS_SERVER_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MAIN_MODEL: z.string().default("gpt-4.1-mini"),
   OPENAI_LIGHT_MODEL: z.string().default("gpt-4.1-nano")
@@ -30,7 +31,8 @@ const runtimeEnvInput = {
   STRIPE_PRICE_PLUS: process.env.STRIPE_PRICE_PLUS ?? process.env.STRIPE_PRICE_PLUS_SECRET,
   STRIPE_PRICE_PRO: process.env.STRIPE_PRICE_PRO ?? process.env.STRIPE_PRICE_PRO_SECRET,
   STRIPE_CAMPAIGN_PROMOTION_CODE_ID:
-    process.env.STRIPE_CAMPAIGN_PROMOTION_CODE_ID ?? process.env.STRIPE_CAMPAIGN_PROMOTION_CODE_ID_SECRET
+    process.env.STRIPE_CAMPAIGN_PROMOTION_CODE_ID ?? process.env.STRIPE_CAMPAIGN_PROMOTION_CODE_ID_SECRET,
+  GOOGLE_MAPS_SERVER_API_KEY: process.env.GOOGLE_MAPS_SERVER_API_KEY ?? process.env.GOOGLE_MAPS_API_KEY
 };
 
 const buildPhaseFallbacks = {

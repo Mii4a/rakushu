@@ -1,6 +1,6 @@
 import { and, desc, eq, like, or, sql } from "drizzle-orm";
 
-import { DEFAULT_RANK_SETTINGS, type RankSettings } from "@/lib/analysis";
+import { DEFAULT_RANK_SETTINGS, normalizeConfigurableRank, type RankSettings } from "@/lib/analysis";
 import { db } from "@/lib/db/client";
 import { criteriaTemplates } from "@/lib/db/schema";
 
@@ -47,6 +47,16 @@ export function criteriaToRankSettings(template: typeof criteriaTemplates.$infer
       bMinDays: template.holidayBMinDays,
       cMinDays: template.holidayCMinDays,
       dMinDays: template.holidayDMinDays
+    },
+    bonus: {
+      sMinCount: template.bonusSMinCount,
+      aMinCount: template.bonusAMinCount,
+      bMinCount: template.bonusBMinCount,
+      cMinCount: template.bonusCMinCount
+    },
+    retirementAllowance: {
+      withAllowanceRank: normalizeConfigurableRank(template.retirementWithAllowanceRank, DEFAULT_RANK_SETTINGS.retirementAllowance.withAllowanceRank),
+      withoutAllowanceRank: normalizeConfigurableRank(template.retirementWithoutAllowanceRank, DEFAULT_RANK_SETTINGS.retirementAllowance.withoutAllowanceRank)
     }
   };
 }
@@ -61,7 +71,13 @@ export function defaultCriteriaValues() {
     holidayAMinDays: DEFAULT_RANK_SETTINGS.annualHolidays.aMinDays,
     holidayBMinDays: DEFAULT_RANK_SETTINGS.annualHolidays.bMinDays,
     holidayCMinDays: DEFAULT_RANK_SETTINGS.annualHolidays.cMinDays,
-    holidayDMinDays: DEFAULT_RANK_SETTINGS.annualHolidays.dMinDays
+    holidayDMinDays: DEFAULT_RANK_SETTINGS.annualHolidays.dMinDays,
+    bonusSMinCount: DEFAULT_RANK_SETTINGS.bonus.sMinCount,
+    bonusAMinCount: DEFAULT_RANK_SETTINGS.bonus.aMinCount,
+    bonusBMinCount: DEFAULT_RANK_SETTINGS.bonus.bMinCount,
+    bonusCMinCount: DEFAULT_RANK_SETTINGS.bonus.cMinCount,
+    retirementWithAllowanceRank: DEFAULT_RANK_SETTINGS.retirementAllowance.withAllowanceRank,
+    retirementWithoutAllowanceRank: DEFAULT_RANK_SETTINGS.retirementAllowance.withoutAllowanceRank
   };
 }
 
@@ -113,6 +129,12 @@ export async function ensureDefaultPublicCriteria(ownerUserId: string) {
     holidayBMinDays: 105,
     holidayCMinDays: 95,
     holidayDMinDays: 95,
+    bonusSMinCount: DEFAULT_RANK_SETTINGS.bonus.sMinCount,
+    bonusAMinCount: DEFAULT_RANK_SETTINGS.bonus.aMinCount,
+    bonusBMinCount: DEFAULT_RANK_SETTINGS.bonus.bMinCount,
+    bonusCMinCount: DEFAULT_RANK_SETTINGS.bonus.cMinCount,
+    retirementWithAllowanceRank: DEFAULT_RANK_SETTINGS.retirementAllowance.withAllowanceRank,
+    retirementWithoutAllowanceRank: DEFAULT_RANK_SETTINGS.retirementAllowance.withoutAllowanceRank,
     ...defaultMetrics,
     popularityScore: calculatePopularityScore(defaultMetrics),
     publishedAt: now,

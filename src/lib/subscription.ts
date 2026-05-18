@@ -18,6 +18,18 @@ export async function getUserPlan(userId: string): Promise<Plan> {
   return record.plan as Plan;
 }
 
+export async function getSubscriptionByStripeCustomerId(stripeCustomerId: string) {
+  return db.query.subscriptions.findFirst({
+    where: eq(subscriptions.stripeCustomerId, stripeCustomerId)
+  });
+}
+
+export async function getSubscriptionByStripeSubscriptionId(stripeSubscriptionId: string) {
+  return db.query.subscriptions.findFirst({
+    where: eq(subscriptions.stripeSubscriptionId, stripeSubscriptionId)
+  });
+}
+
 export async function upsertSubscriptionFromStripe(params: {
   userId: string;
   stripeCustomerId: string;

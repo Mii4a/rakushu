@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { parseJobText, scoreParsedJob } from "@/lib/analysis";
 import { requireUser } from "@/lib/auth/require-user";
+import { resolveCommuteFields } from "@/lib/commute";
 import { db } from "@/lib/db/client";
 import { jobAnalyses, jobs, jobStatusEvents } from "@/lib/db/schema";
 import { PLAN_LIMITS } from "@/lib/plans";
@@ -40,6 +41,9 @@ const newJobSchema = z.object({
   title: z.string().trim().max(200).optional(),
   sourceName: z.string().trim().max(200).optional(),
   sourceUrl: z.union([z.literal(""), z.string().url()]).optional(),
+  workAddress: z.string().trim().max(240).optional(),
+  nearestStation: z.string().trim().max(120).optional(),
+  commuteMinutes: z.union([z.literal(""), z.coerce.number().int().min(1).max(240)]).optional(),
   rawText: z.string().trim().min(20, "求人本文は20文字以上入力してください")
 });
 
@@ -49,6 +53,9 @@ const updateJobSchema = z.object({
   title: z.string().trim().max(200).optional(),
   sourceName: z.string().trim().max(200).optional(),
   sourceUrl: z.union([z.literal(""), z.string().url()]).optional(),
+  workAddress: z.string().trim().max(240).optional(),
+  nearestStation: z.string().trim().max(120).optional(),
+  commuteMinutes: z.union([z.literal(""), z.coerce.number().int().min(1).max(240)]).optional(),
   rawText: z.string().trim().min(20, "求人本文は20文字以上入力してください")
 });
 
@@ -125,6 +132,9 @@ export async function createJobAction(_: JobActionState | undefined, formData: F
     title: formData.get("title")?.toString() ?? "",
     sourceName: formData.get("sourceName")?.toString() ?? "",
     sourceUrl: formData.get("sourceUrl")?.toString() ?? "",
+    workAddress: formData.get("workAddress")?.toString() ?? "",
+    nearestStation: formData.get("nearestStation")?.toString() ?? "",
+    commuteMinutes: formData.get("commuteMinutes")?.toString() ?? "",
     rawText: formData.get("rawText")?.toString() ?? ""
   });
 
@@ -161,6 +171,11 @@ export async function createJobAction(_: JobActionState | undefined, formData: F
   const parsed = parseJobText(parsedForm.data.rawText);
   const rankSettings = await getUserRankSettings(user.id);
   const scored = scoreParsedJob(parsed, rankSettings);
+  const commuteFields = await resolveCommuteFields({
+    userId: user.id,
+    destinationStationName: parsedForm.data.nearestStation || null,
+    manualCommuteMinutes: typeof parsedForm.data.commuteMinutes === "number" ? parsedForm.data.commuteMinutes : null
+  });
 
   await db.insert(jobs).values({
     id: jobId,
@@ -169,6 +184,9 @@ export async function createJobAction(_: JobActionState | undefined, formData: F
     title: parsed.title.value || parsedForm.data.title || null,
     sourceName: parsedForm.data.sourceName || null,
     sourceUrl: parsedForm.data.sourceUrl || null,
+    workAddress: parsedForm.data.workAddress || null,
+    nearestStation: parsedForm.data.nearestStation || null,
+    ...commuteFields,
     rawText: parsedForm.data.rawText,
     createdAt: now,
     updatedAt: now
@@ -252,12 +270,18 @@ export async function rerunAnalysisAction(jobId: string, _: JobActionState | und
   const parsed = parseJobText(target.rawText);
   const rankSettings = await getUserRankSettings(user.id);
   const scored = scoreParsedJob(parsed, rankSettings);
+  const commuteFields = await resolveCommuteFields({
+    userId: user.id,
+    destinationStationName: target.nearestStation,
+    manualCommuteMinutes: target.commuteDataKind === "manual" ? target.commuteMinutes : null
+  });
 
   await db
     .update(jobs)
     .set({
       companyName: parsed.companyName.value || target.companyName,
       title: parsed.title.value || target.title,
+      ...commuteFields,
       updatedAt: now
     })
     .where(and(eq(jobs.id, jobId), eq(jobs.userId, user.id)));
@@ -311,6 +335,9 @@ export async function updateJobAction(formData: FormData) {
     title: formData.get("title")?.toString() ?? "",
     sourceName: formData.get("sourceName")?.toString() ?? "",
     sourceUrl: formData.get("sourceUrl")?.toString() ?? "",
+    workAddress: formData.get("workAddress")?.toString() ?? "",
+    nearestStation: formData.get("nearestStation")?.toString() ?? "",
+    commuteMinutes: formData.get("commuteMinutes")?.toString() ?? "",
     rawText: formData.get("rawText")?.toString() ?? ""
   });
 
@@ -318,7 +345,7 @@ export async function updateJobAction(formData: FormData) {
     throw new Error(parsedForm.error.issues[0]?.message ?? "入力値が不正です");
   }
 
-  const { jobId, companyName, title, sourceName, sourceUrl, rawText } = parsedForm.data;
+  const { jobId, companyName, title, sourceName, sourceUrl, workAddress, nearestStation, commuteMinutes, rawText } = parsedForm.data;
   const target = await db.query.jobs.findFirst({
     where: and(eq(jobs.id, jobId), eq(jobs.userId, user.id))
   });
@@ -327,6 +354,12 @@ export async function updateJobAction(formData: FormData) {
     throw new Error("編集対象の求人が見つかりません");
   }
 
+  const commuteFields = await resolveCommuteFields({
+    userId: user.id,
+    destinationStationName: nearestStation || null,
+    manualCommuteMinutes: typeof commuteMinutes === "number" ? commuteMinutes : null
+  });
+
   await db
     .update(jobs)
     .set({
@@ -334,6 +367,9 @@ export async function updateJobAction(formData: FormData) {
       title: title || null,
       sourceName: sourceName || null,
       sourceUrl: sourceUrl || null,
+      workAddress: workAddress || null,
+      nearestStation: nearestStation || null,
+      ...commuteFields,
       rawText,
       updatedAt: new Date()
     })

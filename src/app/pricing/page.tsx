@@ -4,7 +4,7 @@ import { CreditCard, Layers3, Settings2, Sparkles } from "lucide-react";
 import { updateRankSettingsAction } from "@/actions/rank-settings-actions";
 import { CheckoutButton } from "@/components/checkout-button";
 import { CustomerPortalButton } from "@/components/customer-portal-button";
-import { DEFAULT_RANK_SETTINGS } from "@/lib/analysis";
+import { CONFIGURABLE_RANKS, DEFAULT_RANK_SETTINGS } from "@/lib/analysis";
 import { requireUser } from "@/lib/auth/require-user";
 import { isProductionBuildPhase } from "@/lib/env/build-phase";
 import { serverEnv } from "@/lib/env/server";
@@ -58,7 +58,12 @@ export default async function PricingPage() {
           <div className="metric-tile">
             <Settings2 className="size-5 text-rakumo-warning" />
             <p className="mt-3 text-sm font-medium text-rakumo-ink">自分用の見極め方</p>
-            <p className="mt-2 text-sm leading-6 text-rakumo-ink/75">Plus以上で固定残業と年間休日の閾値を自分用に調整できます。</p>
+            <p className="mt-2 text-sm leading-6 text-rakumo-ink/75">Plus以上で固定残業・年間休日・賞与・退職金の見方を自分用に調整できます。</p>
+          </div>
+          <div className="metric-tile">
+            <Sparkles className="size-5 text-rakumo-mint" />
+            <p className="mt-3 text-sm font-medium text-rakumo-ink">履歴書ワークスペース</p>
+            <p className="mt-2 text-sm leading-6 text-rakumo-ink/75">Pro では履歴書の下書きを保存して、次回以降の叩き台として再利用できます。</p>
           </div>
         </div>
       </div>
@@ -99,6 +104,8 @@ export default async function PricingPage() {
                 <li>求人保存: {Number.isFinite(limits.maxJobs) ? `${limits.maxJobs}件` : "無制限"}</li>
                 <li>求人票要約: 1クレジット</li>
                 <li>求人特徴抽出: 1クレジット</li>
+                <li>通勤時間取得: 開発中</li>
+                <li>履歴書ワークスペース: {paidPlan === "pro" ? "保存・再利用可" : "対象外"}</li>
               </ul>
 
               <div className="mt-5">
@@ -154,7 +161,7 @@ export default async function PricingPage() {
 
       <article className="panel">
         <h2 className="section-title">自分用のランク基準設定</h2>
-        <p className="section-copy mt-2">固定残業ランクと年間休日ランクの閾値をユーザー単位で変更できます。自由編集はPlus以上です。</p>
+        <p className="section-copy mt-2">固定残業・年間休日の閾値に加えて、賞与回数と退職金制度の評価もユーザー単位で変更できます。自由編集はPlus以上です。</p>
 
         {canEditRankSettings ? (
           <form action={updateRankSettingsAction} className="mt-4 space-y-6">
@@ -206,6 +213,55 @@ export default async function PricingPage() {
               </div>
             </div>
 
+            <div>
+              <h3 className="text-sm font-medium text-slate-900">賞与制度ランク</h3>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <label className="space-y-2">
+                  <span className="field-label">S 下限回数</span>
+                  <input name="bonusSMinCount" type="number" min={1} defaultValue={rankSettings.bonus.sMinCount} className="field-input" />
+                </label>
+                <label className="space-y-2">
+                  <span className="field-label">A 下限回数</span>
+                  <input name="bonusAMinCount" type="number" min={1} defaultValue={rankSettings.bonus.aMinCount} className="field-input" />
+                </label>
+                <label className="space-y-2">
+                  <span className="field-label">B 下限回数</span>
+                  <input name="bonusBMinCount" type="number" min={1} defaultValue={rankSettings.bonus.bMinCount} className="field-input" />
+                </label>
+                <label className="space-y-2">
+                  <span className="field-label">C 下限回数</span>
+                  <input name="bonusCMinCount" type="number" min={1} defaultValue={rankSettings.bonus.cMinCount} className="field-input" />
+                </label>
+              </div>
+              <p className="mt-2 text-xs text-slate-500">業績連動の注記がある場合は、ここで決めたランクから1段階下げて判定します。</p>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-medium text-slate-900">退職金制度ランク</h3>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <label className="space-y-2">
+                  <span className="field-label">制度ありのランク</span>
+                  <select name="retirementWithAllowanceRank" defaultValue={rankSettings.retirementAllowance.withAllowanceRank} className="field-input">
+                    {CONFIGURABLE_RANKS.map((rank) => (
+                      <option key={rank} value={rank}>
+                        {rank}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="space-y-2">
+                  <span className="field-label">制度なしのランク</span>
+                  <select name="retirementWithoutAllowanceRank" defaultValue={rankSettings.retirementAllowance.withoutAllowanceRank} className="field-input">
+                    {CONFIGURABLE_RANKS.map((rank) => (
+                      <option key={rank} value={rank}>
+                        {rank}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </div>
+
             <button type="submit" className="button-primary">
               <Sparkles className="size-4" />
               基準を保存
@@ -216,7 +272,10 @@ export default async function PricingPage() {
             自分用基準の自由編集はPlusプラン以上で利用できます。現在の既定値は、固定残業 A≤{DEFAULT_RANK_SETTINGS.fixedOvertime.aMaxHours} / B≤
             {DEFAULT_RANK_SETTINGS.fixedOvertime.bMaxHours} / C≤{DEFAULT_RANK_SETTINGS.fixedOvertime.cMaxHours} / D≤{DEFAULT_RANK_SETTINGS.fixedOvertime.dMaxHours}、年間休日 S≥
             {DEFAULT_RANK_SETTINGS.annualHolidays.sMinDays} / A≥{DEFAULT_RANK_SETTINGS.annualHolidays.aMinDays} / B≥{DEFAULT_RANK_SETTINGS.annualHolidays.bMinDays} / C≥
-            {DEFAULT_RANK_SETTINGS.annualHolidays.cMinDays} / D≥{DEFAULT_RANK_SETTINGS.annualHolidays.dMinDays} です。
+            {DEFAULT_RANK_SETTINGS.annualHolidays.cMinDays} / D≥{DEFAULT_RANK_SETTINGS.annualHolidays.dMinDays}、賞与 S≥
+            {DEFAULT_RANK_SETTINGS.bonus.sMinCount}回 / A≥{DEFAULT_RANK_SETTINGS.bonus.aMinCount}回 / B≥{DEFAULT_RANK_SETTINGS.bonus.bMinCount}回 / C≥
+            {DEFAULT_RANK_SETTINGS.bonus.cMinCount}回、退職金は「あり」={DEFAULT_RANK_SETTINGS.retirementAllowance.withAllowanceRank} / 「なし」=
+            {DEFAULT_RANK_SETTINGS.retirementAllowance.withoutAllowanceRank} です。
           </div>
         )}
       </article>

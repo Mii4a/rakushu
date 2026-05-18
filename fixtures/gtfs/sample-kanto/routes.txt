@@ -1,0 +1,4 @@
+route_id,route_short_name,route_long_name,route_desc,route_type
+chuo_local,各駅停車,中央線各駅停車,,2
+chuo_rapid,快速,中央線快速,,2
+limited_test,特急,テスト特急,,2

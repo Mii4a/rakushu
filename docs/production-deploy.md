@@ -38,6 +38,9 @@ TURSO_AUTH_TOKEN=replace-with-production-turso-token
 GOOGLE_CLIENT_ID=replace-with-production-google-client-id
 GOOGLE_CLIENT_SECRET=replace-with-production-google-client-secret
 
+GOOGLE_MAPS_SERVER_API_KEY=replace-with-production-server-maps-key
+NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_API_KEY=replace-with-production-browser-maps-key
+
 STRIPE_SECRET_KEY=sk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 STRIPE_PRICE_STARTER=price_...
@@ -54,6 +57,8 @@ OPENAI_LIGHT_MODEL=gpt-4.1-nano
 注意:
 - `BETTER_AUTH_SECRET` は 32 文字以上の強いランダム値を使う
 - `TURSO_DATABASE_URL` と `TURSO_AUTH_TOKEN` は本番専用値にする
+- `GOOGLE_MAPS_SERVER_API_KEY` は Routes API / Geocoding API など server-side 専用キーにする
+- `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_API_KEY` は Maps JavaScript API 用の browser 専用キーにする
 - `STRIPE_*` は live mode の値に切り替える
 - `.env.production` はテンプレート用途にとどめ、秘密値は Git に載せない
 - 追跡対象のテンプレートは `.env.production.example`
@@ -66,6 +71,7 @@ npx wrangler secret put TURSO_DATABASE_URL_SECRET
 npx wrangler secret put TURSO_AUTH_TOKEN
 npx wrangler secret put GOOGLE_CLIENT_ID
 npx wrangler secret put GOOGLE_CLIENT_SECRET
+npx wrangler secret put GOOGLE_MAPS_SERVER_API_KEY
 npx wrangler secret put STRIPE_PRICE_STARTER_SECRET
 npx wrangler secret put STRIPE_PRICE_PLUS_SECRET
 npx wrangler secret put STRIPE_PRICE_PRO_SECRET
@@ -89,6 +95,7 @@ npm run cf:secrets:prod
 - `TURSO_AUTH_TOKEN`
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_MAPS_SERVER_API_KEY`
 - `STRIPE_PRICE_STARTER_SECRET`
 - `STRIPE_PRICE_PLUS_SECRET`
 - `STRIPE_PRICE_PRO_SECRET`
@@ -97,6 +104,8 @@ npm run cf:secrets:prod
 - `OPENAI_API_KEY`
 
 `STRIPE_CAMPAIGN_PROMOTION_CODE_ID_SECRET` は任意です。`.env.production` に値が入っている場合だけ secret として登録します。
+
+`NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_API_KEY` は browser で読む公開値なので、secret ではなく環境変数として管理します。
 
 ## 3. 外部サービス設定
 
@@ -110,6 +119,24 @@ Google Cloud Console で以下を登録します。
   - `https://rakushu.mii4a.workers.dev/api/auth/callback/google`
 
 このアプリの Better Auth は `BETTER_AUTH_URL` を `baseURL` として使います。
+
+### Google Maps Platform
+
+キーは `server` と `browser` で分けます。
+
+- `GOOGLE_MAPS_SERVER_API_KEY`
+  - 用途: `Routes API`、将来の `Geocoding API`
+  - API restrictions: `Routes API`、必要になったら `Geocoding API`
+- `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_API_KEY`
+  - 用途: 将来の地図表示、属性別の地点強調
+  - API restrictions: `Maps JavaScript API`
+
+制限の考え方:
+
+- browser key: `Websites`
+- server key:
+  - 固定 egress を持てるなら `IP addresses`
+  - 固定 egress を持てないなら `API restrictions` を必要最小限に絞る
 
 ### Stripe
 
@@ -286,4 +313,3 @@ Stripe 課金周りの変更時は、次の順で再現検証します。
 - 再現手順: metadata が無い更新イベントを受信する
 - 原因: `metadata.userId` だけに依存した実装だと対象ユーザーを特定できない
 - 対策: 現行実装は `stripeCustomerId` からユーザー逆引きフォールバックあり。`subscriptions.stripe_customer_id` が保存済みか確認する
-

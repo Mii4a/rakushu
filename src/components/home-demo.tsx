@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 
 import { DEFAULT_RANK_SETTINGS, parseJobText, scoreParsedJob } from "@/lib/analysis";
+import type { Rank } from "@/lib/analysis/types";
 import rakumoHappy from "../../yuru-chara/rakumo_happy.jpg";
 import rakumoNeutral from "../../yuru-chara/rakumo_neutral.jpg";
 
@@ -145,6 +146,44 @@ function formatDays(value: number | null) {
   return `${value}日`;
 }
 
+function getTotalRankNote(rank: Rank) {
+  switch (rank) {
+    case "S":
+      return "かなり働きやすい";
+    case "A":
+      return "働きやすさ高め";
+    case "B":
+      return "バランス良好";
+    case "C":
+      return "一部確認したい";
+    case "D":
+      return "注意点あり";
+    case "E":
+      return "慎重に確認";
+    case "UNKNOWN":
+      return "判定保留";
+  }
+}
+
+function getRankNote(rank: Rank) {
+  switch (rank) {
+    case "S":
+      return "かなり良好";
+    case "A":
+      return "良好";
+    case "B":
+      return "標準的";
+    case "C":
+      return "要確認";
+    case "D":
+      return "やや注意";
+    case "E":
+      return "注意";
+    case "UNKNOWN":
+      return "保留";
+  }
+}
+
 function InfoRow({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
   return (
     <div className="grid grid-cols-[8rem_minmax(0,1fr)] border-b border-[#dce7ee] text-sm last:border-b-0">
@@ -188,16 +227,18 @@ export function HomeDemo() {
   const [rawText, setRawText] = useState(initialText);
   const [showExtracted, setShowExtracted] = useState(false);
   const deferredText = useDeferredValue(rawText);
+  const hasInput = deferredText.trim().length > 0;
   const parsed = parseJobText(deferredText);
   const scored = scoreParsedJob(parsed);
+  const totalRankNote = hasInput ? getTotalRankNote(scored.totalRank) : null;
 
   const rankItems = [
-    { label: "固定残業ランク", rank: scored.fixedOvertimeRank, note: "やや注意" },
-    { label: "年間休日ランク", rank: scored.holidayRank, note: "良好" },
-    { label: "休日制度ランク", rank: scored.holidayTypeRank, note: "良好" },
-    { label: "賞与制度ランク", rank: scored.bonusRank, note: "まずまず" },
-    { label: "退職金制度ランク", rank: scored.retirementAllowanceRank, note: "確認推奨" },
-    { label: "福利厚生ランク", rank: scored.benefitRank, note: "標準的" }
+    { label: "固定残業", rank: scored.fixedOvertimeRank },
+    { label: "年間休日", rank: scored.holidayRank },
+    { label: "休日制度", rank: scored.holidayTypeRank },
+    { label: "賞与制度", rank: scored.bonusRank },
+    { label: "退職金制度", rank: scored.retirementAllowanceRank },
+    { label: "福利厚生", rank: scored.benefitRank }
   ];
 
   const criteriaItems = [
@@ -456,8 +497,28 @@ export function HomeDemo() {
               <div className="mt-4 rounded-[18px] border border-[#dce7ee] bg-[linear-gradient(180deg,#f9fcfd_0%,#ffffff_100%)] px-5 py-5 text-center">
                 <p className="text-sm font-semibold text-[#35546f]">総合ランク</p>
                 <div className="mt-3 flex items-center justify-center gap-3">
-                  <span className="text-[4.6rem] font-black leading-none text-[#20ada6]">{scored.totalRank}</span>
-                  <span className="rounded-full bg-[#dff6f4] px-4 py-2 text-sm font-bold text-[#1f9d98]">働きやすさ高め</span>
+                  <span
+                    className={`font-black leading-none text-[#20ada6] ${
+                      scored.totalRank === "UNKNOWN" ? "text-[2.4rem] tracking-[0.06em]" : "text-[4.6rem]"
+                    }`}
+                  >
+                    {scored.totalRank}
+                  </span>
+                  {totalRankNote ? (
+                    <span
+                      className={`rounded-full px-4 py-2 text-sm font-bold ${
+                        scored.totalRank === "S" || scored.totalRank === "A"
+                          ? "bg-[#dff6f4] text-[#1f9d98]"
+                          : scored.totalRank === "B" || scored.totalRank === "C"
+                            ? "bg-[#edf4ff] text-[#2d5f93]"
+                            : scored.totalRank === "UNKNOWN"
+                              ? "bg-[#eef2f5] text-[#607284]"
+                              : "bg-[#fff1e3] text-[#cc7f22]"
+                      }`}
+                    >
+                      {totalRankNote}
+                    </span>
+                  ) : null}
                 </div>
               </div>
 
@@ -465,14 +526,18 @@ export function HomeDemo() {
                 {rankItems.map((item) => (
                   <div key={item.label} className="grid grid-cols-[minmax(0,1fr)_54px_88px] items-center gap-3 rounded-[16px] border border-[#dce7ee] px-4 py-3">
                     <p className="text-sm font-semibold text-[#17355b]">{item.label}</p>
-                    <span className={`inline-flex justify-center rounded-lg px-3 py-1 text-lg font-black ${
+                    <span className={`inline-flex justify-center rounded-lg px-3 py-1 font-black ${
+                      item.rank === "UNKNOWN"
+                        ? "text-xs tracking-[0.08em]"
+                        : "text-lg"
+                    } ${
                       item.rank.startsWith("A") || item.rank.startsWith("S")
                         ? "bg-[#ebfbfb] text-[#20a9a4]"
                         : "bg-[#fff6ea] text-[#f09d34]"
                     }`}>
                       {item.rank}
                     </span>
-                    <span className="text-sm font-semibold text-[#6c8192]">{item.note}</span>
+                    <span className="text-sm font-semibold text-[#6c8192]">{hasInput ? getRankNote(item.rank) : ""}</span>
                   </div>
                 ))}
               </div>

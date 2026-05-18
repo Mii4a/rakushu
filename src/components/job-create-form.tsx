@@ -91,6 +91,37 @@ export function JobCreateForm() {
             </label>
           </div>
 
+          <div className="grid gap-4 md:grid-cols-3">
+            <label className="space-y-2 md:col-span-2">
+              <span className="ranking-field-heading">
+                勤務地住所
+                <span className="ranking-optional-badge">任意</span>
+              </span>
+              <input name="workAddress" placeholder="例: 東京都渋谷区..." className="ranking-input" />
+            </label>
+            <label className="space-y-2">
+              <span className="ranking-field-heading">
+                最寄り駅
+                <span className="ranking-optional-badge">任意</span>
+              </span>
+              <input name="nearestStation" placeholder="例: 渋谷駅" className="ranking-input" />
+            </label>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="space-y-2">
+              <span className="ranking-field-heading">
+                参考通勤時間（分）
+                <span className="ranking-optional-badge">任意</span>
+              </span>
+              <input name="commuteMinutes" type="number" min={1} max={240} placeholder="例: 45" className="ranking-input" />
+            </label>
+            <p className="ranking-inline-note">
+              <Info className="mt-0.5 size-4 shrink-0 text-slate-500" />
+              手入力した場合は単一値として保存します。自動計算では将来的に最寄り駅ベースの参考レンジを優先表示します。
+            </p>
+          </div>
+
           <div className="grid gap-2.5 md:grid-cols-2">
             <p className="ranking-inline-note">
               <AlertCircle className="mt-0.5 size-4 shrink-0 text-slate-500" />

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
+import { EstimateCommuteButton } from "@/components/estimate-commute-button";
 import { eq, sql } from "drizzle-orm";
 import {
   AlertTriangle,
@@ -28,6 +29,7 @@ import { SelectionProgressForm } from "@/components/selection-progress-form";
 import { RakumoEmptyState } from "@/components/rakumo/RakumoEmptyState";
 import { requireUser } from "@/lib/auth/require-user";
 import { getSession } from "@/lib/auth/session";
+import { formatCommuteRange, formatCommuteRangeDetail, getCommuteDataKindLabel, getCommuteDataKindTone, getCommuteTone } from "@/lib/commute/fields";
 import { isProductionBuildPhase } from "@/lib/env/build-phase";
 import { db } from "@/lib/db/client";
 import { jobs } from "@/lib/db/schema";
@@ -470,6 +472,13 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
                           ? `年${job.parsed.bonusCount.value}回${job.parsed?.bonusPerformanceLinked?.status === "found" ? "（業績連動）" : ""}`
                           : "－";
                     const quickItems = [
+                      {
+                        label: "通勤",
+                        value: getCommuteDataKindLabel(job.commuteDataKind)
+                          ? `${formatCommuteRange(job)} (${getCommuteDataKindLabel(job.commuteDataKind)})`
+                          : formatCommuteRange(job),
+                        tone: getCommuteTone(job)
+                      },
                       { label: "年間休日", value: annualHolidays, tone: job.parsed?.annualHolidays.value != null && job.parsed.annualHolidays.value >= 120 ? "good" : "neutral" },
                       { label: "福利厚生", value: benefitsCount > 0 ? `${benefitsCount}件` : "－", tone: benefitsCount >= 4 ? "good" : benefitsCount >= 1 ? "neutral" : "neutral" },
                       { label: "固定残業", value: fixedOvertime, tone: warnings.some((warning) => warning.includes("残業")) ? "warn" : "good" },
@@ -605,6 +614,14 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
                       <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.06fr)]">
                         <div className="grid gap-3 sm:grid-cols-2">
                           {[
+                            ["勤務地住所", selectedJob.workAddress ?? "未設定"],
+                            ["最寄り駅", selectedJob.nearestStation ?? "未設定"],
+                            [
+                              "通勤時間",
+                              getCommuteDataKindLabel(selectedJob.commuteDataKind)
+                                ? `${formatCommuteRangeDetail(selectedJob)} / ${getCommuteDataKindLabel(selectedJob.commuteDataKind)}`
+                                : formatCommuteRangeDetail(selectedJob)
+                            ],
                             ["年間休日", formatMetricValue(selectedJob.parsed?.annualHolidays.value, "日")],
                             [
                               "賞与制度",
@@ -715,6 +732,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
                             buttonClassName="inline-flex h-[56px] w-full items-center justify-center rounded-[18px] border border-[#1ca354] bg-white px-5 text-lg font-bold text-[#1ca354]"
                           />
                         </div>
+                        <EstimateCommuteButton jobId={selectedJob.id} />
                         <Link href={`/jobs/${selectedJob.id}/edit`} className="inline-flex h-[56px] items-center justify-center rounded-[18px] border border-[#1ca354] bg-white px-5 text-lg font-bold text-[#1ca354]">
                           <Pencil className="mr-2 size-5" />
                           編集画面へ

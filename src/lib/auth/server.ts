@@ -15,6 +15,9 @@ export const auth = betterAuth({
       verification
     }
   }),
+  account: {
+    encryptOAuthTokens: true
+  },
   baseURL: serverEnv.BETTER_AUTH_URL,
   secret: serverEnv.BETTER_AUTH_SECRET,
   socialProviders: {

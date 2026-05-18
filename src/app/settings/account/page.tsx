@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { AccountSettingsForm } from "@/components/account-settings-form";
 import { auth } from "@/lib/auth/server";
 import { requireUser } from "@/lib/auth/require-user";
+import { getUserCommuteProfile } from "@/lib/commute";
 import { isProductionBuildPhase } from "@/lib/env/build-phase";
 import { PLAN_LIMITS, type Plan } from "@/lib/plans";
 import { getUserPlan } from "@/lib/subscription";
@@ -31,11 +32,12 @@ export default async function AccountSettingsPage() {
 
   const user = await requireUser();
   const sessionHeaders = await headers();
-  const [accounts, plan] = await Promise.all([
+  const [accounts, plan, commuteProfile] = await Promise.all([
     auth.api.listUserAccounts({
       headers: sessionHeaders
     }),
-    getUserPlan(user.id)
+    getUserPlan(user.id),
+    getUserCommuteProfile(user.id)
   ]);
   const limits = PLAN_LIMITS[plan];
   const periodKey = limits.analysisPeriod === "week" ? getWeekKey() : getMonthKey();
@@ -52,6 +54,7 @@ export default async function AccountSettingsPage() {
       analysisCount={analysisCount}
       analysisMax={limits.maxAnalyses}
       analysisPeriodLabel={limits.analysisPeriod === "week" ? "今週" : "今月"}
+      hasCommuteProfile={Boolean(commuteProfile)}
       accounts={accounts.map((account) => ({
         id: account.id,
         providerId: account.providerId

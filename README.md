@@ -24,6 +24,8 @@
 3. `.env.local` に値を設定
    Stripe をローカルで確認する場合は、少なくとも以下を設定してください。
    ```bash
+   GOOGLE_MAPS_SERVER_API_KEY=AIza...
+   NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_API_KEY=AIza...
    STRIPE_SECRET_KEY=sk_test_...
    STRIPE_WEBHOOK_SECRET=whsec_...
    STRIPE_PRICE_STARTER=price_...
@@ -35,6 +37,10 @@
    OPENAI_MAIN_MODEL=gpt-4.1-mini
    OPENAI_LIGHT_MODEL=gpt-4.1-nano
    ```
+   Maps のキーは `開発/本番` と `server/browser` で分けます。
+   - server key: `GOOGLE_MAPS_SERVER_API_KEY`
+   - browser key: `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_API_KEY`
+   - 本番では同じ変数名に本番値を入れます
 4. マイグレーション生成/適用
    ```bash
    npm run db:generate
@@ -133,7 +139,22 @@ stripe trigger customer.subscription.deleted
   - 次アクション日とメモの管理
   - ステータス変更履歴保存（`job_status_events`）
   - ダッシュボードの直近アクション表示
+- 通勤時間 GTFS MVP（最小完了）
+  - `GTFS/GTFS-JP` feed の取込（ディレクトリ / zip / manifest）
+  - `provider + region` 単位の feed 再取込
+  - `直通 + 1回乗換` の参考通勤時間レンジ計算
+  - `特急 / 新幹線` 除外
+  - `calendar.txt` と `calendar_dates.txt` の保持
+  - `jobs` への通勤レンジ保存と一覧 / 詳細 / 比較表示
+  - 詳細は `docs/commute-gtfs-status.md`
 
 ## 未実装
 - AI比較や推薦の高度化
 - 通知機能
+- 全国 GTFS feed の本投入と地域拡大
+- GTFS/GTFS-JP ベースの通勤時間設計は `docs/commute-gtfs-mvp-plan.md` に整理
+- GTFS 通勤機能の現在地と再開メモは `docs/commute-gtfs-status.md`
+- 既存求人の通勤レンジ backfill は `npm run db:backfill:commute` で実行可能
+- GTFS feed の再取込は `node scripts/import-gtfs-static.mjs ...` が既定で `provider + region` 単位の置換、積み増したいときだけ `--append`
+- GTFS importer は展開済みディレクトリだけでなく `.zip` も直接読める
+- 複数 feed の一括取込は `npm run db:import:gtfs -- --manifest ./config/gtfs-feeds.example.json`

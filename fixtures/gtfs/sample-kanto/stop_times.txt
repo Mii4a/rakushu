@@ -1,0 +1,15 @@
+trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign
+trip_local_kichi_1,07:05:00,07:05:00,kichijoji,1,荻窪
+trip_local_kichi_1,07:14:00,07:15:00,ogikubo,2,荻窪
+trip_local_kichi_2,08:01:00,08:01:00,kichijoji,1,荻窪
+trip_local_kichi_2,08:12:00,08:13:00,ogikubo,2,荻窪
+trip_local_1,07:10:00,07:10:00,ogikubo,1,渋谷
+trip_local_1,07:55:00,07:55:00,shibuya,2,渋谷
+trip_rapid_1,08:00:00,08:00:00,ogikubo,1,渋谷
+trip_rapid_1,08:32:00,08:32:00,shibuya,2,渋谷
+trip_rapid_2,07:18:00,07:18:00,ogikubo,1,渋谷
+trip_rapid_2,07:50:00,07:50:00,shibuya,2,渋谷
+trip_rapid_3,08:14:00,08:14:00,ogikubo,1,渋谷
+trip_rapid_3,08:47:00,08:47:00,shibuya,2,渋谷
+trip_limited_1,07:20:00,07:20:00,ogikubo,1,渋谷
+trip_limited_1,07:35:00,07:35:00,shibuya,2,渋谷

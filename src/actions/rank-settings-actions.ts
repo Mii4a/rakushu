@@ -11,6 +11,8 @@ import { jobAnalyses, jobs, rankSettings } from "@/lib/db/schema";
 import { getUserRankSettings } from "@/lib/subscription/rank-settings";
 import { getUserPlan } from "@/lib/subscription";
 
+const retirementRankSchema = z.enum(["S", "A", "B", "C", "D", "E"]);
+
 const rankSettingsSchema = z
   .object({
     overtimeAMaxHours: z.coerce.number().int().min(0),
@@ -21,7 +23,13 @@ const rankSettingsSchema = z
     holidayAMinDays: z.coerce.number().int().min(0),
     holidayBMinDays: z.coerce.number().int().min(0),
     holidayCMinDays: z.coerce.number().int().min(0),
-    holidayDMinDays: z.coerce.number().int().min(0)
+    holidayDMinDays: z.coerce.number().int().min(0),
+    bonusSMinCount: z.coerce.number().int().min(1),
+    bonusAMinCount: z.coerce.number().int().min(1),
+    bonusBMinCount: z.coerce.number().int().min(1),
+    bonusCMinCount: z.coerce.number().int().min(1),
+    retirementWithAllowanceRank: retirementRankSchema,
+    retirementWithoutAllowanceRank: retirementRankSchema
   })
   .superRefine((value, ctx) => {
     if (!(value.overtimeAMaxHours < value.overtimeBMaxHours && value.overtimeBMaxHours < value.overtimeCMaxHours && value.overtimeCMaxHours < value.overtimeDMaxHours)) {
@@ -35,6 +43,13 @@ const rankSettingsSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "年間休日の閾値は S > A > B > C > D になるように入力してください。"
+      });
+    }
+
+    if (!(value.bonusSMinCount > value.bonusAMinCount && value.bonusAMinCount >= value.bonusBMinCount && value.bonusBMinCount > value.bonusCMinCount)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "賞与回数は S > A >= B > C になるように入力してください。"
       });
     }
   });
@@ -56,7 +71,13 @@ export async function updateRankSettingsAction(formData: FormData) {
     holidayAMinDays: formData.get("holidayAMinDays"),
     holidayBMinDays: formData.get("holidayBMinDays"),
     holidayCMinDays: formData.get("holidayCMinDays"),
-    holidayDMinDays: formData.get("holidayDMinDays")
+    holidayDMinDays: formData.get("holidayDMinDays"),
+    bonusSMinCount: formData.get("bonusSMinCount"),
+    bonusAMinCount: formData.get("bonusAMinCount"),
+    bonusBMinCount: formData.get("bonusBMinCount"),
+    bonusCMinCount: formData.get("bonusCMinCount"),
+    retirementWithAllowanceRank: formData.get("retirementWithAllowanceRank"),
+    retirementWithoutAllowanceRank: formData.get("retirementWithoutAllowanceRank")
   });
 
   if (!parsedForm.success) {

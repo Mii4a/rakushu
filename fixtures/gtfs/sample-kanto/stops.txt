@@ -1,0 +1,4 @@
+stop_id,stop_name,stop_lat,stop_lon,parent_station,platform_code
+ogikubo,荻窪駅,35.7047,139.6201,,
+shibuya,渋谷駅,35.6580,139.7016,,
+kichijoji,吉祥寺駅,35.7033,139.5796,,

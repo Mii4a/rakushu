@@ -7,6 +7,7 @@ const REQUIRED_SECRET_KEYS = [
   { envKey: "TURSO_AUTH_TOKEN", bindingKey: "TURSO_AUTH_TOKEN" },
   { envKey: "GOOGLE_CLIENT_ID", bindingKey: "GOOGLE_CLIENT_ID" },
   { envKey: "GOOGLE_CLIENT_SECRET", bindingKey: "GOOGLE_CLIENT_SECRET" },
+  { envKey: "GOOGLE_MAPS_SERVER_API_KEY", bindingKey: "GOOGLE_MAPS_SERVER_API_KEY" },
   { envKey: "STRIPE_PRICE_STARTER", bindingKey: "STRIPE_PRICE_STARTER_SECRET" },
   { envKey: "STRIPE_PRICE_PLUS", bindingKey: "STRIPE_PRICE_PLUS_SECRET" },
   { envKey: "STRIPE_PRICE_PRO", bindingKey: "STRIPE_PRICE_PRO_SECRET" },

@@ -17,6 +17,7 @@ export default async function EditJobPage({ params }: { params: Promise<{ id: st
     import("@/lib/db/client"),
     import("@/lib/db/schema")
   ]);
+  const { getPrimaryCommuteMinutes } = await import("@/lib/commute/fields");
   const user = await requireUser();
   const { id } = (await params) ?? {};
 
@@ -75,6 +76,39 @@ export default async function EditJobPage({ params }: { params: Promise<{ id: st
             />
           </label>
         </div>
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <label className="space-y-1 text-sm sm:col-span-2">
+            <span className="text-rakumo-ink/85">勤務地住所（任意）</span>
+            <input
+              name="workAddress"
+              placeholder="例: 東京都渋谷区..."
+              defaultValue={job.workAddress ?? ""}
+              className="field-input"
+            />
+          </label>
+          <label className="space-y-1 text-sm">
+            <span className="text-rakumo-ink/85">最寄り駅（任意）</span>
+            <input
+              name="nearestStation"
+              placeholder="例: 渋谷駅"
+              defaultValue={job.nearestStation ?? ""}
+              className="field-input"
+            />
+          </label>
+        </div>
+
+        <label className="block space-y-1 text-sm">
+          <span className="text-rakumo-ink/85">参考通勤時間（分・任意）</span>
+          <input
+            name="commuteMinutes"
+            type="number"
+            min={1}
+            max={240}
+            defaultValue={getPrimaryCommuteMinutes(job) ?? ""}
+            className="field-input"
+          />
+        </label>
 
         <label className="block space-y-1 text-sm">
           <span className="text-rakumo-ink/85">求人本文（必須）</span>

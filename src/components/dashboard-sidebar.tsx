@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Bookmark, BriefcaseBusiness, CreditCard, Home, Menu, Plane, Scale, Settings, X } from "lucide-react";
+import { Bookmark, BriefcaseBusiness, CreditCard, FileText, GitCompareArrows, Home, Menu, Plane, Scale, Settings, X } from "lucide-react";
 
 const navItems = [
   { href: "/dashboard", label: "ダッシュボード", icon: Home, key: "dashboard" },
   { href: "/jobs/new", label: "応募状況", icon: Plane, key: "jobs-new" },
   { href: "/jobs", label: "求人一覧", icon: BriefcaseBusiness, key: "jobs" },
   { href: "/jobs", label: "保存した求人", icon: Bookmark, key: "saved-jobs" },
+  { href: "/compare", label: "比較", icon: GitCompareArrows, key: "compare" },
+  { href: "/resume", label: "履歴書", icon: FileText, key: "resume" },
   { href: "/criteria", label: "判断基準", icon: Scale, key: "criteria" },
   { href: "/pricing", label: "料金", icon: CreditCard, key: "pricing" },
   { href: "/settings", label: "設定", icon: Settings, key: "settings", muted: true }

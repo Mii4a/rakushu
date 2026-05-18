@@ -1,8 +1,11 @@
 "use server";
 
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { requireUser } from "@/lib/auth/require-user";
+import { db } from "@/lib/db/client";
+import { resumeProfiles } from "@/lib/db/schema";
 import { getUserPlan } from "@/lib/subscription";
 
 export type ResumeActionState = {
@@ -61,10 +64,45 @@ export async function generateResumeDraftAction(
   }
 
   const data = parsed.data;
+  const existing = await db.query.resumeProfiles.findFirst({
+    where: eq(resumeProfiles.userId, user.id)
+  });
+  const now = new Date();
+  const profilePayload = {
+    templateName: data.templateName,
+    fullName: data.fullName,
+    furigana: data.furigana || null,
+    phone: data.phone || null,
+    email: data.email || null,
+    education: data.education,
+    experience: data.experience || null,
+    selfPr: data.selfPr,
+    motivation: data.motivation,
+    updatedAt: now
+  };
+
+  if (!existing) {
+    await db.insert(resumeProfiles).values({
+      id: crypto.randomUUID(),
+      userId: user.id,
+      ...profilePayload,
+      createdAt: now
+    });
+  } else {
+    await db.update(resumeProfiles).set(profilePayload).where(eq(resumeProfiles.id, existing.id));
+  }
+
   const content = `【履歴書（${data.templateName}）】\n\n氏名: ${data.fullName}\nふりがな: ${data.furigana || ""}\n電話番号: ${data.phone || ""}\nメール: ${data.email || ""}\n\n--- 学歴 ---\n${data.education}\n\n--- 職歴・経験 ---\n${data.experience || "(未記入)"}\n\n--- 自己PR ---\n${data.selfPr}\n\n--- 志望動機 ---\n${data.motivation}\n`;
+  const shortSelfPr = data.selfPr.replace(/\s+/g, " ").slice(0, 140);
+  const shortMotivation = data.motivation.replace(/\s+/g, " ").slice(0, 140);
+  const interviewPoints = [
+    `自己PRでは「${shortSelfPr}${data.selfPr.length > 140 ? "..." : ""}」を軸に話す`,
+    `志望動機では「${shortMotivation}${data.motivation.length > 140 ? "..." : ""}」を軸に話す`,
+    data.experience ? "職歴・経験から再現性のある実績を1つ補足する" : "経験欄が薄い場合は学業・活動経験を具体化する"
+  ];
 
   return {
     error: null,
-    result: content
+    result: `${content}\n--- 提出前メモ ---\n自己PR要約: ${shortSelfPr}${data.selfPr.length > 140 ? "..." : ""}\n志望動機要約: ${shortMotivation}${data.motivation.length > 140 ? "..." : ""}\n\n--- 面接で口頭補足するポイント ---\n- ${interviewPoints.join("\n- ")}`
   };
 }

@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 
-import { DEFAULT_RANK_SETTINGS, type RankSettings } from "@/lib/analysis";
+import { DEFAULT_RANK_SETTINGS, normalizeConfigurableRank, type RankSettings } from "@/lib/analysis";
 import { db } from "@/lib/db/client";
 import { rankSettings } from "@/lib/db/schema";
 import { getUserPlan } from "@/lib/subscription";
@@ -32,6 +32,16 @@ export async function getUserRankSettings(userId: string): Promise<RankSettings>
       bMinDays: record.holidayBMinDays,
       cMinDays: record.holidayCMinDays,
       dMinDays: record.holidayDMinDays
+    },
+    bonus: {
+      sMinCount: record.bonusSMinCount,
+      aMinCount: record.bonusAMinCount,
+      bMinCount: record.bonusBMinCount,
+      cMinCount: record.bonusCMinCount
+    },
+    retirementAllowance: {
+      withAllowanceRank: normalizeConfigurableRank(record.retirementWithAllowanceRank, DEFAULT_RANK_SETTINGS.retirementAllowance.withAllowanceRank),
+      withoutAllowanceRank: normalizeConfigurableRank(record.retirementWithoutAllowanceRank, DEFAULT_RANK_SETTINGS.retirementAllowance.withoutAllowanceRank)
     }
   };
 }

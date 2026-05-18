@@ -125,4 +125,30 @@ describe("scoreParsedJob", () => {
 
     expect(scored.bonusRank).toBe("D");
   });
+
+  it("supports custom bonus and retirement settings", () => {
+    const parsed = parseJobText(`
+年間休日: 125日
+完全週休2日制
+賞与 年2回
+退職金制度なし
+`);
+
+    const scored = scoreParsedJob(parsed, {
+      ...DEFAULT_RANK_SETTINGS,
+      bonus: {
+        sMinCount: 4,
+        aMinCount: 3,
+        bMinCount: 2,
+        cMinCount: 1
+      },
+      retirementAllowance: {
+        withAllowanceRank: "S",
+        withoutAllowanceRank: "E"
+      }
+    });
+
+    expect(scored.bonusRank).toBe("B");
+    expect(scored.retirementAllowanceRank).toBe("E");
+  });
 });

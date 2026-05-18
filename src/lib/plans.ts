@@ -9,6 +9,11 @@ export type PlanLimits = {
   analysisPeriod: AnalysisPeriod;
   monthlyAiCredits: number;
   detailedScoring: boolean;
+  commute: {
+    canSaveProfile: boolean;
+    canAutoEstimate: boolean;
+    canCompare: boolean;
+  };
   criteria: {
     canBrowsePublic: boolean;
     canSaveTemplates: boolean;
@@ -28,6 +33,11 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     analysisPeriod: "week",
     monthlyAiCredits: 0,
     detailedScoring: false,
+    commute: {
+      canSaveProfile: false,
+      canAutoEstimate: false,
+      canCompare: false
+    },
     criteria: {
       canBrowsePublic: false,
       canSaveTemplates: false,
@@ -45,6 +55,11 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     analysisPeriod: "month",
     monthlyAiCredits: 30,
     detailedScoring: false,
+    commute: {
+      canSaveProfile: true,
+      canAutoEstimate: false,
+      canCompare: false
+    },
     criteria: {
       canBrowsePublic: true,
       canSaveTemplates: true,
@@ -62,6 +77,11 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     analysisPeriod: "month",
     monthlyAiCredits: 120,
     detailedScoring: true,
+    commute: {
+      canSaveProfile: true,
+      canAutoEstimate: true,
+      canCompare: false
+    },
     criteria: {
       canBrowsePublic: true,
       canSaveTemplates: true,
@@ -79,6 +99,11 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     analysisPeriod: "month",
     monthlyAiCredits: 400,
     detailedScoring: true,
+    commute: {
+      canSaveProfile: true,
+      canAutoEstimate: true,
+      canCompare: true
+    },
     criteria: {
       canBrowsePublic: true,
       canSaveTemplates: true,

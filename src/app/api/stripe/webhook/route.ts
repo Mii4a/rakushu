@@ -5,7 +5,13 @@ import { serverEnv } from "@/lib/env/server";
 import type { PaidPlan } from "@/lib/plans";
 import { getStripeServerClient } from "@/lib/stripe/server";
 import { hasProcessedStripeEvent, markStripeEventProcessed } from "@/lib/stripe/webhook-events";
-import { findUserIdByStripeCustomerId, setSubscriptionCanceled, upsertSubscriptionFromStripe } from "@/lib/subscription";
+import {
+  findUserIdByStripeCustomerId,
+  getSubscriptionByStripeCustomerId,
+  getSubscriptionByStripeSubscriptionId,
+  setSubscriptionCanceled,
+  upsertSubscriptionFromStripe
+} from "@/lib/subscription";
 
 function getHeader(headers: Headers, key: string): string {
   const value = headers.get(key);
@@ -19,6 +25,47 @@ function normalizePaidPlan(raw: string | undefined): PaidPlan {
   if (raw === "pro") return "pro";
   if (raw === "plus") return "plus";
   return "starter";
+}
+
+function resolvePlanFromPriceId(priceId: string | undefined): PaidPlan | null {
+  if (!priceId) return null;
+  if (priceId === serverEnv.STRIPE_PRICE_STARTER) return "starter";
+  if (priceId === serverEnv.STRIPE_PRICE_PLUS) return "plus";
+  if (priceId === serverEnv.STRIPE_PRICE_PRO) return "pro";
+  return null;
+}
+
+function resolvePlanFromMetadata(raw: string | undefined): PaidPlan | null {
+  if (raw === "starter" || raw === "plus" || raw === "pro") {
+    return raw;
+  }
+  return null;
+}
+
+async function resolveSubscriptionPlan(subscription: Stripe.Subscription): Promise<PaidPlan | null> {
+  const fromMetadata = resolvePlanFromMetadata(subscription.metadata.plan);
+  if (fromMetadata) {
+    return fromMetadata;
+  }
+
+  const primaryPriceId = subscription.items.data[0]?.price?.id;
+  const fromPrice = resolvePlanFromPriceId(primaryPriceId);
+  if (fromPrice) {
+    return fromPrice;
+  }
+
+  const bySubscriptionId = await getSubscriptionByStripeSubscriptionId(subscription.id);
+  if (bySubscriptionId?.plan === "starter" || bySubscriptionId?.plan === "plus" || bySubscriptionId?.plan === "pro") {
+    return bySubscriptionId.plan;
+  }
+
+  const customerId = typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
+  const byCustomerId = await getSubscriptionByStripeCustomerId(customerId);
+  if (byCustomerId?.plan === "starter" || byCustomerId?.plan === "plus" || byCustomerId?.plan === "pro") {
+    return byCustomerId.plan;
+  }
+
+  return null;
 }
 
 export async function POST(request: Request) {
@@ -40,11 +87,11 @@ export async function POST(request: Request) {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       const userId = session.metadata?.userId;
-      const plan = normalizePaidPlan(session.metadata?.plan);
+      const plan = resolvePlanFromMetadata(session.metadata?.plan);
       const subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id;
       const customerId = typeof session.customer === "string" ? session.customer : session.customer?.id;
 
-      if (userId && subscriptionId && customerId) {
+      if (userId && subscriptionId && customerId && plan) {
         const subscriptionRaw = (await stripe.subscriptions.retrieve(subscriptionId)) as unknown as {
           id: string;
           status: string;
@@ -67,8 +114,8 @@ export async function POST(request: Request) {
       const customerId = typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
 
       const userId = subscription.metadata.userId || (await findUserIdByStripeCustomerId(customerId));
-      const plan = normalizePaidPlan(subscription.metadata.plan);
-      if (userId) {
+      const plan = await resolveSubscriptionPlan(subscription);
+      if (userId && plan) {
         await upsertSubscriptionFromStripe({
           userId,
           stripeCustomerId: customerId,
@@ -90,7 +137,6 @@ export async function POST(request: Request) {
     if (!didRecordEvent) {
       return NextResponse.json({ received: true, duplicate: true });
     }
-    await markStripeEventProcessed({ stripeEventId: event.id, eventType: event.type });
 
     return NextResponse.json({ received: true });
   } catch (error) {

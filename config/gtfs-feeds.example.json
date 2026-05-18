@@ -1,0 +1,16 @@
+{
+  "feeds": [
+    {
+      "provider": "Sample Kanto",
+      "region": "kanto",
+      "file": "/home/openclaw/rakushu/fixtures/gtfs/sample-kanto"
+    },
+    {
+      "provider": "Sample Kanto Zip",
+      "region": "kanto-sample-zip",
+      "file": "/tmp/sample-kanto-gtfs.zip",
+      "sourceUrl": "https://example.com/sample-kanto.zip",
+      "licenseNote": "Example manifest entry"
+    }
+  ]
+}

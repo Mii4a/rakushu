@@ -33,6 +33,7 @@ type AccountSettingsFormProps = {
   analysisCount: number;
   analysisMax: number;
   analysisPeriodLabel: string;
+  hasCommuteProfile: boolean;
   accounts: Array<{
     id: string;
     providerId: string;
@@ -68,6 +69,7 @@ export function AccountSettingsForm({
   analysisCount,
   analysisMax,
   analysisPeriodLabel,
+  hasCommuteProfile,
   accounts
 }: AccountSettingsFormProps) {
   const router = useRouter();
@@ -227,6 +229,20 @@ export function AccountSettingsForm({
               </div>
             </article>
           </div>
+
+          <article className="account-settings-subpanel">
+            <div className="account-settings-field-title">
+              <Home className="size-6 text-[#2ca100]" />
+              <h2>通勤プロフィール</h2>
+            </div>
+            <p className="mt-4 text-sm leading-7 text-rakumo-ink/75">
+              {hasCommuteProfile ? "自宅側の通勤基準を登録済みです。求人ごとの勤務地・駅・通勤時間の比較に使えます。" : "まだ未登録です。今後の通勤時間自動取得のために先に登録できます。"}
+            </p>
+            <Link href="/settings/commute" className="account-settings-logout-button">
+              <Home className="size-5" />
+              通勤プロフィールを開く
+            </Link>
+          </article>
 
           <article className="account-settings-subpanel">
             <div className="account-settings-field-title">
