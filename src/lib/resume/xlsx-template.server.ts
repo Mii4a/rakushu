@@ -263,11 +263,6 @@ function buildLicenseSummary(rows: ResumeWorkbookRow[]) {
 }
 
 const EDUCATION_CELL_TARGETS = [
-  { yearRef: "K6", monthRef: "L6", detailRef: "M6" },
-  { yearRef: "K8", monthRef: "L8", detailRef: "M8" },
-  { yearRef: "K10", monthRef: "L10", detailRef: "M10" },
-  { yearRef: "K12", monthRef: "L12", detailRef: "M12" },
-  { yearRef: "K14", monthRef: "L14", detailRef: "M14" },
   { yearRef: "B26", monthRef: "C26", detailRef: "D26" },
   { yearRef: "B28", monthRef: "C28", detailRef: "D28" },
   { yearRef: "B30", monthRef: "C30", detailRef: "D30" },
@@ -357,9 +352,8 @@ export function buildResumeWorkbookFromTemplate(data: ResumeWorkbookData) {
   const entries = parseZipEntries(templateBuffer).map((entry) => {
     if (entry.name === "xl/worksheets/sheet1.xml") {
       let sheetXml = Buffer.from(entry.data).toString("utf8");
-      const currentAddressBody = [formatPostalCodeLine(data.postalCode), data.currentAddress.trim()]
-        .filter(Boolean)
-        .join("\n");
+      const currentPostalCode = formatPostalCodeLine(data.postalCode);
+      const currentAddressBody = data.currentAddress.trim();
       const contactAddressBody = data.contactAddress.trim();
 
       sheetXml = setInlineCellText(sheetXml, "F2", formatTemplateDate(data.asOfDate));
@@ -367,9 +361,10 @@ export function buildResumeWorkbookFromTemplate(data: ResumeWorkbookData) {
       sheetXml = setInlineCellText(sheetXml, "C6", data.fullName || "");
       sheetXml = setInlineCellText(sheetXml, "B9", buildBirthAndAgeText(data));
       sheetXml = setInlineCellText(sheetXml, "F10", data.gender || "");
-      sheetXml = setInlineCellText(sheetXml, "D13", currentAddressBody);
-      sheetXml = setInlineCellText(sheetXml, "I11", (data.phone || "").replace(/\D/g, ""));
-      sheetXml = setInlineCellText(sheetXml, "I13", data.email || "");
+      sheetXml = setInlineCellText(sheetXml, "D13", currentPostalCode);
+      sheetXml = setInlineCellText(sheetXml, "B15", currentAddressBody);
+      sheetXml = setInlineCellText(sheetXml, "H11", `電話　${(data.phone || "").replace(/\D/g, "")}`);
+      sheetXml = setInlineCellText(sheetXml, "H15", data.email || "");
       sheetXml = setInlineCellText(sheetXml, "C20", contactAddressBody);
       sheetXml = setInlineCellText(sheetXml, "I17", (data.phone || "").replace(/\D/g, ""));
       sheetXml = setInlineCellText(sheetXml, "I19", data.email || "");
