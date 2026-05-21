@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, FileDown, Menu, Plus, Save, Trash2, Upload } from "lucide-react";
+import { ChevronDown, Eye, FileDown, Menu, Plus, Save, Trash2, Upload } from "lucide-react";
 import { useActionState, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 
@@ -31,6 +31,7 @@ type ResumeRow = {
   year: string;
   month: string;
   detail: string;
+  status: string;
 };
 
 type PreviewPage = 1 | 2;
@@ -96,16 +97,18 @@ function linesToRows(value?: string | null) {
       const tokenMatch = line.match(/^(\S+)\s+(\S+)\s+(.+)$/);
       const year = japaneseDateMatch?.[1]?.trim() ?? tokenMatch?.[1] ?? "";
       const month = japaneseDateMatch?.[2]?.trim() ?? tokenMatch?.[2] ?? "";
-      const detail = japaneseDateMatch?.[3] ?? tokenMatch?.[3] ?? line;
+      const detailText = japaneseDateMatch?.[3] ?? tokenMatch?.[3] ?? line;
+      const { detail, status } = splitDetailAndStatus(detailText);
       return {
         id: `row-${index + 1}`,
         year,
         month,
         detail,
+        status,
       };
     });
 
-  return rows.length > 0 ? rows : [{ id: crypto.randomUUID(), year: "", month: "", detail: "" }];
+  return rows.length > 0 ? rows : [createEmptyResumeRow(crypto.randomUUID())];
 }
 
 function toInitialValues(defaults?: ResumeFormDefaults): ResumeFormValues {
@@ -177,17 +180,21 @@ function joinName(lastName: string, firstName: string) {
 
 function rowsToMultiline(rows: ResumeRow[]) {
   return rows
-    .map((row) => [row.year.trim(), row.month.trim(), row.detail.trim()].filter(Boolean).join(" "))
+    .map((row) => [row.year.trim(), row.month.trim(), row.detail.trim(), row.status.trim()].filter(Boolean).join(" "))
     .filter(Boolean)
     .join("\n");
 }
 
 function rowsToWorkbookRows(rows: ResumeRow[]) {
-  return rows.map((row) => [row.year.trim(), row.month.trim(), row.detail.trim()] as [string, string, string]);
+  return rows.map((row) => [row.year.trim(), row.month.trim(), [row.detail.trim(), row.status.trim()].filter(Boolean).join(" ")] as [string, string, string]);
 }
 
 function fillRows(rows: ResumeRow[], count: number) {
-  return Array.from({ length: count }, (_, index) => rows[index] ?? { id: `empty-${index}`, year: "", month: "", detail: "" });
+  return Array.from({ length: count }, (_, index) => rows[index] ?? createEmptyResumeRow(`empty-${index}`));
+}
+
+function renderRowDetail(row: ResumeRow) {
+  return [row.detail.trim(), row.status.trim()].filter(Boolean).join(" ");
 }
 
 function formatPostalCodeLine(postalCode: string) {
@@ -204,6 +211,36 @@ function inputClassName() {
 
 function textareaClassName() {
   return "w-full rounded-2xl border border-emerald-100 bg-white px-4 py-3 text-sm leading-7 text-slate-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100";
+}
+
+function selectClassName() {
+  return `${inputClassName()} w-full appearance-none pr-10`;
+}
+
+function buildYearOptions(start: number, end: number) {
+  return Array.from({ length: end - start + 1 }, (_, index) => String(start + index));
+}
+
+const BIRTH_YEAR_OPTIONS = buildYearOptions(1950, new Date().getFullYear());
+const ROW_YEAR_OPTIONS = buildYearOptions(1980, new Date().getFullYear() + 10);
+const MONTH_OPTIONS = Array.from({ length: 12 }, (_, index) => String(index + 1));
+const DAY_OPTIONS = Array.from({ length: 31 }, (_, index) => String(index + 1));
+const EDUCATION_STATUS_OPTIONS = ["入学", "卒業", "卒業見込み", "入社", "退職", "在職中"];
+
+function createEmptyResumeRow(id: string): ResumeRow {
+  return { id, year: "", month: "", detail: "", status: "" };
+}
+
+function splitDetailAndStatus(detailText: string) {
+  const trimmed = detailText.trim();
+  const matchedStatus = EDUCATION_STATUS_OPTIONS.find((status) => trimmed.endsWith(status));
+  if (!matchedStatus) {
+    return { detail: trimmed, status: "" };
+  }
+  return {
+    detail: trimmed.slice(0, -matchedStatus.length).trim(),
+    status: matchedStatus,
+  };
 }
 
 function SectionBadge({ index }: { index: number }) {
@@ -312,10 +349,14 @@ function ResumeRowsEditor({
   rows,
   onChange,
   addLabel,
+  detailPlaceholder,
+  statusOptions,
 }: {
   rows: ResumeRow[];
   onChange: (rows: ResumeRow[]) => void;
   addLabel: string;
+  detailPlaceholder: string;
+  statusOptions?: string[];
 }) {
   function updateRow(id: string, key: keyof ResumeRow, value: string) {
     onChange(rows.map((row) => (row.id === id ? { ...row, [key]: value } : row)));
@@ -323,11 +364,30 @@ function ResumeRowsEditor({
 
   function removeRow(id: string) {
     const nextRows = rows.filter((row) => row.id !== id);
-    onChange(nextRows.length > 0 ? nextRows : [{ id: crypto.randomUUID(), year: "", month: "", detail: "" }]);
+    onChange(nextRows.length > 0 ? nextRows : [createEmptyResumeRow(crypto.randomUUID())]);
   }
 
   function addRow() {
-    onChange([...rows, { id: crypto.randomUUID(), year: "", month: "", detail: "" }]);
+    onChange([...rows, createEmptyResumeRow(crypto.randomUUID())]);
+  }
+
+  function SelectField({
+    value,
+    onChange,
+    children,
+  }: {
+    value: string;
+    onChange: (value: string) => void;
+    children: React.ReactNode;
+  }) {
+    return (
+      <div className="relative">
+        <select value={value} onChange={(event) => onChange(event.target.value)} className={selectClassName()}>
+          {children}
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+      </div>
+    );
   }
 
   return (
@@ -345,25 +405,42 @@ function ResumeRowsEditor({
 
       <div className="space-y-2">
         {rows.map((row) => (
-          <div key={row.id} className="grid items-center gap-2 md:grid-cols-[120px_84px_minmax(0,1fr)_40px]">
-            <input
-              value={row.year}
-              onChange={(event) => updateRow(row.id, "year", event.target.value)}
-              placeholder="2026年"
-              className={inputClassName()}
-            />
-            <input
-              value={row.month}
-              onChange={(event) => updateRow(row.id, "month", event.target.value)}
-              placeholder="3月"
-              className={inputClassName()}
-            />
+          <div
+            key={row.id}
+            className={`grid items-center gap-2 ${statusOptions ? "md:grid-cols-[120px_84px_minmax(0,1fr)_140px_40px]" : "md:grid-cols-[120px_84px_minmax(0,1fr)_40px]"}`}
+          >
+            <SelectField value={row.year} onChange={(value) => updateRow(row.id, "year", value)}>
+              <option value="">年</option>
+              {ROW_YEAR_OPTIONS.map((year) => (
+                <option key={year} value={year}>
+                  {year}年
+                </option>
+              ))}
+            </SelectField>
+            <SelectField value={row.month} onChange={(value) => updateRow(row.id, "month", value)}>
+              <option value="">月</option>
+              {MONTH_OPTIONS.map((month) => (
+                <option key={month} value={month}>
+                  {month}月
+                </option>
+              ))}
+            </SelectField>
             <input
               value={row.detail}
               onChange={(event) => updateRow(row.id, "detail", event.target.value)}
-              placeholder="学歴・職歴 / 免許・資格"
+              placeholder={detailPlaceholder}
               className={inputClassName()}
             />
+            {statusOptions ? (
+              <SelectField value={row.status} onChange={(value) => updateRow(row.id, "status", value)}>
+                <option value="">区分</option>
+                {statusOptions.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </SelectField>
+            ) : null}
             <button
               type="button"
               onClick={() => removeRow(row.id)}
@@ -537,7 +614,7 @@ function ResumePreviewPaper({
             <div key={row.id} className="grid grid-cols-[96px_58px_1fr] border-b border-dotted border-black last:border-b-0 text-[12px]">
               <div className="border-r border-dotted border-black px-2 py-[18px] text-center">{row.year}</div>
               <div className="border-r border-dotted border-black px-2 py-[18px] text-center">{row.month}</div>
-              <div className="px-3 py-[18px]">{row.detail}</div>
+              <div className="px-3 py-[18px]">{renderRowDetail(row)}</div>
             </div>
           ))}
         </div>
@@ -556,7 +633,7 @@ function ResumePreviewPaper({
             <div key={row.id} className="grid grid-cols-[96px_58px_1fr] border-b border-dotted border-black last:border-b-0 text-[12px]">
               <div className="border-r border-dotted border-black px-2 py-[18px] text-center">{row.year}</div>
               <div className="border-r border-dotted border-black px-2 py-[18px] text-center">{row.month}</div>
-              <div className="px-3 py-[18px]">{row.detail}</div>
+              <div className="px-3 py-[18px]">{renderRowDetail(row)}</div>
             </div>
           ))}
         </div>
@@ -571,7 +648,7 @@ function ResumePreviewPaper({
             <div key={row.id} className="grid grid-cols-[96px_58px_1fr] border-b border-dotted border-black last:border-b-0 text-[12px]">
               <div className="border-r border-dotted border-black px-2 py-[16px] text-center">{row.year}</div>
               <div className="border-r border-dotted border-black px-2 py-[16px] text-center">{row.month}</div>
-              <div className="px-3 py-[16px]">{row.detail}</div>
+              <div className="px-3 py-[16px]">{renderRowDetail(row)}</div>
             </div>
           ))}
         </div>
@@ -645,9 +722,17 @@ export function ResumeGeneratorForm({ defaults }: { defaults?: ResumeFormDefault
   const age = useMemo(() => calculateAge(birthDate, values.asOfDate), [birthDate, values.asOfDate]);
   const educationText = useMemo(() => rowsToMultiline(educationRows), [educationRows]);
   const licensesText = useMemo(() => rowsToMultiline(licenseRows), [licenseRows]);
+  const combinedAppealText = useMemo(
+    () => [values.motivation, values.selfPr].map((value) => value.trim()).filter(Boolean).join("\n\n"),
+    [values.motivation, values.selfPr],
+  );
 
   function updateField<K extends keyof ResumeFormValues>(key: K, value: ResumeFormValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateCombinedAppealText(value: string) {
+    setValues((current) => ({ ...current, motivation: value, selfPr: "" }));
   }
 
   function handleDownloadXlsx() {
@@ -670,6 +755,25 @@ export function ResumeGeneratorForm({ defaults }: { defaults?: ResumeFormDefault
       selfPr: values.selfPr,
       desiredConditions: values.desiredConditions,
     });
+  }
+
+  function SelectField({
+    value,
+    onChange,
+    children,
+  }: {
+    value: string;
+    onChange: (value: string) => void;
+    children: React.ReactNode;
+  }) {
+    return (
+      <div className="relative">
+        <select value={value} onChange={(event) => onChange(event.target.value)} className={selectClassName()}>
+          {children}
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+      </div>
+    );
   }
 
   return (
@@ -767,9 +871,30 @@ export function ResumeGeneratorForm({ defaults }: { defaults?: ResumeFormDefault
 
                   <FieldLabel required>生年月日</FieldLabel>
                   <div className="grid gap-3 sm:grid-cols-3">
-                    <input value={values.birthYear} onChange={(event) => updateField("birthYear", event.target.value)} className={inputClassName()} placeholder="1998年" />
-                    <input value={values.birthMonth} onChange={(event) => updateField("birthMonth", event.target.value)} className={inputClassName()} placeholder="4月" />
-                    <input value={values.birthDay} onChange={(event) => updateField("birthDay", event.target.value)} className={inputClassName()} placeholder="12日" />
+                    <SelectField value={values.birthYear} onChange={(value) => updateField("birthYear", value)}>
+                      <option value="">年</option>
+                      {BIRTH_YEAR_OPTIONS.map((year) => (
+                        <option key={year} value={year}>
+                          {year}年
+                        </option>
+                      ))}
+                    </SelectField>
+                    <SelectField value={values.birthMonth} onChange={(value) => updateField("birthMonth", value)}>
+                      <option value="">月</option>
+                      {MONTH_OPTIONS.map((month) => (
+                        <option key={month} value={month}>
+                          {month}月
+                        </option>
+                      ))}
+                    </SelectField>
+                    <SelectField value={values.birthDay} onChange={(value) => updateField("birthDay", value)}>
+                      <option value="">日</option>
+                      {DAY_OPTIONS.map((day) => (
+                        <option key={day} value={day}>
+                          {day}日
+                        </option>
+                      ))}
+                    </SelectField>
                   </div>
 
                   <FieldLabel required>性別</FieldLabel>
@@ -839,7 +964,13 @@ export function ResumeGeneratorForm({ defaults }: { defaults?: ResumeFormDefault
                   <SectionBadge index={3} />
                   <h3 className="text-xl font-bold text-emerald-700">学歴・職歴</h3>
                 </div>
-                <ResumeRowsEditor rows={educationRows} onChange={setEducationRows} addLabel="追加" />
+                <ResumeRowsEditor
+                  rows={educationRows}
+                  onChange={setEducationRows}
+                  addLabel="追加"
+                  detailPlaceholder="学校名・会社名"
+                  statusOptions={EDUCATION_STATUS_OPTIONS}
+                />
               </section>
 
               <section className="rounded-[24px] border border-slate-200 bg-[#fafdfb] p-4 md:p-5">
@@ -847,48 +978,30 @@ export function ResumeGeneratorForm({ defaults }: { defaults?: ResumeFormDefault
                   <SectionBadge index={4} />
                   <h3 className="text-xl font-bold text-emerald-700">免許・資格</h3>
                 </div>
-                <ResumeRowsEditor rows={licenseRows} onChange={setLicenseRows} addLabel="追加" />
+                <ResumeRowsEditor rows={licenseRows} onChange={setLicenseRows} addLabel="追加" detailPlaceholder="免許・資格名" />
               </section>
 
               <section className="rounded-[24px] border border-slate-200 bg-[#fafdfb] p-4 md:p-5">
                 <div className="mb-4 flex items-center gap-3">
                   <SectionBadge index={5} />
                   <div className="flex items-center gap-2">
-                    <h3 className="text-xl font-bold text-emerald-700">志望動機</h3>
+                    <h3 className="text-xl font-bold text-emerald-700">志望動機・自己PRなど</h3>
                     <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-500">必須</span>
                   </div>
                 </div>
                 <textarea
-                  value={values.motivation}
-                  onChange={(event) => updateField("motivation", event.target.value)}
-                  rows={5}
+                  value={combinedAppealText}
+                  onChange={(event) => updateCombinedAppealText(event.target.value)}
+                  rows={7}
                   className={textareaClassName()}
-                  placeholder="志望動機やアピールポイントを入力"
+                  placeholder="志望動機、自己PR、アピールポイントを入力"
                 />
-                <div className="mt-2 text-right text-xs text-slate-400">{values.motivation.length} / 4000文字</div>
+                <div className="mt-2 text-right text-xs text-slate-400">{combinedAppealText.length} / 4000文字</div>
               </section>
 
               <section className="rounded-[24px] border border-slate-200 bg-[#fafdfb] p-4 md:p-5">
                 <div className="mb-4 flex items-center gap-3">
                   <SectionBadge index={6} />
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-xl font-bold text-emerald-700">自己PR</h3>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500">任意</span>
-                  </div>
-                </div>
-                <textarea
-                  value={values.selfPr}
-                  onChange={(event) => updateField("selfPr", event.target.value)}
-                  rows={5}
-                  className={textareaClassName()}
-                  placeholder="自己PRや補足したい実績を入力"
-                />
-                <div className="mt-2 text-right text-xs text-slate-400">{values.selfPr.length} / 4000文字</div>
-              </section>
-
-              <section className="rounded-[24px] border border-slate-200 bg-[#fafdfb] p-4 md:p-5">
-                <div className="mb-4 flex items-center gap-3">
-                  <SectionBadge index={7} />
                   <div>
                     <h3 className="text-xl font-bold text-emerald-700">本人希望記入欄</h3>
                     <p className="mt-1 text-xs text-slate-400">特に給料、職種、勤務時間、勤務地、その他希望などがあれば記入</p>

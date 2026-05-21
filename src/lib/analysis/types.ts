@@ -1,9 +1,13 @@
 export type ExtractStatus = "found" | "none" | "unknown";
+export type ExtractConfidence = "high" | "medium" | "low";
+export type ExtractSource = "direct_label" | "section" | "summary_line" | "contact" | "global_scan" | "validation";
 
 export type ExtractedValue<T> = {
   status: ExtractStatus;
   value: T | null;
   evidence: string | null;
+  confidence?: ExtractConfidence;
+  source?: ExtractSource;
 };
 
 export type JobWarnings =

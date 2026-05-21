@@ -154,7 +154,11 @@ stripe trigger customer.subscription.deleted
 - 全国 GTFS feed の本投入と地域拡大
 - GTFS/GTFS-JP ベースの通勤時間設計は `docs/commute-gtfs-mvp-plan.md` に整理
 - GTFS 通勤機能の現在地と再開メモは `docs/commute-gtfs-status.md`
+- 実 feed 候補は `docs/commute-gtfs-feed-candidates.md`
+- ODPT token 取得待ちで止めた場合も、再開手順は `docs/commute-gtfs-status.md` に記録
 - 既存求人の通勤レンジ backfill は `npm run db:backfill:commute` で実行可能
 - GTFS feed の再取込は `node scripts/import-gtfs-static.mjs ...` が既定で `provider + region` 単位の置換、積み増したいときだけ `--append`
 - GTFS importer は展開済みディレクトリだけでなく `.zip` も直接読める
 - 複数 feed の一括取込は `npm run db:import:gtfs -- --manifest ./config/gtfs-feeds.example.json`
+- 首都圏向けの実 feed 雛形は `config/gtfs-feeds.kanto.example.json`
+- ODPT token を使った download + import 一括同期は `npm run db:sync:gtfs -- --manifest ./config/gtfs-feeds.kanto.example.json`

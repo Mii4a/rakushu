@@ -5,7 +5,7 @@ import { desc, eq } from "drizzle-orm";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import type { ParsedJob } from "@/lib/analysis";
 import { requireUser } from "@/lib/auth/require-user";
-import { formatCommuteRangeDetail, getCommuteDataKindLabel, getCommuteDataKindTone } from "@/lib/commute/fields";
+import { formatCommuteRange, formatCommuteRangeDetail, getCommuteDataKindLabel, getCommuteDataKindTone, getPrimaryCommuteMinutes } from "@/lib/commute/fields";
 import { isProductionBuildPhase } from "@/lib/env/build-phase";
 import { getLatestAnalysesByJobIds } from "@/lib/jobs/latest-analyses";
 import { PLAN_LIMITS } from "@/lib/plans";
@@ -14,6 +14,23 @@ import { db } from "@/lib/db/client";
 import { jobs } from "@/lib/db/schema";
 
 export const dynamic = "force-dynamic";
+
+function getRankTone(rank: string | null | undefined) {
+  switch (rank) {
+    case "S":
+    case "A":
+      return "bg-[#eefbea] text-[#2a9442]";
+    case "B":
+      return "bg-[#edf4ff] text-[#2d5f93]";
+    case "C":
+      return "bg-[#fff7e8] text-[#b7791f]";
+    case "D":
+    case "E":
+      return "bg-[#fff1f2] text-[#c2415d]";
+    default:
+      return "bg-slate-100 text-slate-500";
+  }
+}
 
 export default async function ComparePage() {
   if (isProductionBuildPhase()) {
@@ -38,6 +55,17 @@ export default async function ComparePage() {
       parsed
     };
   });
+  const jobsWithCommute = jobsWithData
+    .map((job) => ({ job, commute: getPrimaryCommuteMinutes(job) }))
+    .filter((entry): entry is { job: (typeof jobsWithData)[number]; commute: number } => entry.commute != null);
+  const shortestCommute = jobsWithCommute.length > 0 ? jobsWithCommute.reduce((best, current) => (current.commute < best.commute ? current : best)) : null;
+  const longestCommute = jobsWithCommute.length > 0 ? jobsWithCommute.reduce((best, current) => (current.commute > best.commute ? current : best)) : null;
+  const highestHoliday = jobsWithData
+    .filter((job) => job.parsed?.annualHolidays.value != null)
+    .reduce<(typeof jobsWithData)[number] | null>((best, current) => {
+      if (!best) return current;
+      return (current.parsed?.annualHolidays.value ?? 0) > (best.parsed?.annualHolidays.value ?? 0) ? current : best;
+    }, null);
 
   return (
     <section className="dashboard-frame">
@@ -52,7 +80,7 @@ export default async function ComparePage() {
                   <p className="eyebrow">Compare</p>
                   <h1 className="page-title">求人比較</h1>
                   <p className="page-copy mt-3">
-                    ここは比較ビューの入口です。次の実装では、総合ランク、年間休日、固定残業、福利厚生、通勤時間を複数求人で横並び比較できるようにします。
+                    保存した求人を、総合ランク・通勤時間・年間休日・固定残業・賞与で横並び比較します。迷ったときに、どこが差になっているかを短時間で見比べるためのページです。
                   </p>
                 </div>
                 <Link href="/jobs" className="button-secondary">
@@ -77,7 +105,38 @@ export default async function ComparePage() {
                   <Link href="/jobs/new" className="button-primary">求人を入力する</Link>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="space-y-5">
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div className="metric-tile">
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-rakumo-ink/45">最短通勤</p>
+                      <p className="mt-2 text-lg font-semibold text-rakumo-ink">
+                        {shortestCommute ? `${shortestCommute.job.parsed?.companyName.value ?? shortestCommute.job.companyName ?? "会社名不明"}` : "未計算"}
+                      </p>
+                      <p className="mt-1 text-sm text-rakumo-ink/70">
+                        {shortestCommute ? formatCommuteRange(shortestCommute.job) : "参考通勤時間が入ると表示されます"}
+                      </p>
+                    </div>
+                    <div className="metric-tile">
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-rakumo-ink/45">休日多め</p>
+                      <p className="mt-2 text-lg font-semibold text-rakumo-ink">
+                        {highestHoliday ? `${highestHoliday.parsed?.companyName.value ?? highestHoliday.companyName ?? "会社名不明"}` : "未計算"}
+                      </p>
+                      <p className="mt-1 text-sm text-rakumo-ink/70">
+                        {highestHoliday?.parsed?.annualHolidays.value != null ? `${highestHoliday.parsed.annualHolidays.value}日` : "年間休日が入ると表示されます"}
+                      </p>
+                    </div>
+                    <div className="metric-tile">
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-rakumo-ink/45">確認が必要</p>
+                      <p className="mt-2 text-lg font-semibold text-rakumo-ink">
+                        {longestCommute ? `${longestCommute.job.parsed?.companyName.value ?? longestCommute.job.companyName ?? "会社名不明"}` : "未計算"}
+                      </p>
+                      <p className="mt-1 text-sm text-rakumo-ink/70">
+                        {longestCommute ? `通勤 ${formatCommuteRange(longestCommute.job)}` : "長めの通勤候補があると表示されます"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
                   <table className="min-w-full text-sm text-rakumo-ink">
                     <thead>
                       <tr className="border-b border-rakumo-border text-left">
@@ -95,8 +154,15 @@ export default async function ComparePage() {
                           <td className="px-3 py-3">
                             <p className="font-semibold">{job.parsed?.companyName.value ?? job.companyName ?? "会社名不明"}</p>
                             <p className="text-rakumo-ink/65">{job.parsed?.title.value ?? job.title ?? "職種不明"}</p>
+                            <Link href={`/jobs?selected=${job.id}`} className="mt-2 inline-flex text-xs font-semibold text-rakumo-mint hover:underline">
+                              詳細を見る
+                            </Link>
                           </td>
-                          <td className="px-3 py-3 font-bold">{job.latest?.totalRank ?? "保留"}</td>
+                          <td className="px-3 py-3">
+                            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${getRankTone(job.latest?.totalRank)}`}>
+                              {job.latest?.totalRank ?? "保留"}
+                            </span>
+                          </td>
                           <td className="px-3 py-3">
                             <div className="space-y-1">
                               <p>{formatCommuteRangeDetail(job)}</p>
@@ -126,6 +192,7 @@ export default async function ComparePage() {
                       ))}
                     </tbody>
                   </table>
+                </div>
                 </div>
               )}
             </div>

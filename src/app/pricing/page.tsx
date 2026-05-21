@@ -104,7 +104,15 @@ export default async function PricingPage() {
                 <li>求人保存: {Number.isFinite(limits.maxJobs) ? `${limits.maxJobs}件` : "無制限"}</li>
                 <li>求人票要約: 1クレジット</li>
                 <li>求人特徴抽出: 1クレジット</li>
-                <li>通勤時間取得: 開発中</li>
+                <li>
+                  通勤プロフィール保存: {limits.commute.canSaveProfile ? "可" : "不可"}
+                </li>
+                <li>
+                  参考通勤時間レンジ: {limits.commute.canAutoEstimate ? "計算可" : "手入力のみ"}
+                </li>
+                <li>
+                  比較ページ: {limits.commute.canCompare ? "横並び比較可" : "対象外"}
+                </li>
                 <li>履歴書ワークスペース: {paidPlan === "pro" ? "保存・再利用可" : "対象外"}</li>
               </ul>
 
@@ -122,6 +130,10 @@ export default async function PricingPage() {
                 <p>保存・コピーして使う: {limits.criteria.canCloneTemplates ? "可" : "不可"}</p>
                 <p>自分用に育てる: {limits.criteria.canEditClonedTemplates ? "可" : "不可"}</p>
                 <p>公開・統計を見る: {limits.criteria.canPublish ? "可" : "不可"}</p>
+              </div>
+
+              <div className="mt-5">
+                <p className="text-xs text-slate-500">月額課金・自動更新です。解約はいつでも Stripe の請求ポータルから行えます。</p>
               </div>
 
               <div className="mt-auto pt-5">
@@ -157,6 +169,24 @@ export default async function PricingPage() {
         <Link href="/criteria" className="button-secondary mt-4">
           公開基準を見る
         </Link>
+      </article>
+
+      <article className="panel">
+        <h2 className="section-title">通勤時間と比較ページの違い</h2>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="metric-tile text-sm text-slate-700">
+            <p className="font-medium text-slate-900">Starter</p>
+            <p className="mt-1">自宅最寄り駅や希望通勤時間を保存しつつ、必要なら通勤時間を手入力で残す段階です。</p>
+          </div>
+          <div className="metric-tile text-sm text-slate-700">
+            <p className="font-medium text-slate-900">Plus</p>
+            <p className="mt-1">GTFS ベースの参考通勤時間レンジを求人ごとに計算し、保存一覧や詳細で確認できます。</p>
+          </div>
+          <div className="metric-tile text-sm text-slate-700">
+            <p className="font-medium text-slate-900">Pro</p>
+            <p className="mt-1">参考通勤時間に加えて、複数求人を横並びで比較しながら応募判断に使えます。</p>
+          </div>
+        </div>
       </article>
 
       <article className="panel">

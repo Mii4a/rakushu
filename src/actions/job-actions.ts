@@ -6,10 +6,12 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { parseJobText, scoreParsedJob } from "@/lib/analysis";
+import { evaluateParsedJobQuality, shouldCreateFeedback } from "@/lib/analysis/quality";
+import type { ExtractedValue, ParsedJob, ScoredJob } from "@/lib/analysis/types";
 import { requireUser } from "@/lib/auth/require-user";
 import { resolveCommuteFields } from "@/lib/commute";
 import { db } from "@/lib/db/client";
-import { jobAnalyses, jobs, jobStatusEvents } from "@/lib/db/schema";
+import { jobAnalyses, jobAnalysisFeedback, jobs, jobStatusEvents } from "@/lib/db/schema";
 import { PLAN_LIMITS } from "@/lib/plans";
 import { getUserRankSettings } from "@/lib/subscription/rank-settings";
 import { getUserPlan } from "@/lib/subscription";
@@ -75,6 +77,78 @@ class ActionLimitError extends Error {
     super(message);
     this.code = code;
   }
+}
+
+function toBooleanColumnValue(field: ExtractedValue<boolean>) {
+  if (field.status === "found") return true;
+  if (field.status === "none") return false;
+  return null;
+}
+
+function buildJobAnalysisValues(params: {
+  analysisId: string;
+  jobId: string;
+  parsed: ParsedJob;
+  scored: ScoredJob;
+  now: Date;
+}) {
+  const { analysisId, jobId, parsed, scored, now } = params;
+
+  return {
+    id: analysisId,
+    jobId,
+    parserVersion: parsed.parserVersion,
+    employmentType: parsed.employmentType.value,
+    baseSalaryMin: parsed.baseSalaryMin.value,
+    baseSalaryMax: parsed.baseSalaryMax.value,
+    fixedOvertimeHours: parsed.fixedOvertimeHours.value,
+    fixedOvertimePay: parsed.fixedOvertimePay.value,
+    annualHolidays: parsed.annualHolidays.value,
+    holidayType: parsed.holidayType.value,
+    bonusCount: parsed.bonusCount.value,
+    bonusPerformanceLinked: parsed.bonusPerformanceLinked.status === "found" ? true : null,
+    housingAllowance: toBooleanColumnValue(parsed.housingAllowance),
+    companyHousing: toBooleanColumnValue(parsed.companyHousing),
+    retirementAllowance: toBooleanColumnValue(parsed.retirementAllowance),
+    benefitsJson: JSON.stringify(parsed.benefits.value ?? []),
+    warningsJson: JSON.stringify(parsed.warnings.value ?? []),
+    salaryRank: scored.fixedOvertimeRank,
+    holidayRank: scored.holidayRank,
+    holidayTypeRank: scored.holidayTypeRank,
+    bonusRank: scored.bonusRank,
+    retirementAllowanceRank: scored.retirementAllowanceRank,
+    benefitRank: scored.benefitRank,
+    totalRank: scored.totalRank,
+    evidenceJson: JSON.stringify(parsed),
+    createdAt: now,
+    updatedAt: now
+  };
+}
+
+async function insertAutoAnalysisFeedback(params: {
+  analysisId: string;
+  rawText: string;
+  parsed: ParsedJob;
+  now: Date;
+}) {
+  const report = evaluateParsedJobQuality(params.rawText, params.parsed);
+
+  if (!shouldCreateFeedback(report)) {
+    return;
+  }
+
+  await db.insert(jobAnalysisFeedback).values({
+    id: crypto.randomUUID(),
+    jobAnalysisId: params.analysisId,
+    status: "open",
+    source: "auto",
+    severity: report.severity,
+    failureTypesJson: JSON.stringify(report.failureTypes),
+    summaryText: report.summaryText,
+    rawExcerpt: report.excerpt,
+    createdAt: params.now,
+    updatedAt: params.now
+  });
 }
 
 function parseDateOnlyToUtc(value: string): Date | null {
@@ -192,35 +266,8 @@ export async function createJobAction(_: JobActionState | undefined, formData: F
     updatedAt: now
   });
 
-  await db.insert(jobAnalyses).values({
-    id: analysisId,
-    jobId,
-    parserVersion: parsed.parserVersion,
-    employmentType: parsed.employmentType.value,
-    baseSalaryMin: parsed.baseSalaryMin.value,
-    baseSalaryMax: parsed.baseSalaryMax.value,
-    fixedOvertimeHours: parsed.fixedOvertimeHours.value,
-    fixedOvertimePay: parsed.fixedOvertimePay.value,
-    annualHolidays: parsed.annualHolidays.value,
-    holidayType: parsed.holidayType.value,
-    bonusCount: parsed.bonusCount.value,
-    bonusPerformanceLinked: parsed.bonusPerformanceLinked.status === "found" ? true : null,
-    housingAllowance: parsed.housingAllowance.status === "found" ? true : parsed.housingAllowance.status === "none" ? false : null,
-    companyHousing: parsed.companyHousing.status === "found" ? true : parsed.companyHousing.status === "none" ? false : null,
-    retirementAllowance: parsed.retirementAllowance.status === "found" ? true : parsed.retirementAllowance.status === "none" ? false : null,
-    benefitsJson: JSON.stringify(parsed.benefits.value ?? []),
-    warningsJson: JSON.stringify(parsed.warnings.value ?? []),
-    salaryRank: scored.fixedOvertimeRank,
-    holidayRank: scored.holidayRank,
-    holidayTypeRank: scored.holidayTypeRank,
-    bonusRank: scored.bonusRank,
-    retirementAllowanceRank: scored.retirementAllowanceRank,
-    benefitRank: scored.benefitRank,
-    totalRank: scored.totalRank,
-    evidenceJson: JSON.stringify(parsed),
-    createdAt: now,
-    updatedAt: now
-  });
+  await db.insert(jobAnalyses).values(buildJobAnalysisValues({ analysisId, jobId, parsed, scored, now }));
+  await insertAutoAnalysisFeedback({ analysisId, rawText: parsedForm.data.rawText, parsed, now });
 
   const plan = await getUserPlan(user.id);
   await incrementAnalysisCount(user.id, PLAN_LIMITS[plan].analysisPeriod === "week" ? getWeekKey() : getMonthKey());
@@ -286,35 +333,10 @@ export async function rerunAnalysisAction(jobId: string, _: JobActionState | und
     })
     .where(and(eq(jobs.id, jobId), eq(jobs.userId, user.id)));
 
-  await db.insert(jobAnalyses).values({
-    id: crypto.randomUUID(),
-    jobId,
-    parserVersion: parsed.parserVersion,
-    employmentType: parsed.employmentType.value,
-    baseSalaryMin: parsed.baseSalaryMin.value,
-    baseSalaryMax: parsed.baseSalaryMax.value,
-    fixedOvertimeHours: parsed.fixedOvertimeHours.value,
-    fixedOvertimePay: parsed.fixedOvertimePay.value,
-    annualHolidays: parsed.annualHolidays.value,
-    holidayType: parsed.holidayType.value,
-    bonusCount: parsed.bonusCount.value,
-    bonusPerformanceLinked: parsed.bonusPerformanceLinked.status === "found" ? true : null,
-    housingAllowance: parsed.housingAllowance.status === "found" ? true : parsed.housingAllowance.status === "none" ? false : null,
-    companyHousing: parsed.companyHousing.status === "found" ? true : parsed.companyHousing.status === "none" ? false : null,
-    retirementAllowance: parsed.retirementAllowance.status === "found" ? true : parsed.retirementAllowance.status === "none" ? false : null,
-    benefitsJson: JSON.stringify(parsed.benefits.value ?? []),
-    warningsJson: JSON.stringify(parsed.warnings.value ?? []),
-    salaryRank: scored.fixedOvertimeRank,
-    holidayRank: scored.holidayRank,
-    holidayTypeRank: scored.holidayTypeRank,
-    bonusRank: scored.bonusRank,
-    retirementAllowanceRank: scored.retirementAllowanceRank,
-    benefitRank: scored.benefitRank,
-    totalRank: scored.totalRank,
-    evidenceJson: JSON.stringify(parsed),
-    createdAt: now,
-    updatedAt: now
-  });
+  const analysisId = crypto.randomUUID();
+
+  await db.insert(jobAnalyses).values(buildJobAnalysisValues({ analysisId, jobId, parsed, scored, now }));
+  await insertAutoAnalysisFeedback({ analysisId, rawText: target.rawText, parsed, now });
 
   const plan = await getUserPlan(user.id);
   await incrementAnalysisCount(user.id, PLAN_LIMITS[plan].analysisPeriod === "week" ? getWeekKey() : getMonthKey());

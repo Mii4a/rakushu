@@ -48,6 +48,13 @@ cd /home/openclaw/rakushu
 npm run db:import:gtfs -- --manifest ./config/gtfs-feeds.example.json
 ```
 
+ダウンロード込みの一括同期:
+
+```bash
+cd /home/openclaw/rakushu
+npm run db:sync:gtfs -- --manifest ./config/gtfs-feeds.kanto.example.json
+```
+
 既存求人への backfill:
 
 ```bash
@@ -59,9 +66,17 @@ npm run db:backfill:commute
 
 ### 実用完了へ進める
 
-- 実際の首都圏 feed を manifest に追加する
+- `ODPT_ACCESS_TOKEN` を取得して `.env.local` に入れる
+- `config/gtfs-feeds.kanto.example.json` を複製して実運用 manifest を作る
+- `npm run db:sync:gtfs -- --manifest <your-manifest>` を実行する
 - 主要駅で `参考通勤時間レンジ` が返ることを確認する
 - `未対応` 地域の見せ方を必要に応じて調整する
+
+補助メモ:
+- feed 候補は `docs/commute-gtfs-feed-candidates.md`
+- 首都圏 manifest 雛形は `config/gtfs-feeds.kanto.example.json`
+- 実 feed の download 同期は `ODPT_ACCESS_TOKEN` が入るまで保留
+- `ODPT_ACCESS_TOKEN` は取得に数日かかる可能性があるので、取得後の最初の作業は上の 3 行をそのまま実行すること
 
 ### 拡大型へ進める
 
@@ -75,6 +90,7 @@ npm run db:backfill:commute
 - 最初の再開点は `config/gtfs-feeds.example.json` を実 feed 用に複製して埋めること
 - 機能実装を再開するなら `docs/commute-gtfs-mvp-plan.md` を先に読む
 - 既存データを埋め直すときは `npm run db:backfill:commute`
+- `ODPT_ACCESS_TOKEN` 取得待ちで止まった場合は、再開時に `.env.local` へ入れてから `npm run db:sync:gtfs -- --manifest ./config/gtfs-feeds.local.json` を先に試す
 
 ## 関連ファイル
 

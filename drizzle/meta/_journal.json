@@ -43,6 +43,13 @@
       "when": 1777213156518,
       "tag": "0005_organic_mariko_yashida",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1779356892083,
+      "tag": "0017_job_analysis_feedback",
+      "breakpoints": true
     }
   ]
 }

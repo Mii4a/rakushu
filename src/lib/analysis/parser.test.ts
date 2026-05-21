@@ -1,6 +1,13 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { parseJobText } from "./parser";
+
+function readFixture(name: string): string {
+  return readFileSync(resolve(process.cwd(), "fixtures/jobs", name), "utf8");
+}
 
 describe("parseJobText", () => {
   it("extracts known fields with evidence", () => {
@@ -24,13 +31,19 @@ describe("parseJobText", () => {
 
     expect(parsed.companyName.value).toBe("株式会社らくしゅう");
     expect(parsed.companyName.evidence).toContain("会社名");
+    expect(parsed.companyName.source).toBe("direct_label");
+    expect(parsed.companyName.confidence).toBe("high");
     expect(parsed.baseSalaryMin.value).toBe(250000);
     expect(parsed.baseSalaryMax.value).toBe(300000);
     expect(parsed.fixedOvertimeHours.value).toBe(20);
     expect(parsed.fixedOvertimePay.value).toBe(30000);
     expect(parsed.annualHolidays.value).toBe(125);
+    expect(parsed.annualHolidays.source).toBe("direct_label");
+    expect(parsed.annualHolidays.confidence).toBe("high");
     expect(parsed.holidayType.value).toBe("完全週休2日制");
+    expect(parsed.holidayType.source).toBe("global_scan");
     expect(parsed.bonusCount.value).toBe(2);
+    expect(parsed.bonusCount.source).toBe("global_scan");
     expect(parsed.bonusPerformanceLinked.status).toBe("found");
     expect(parsed.retirementAllowance.status).toBe("found");
     expect(parsed.housingAllowance.status).toBe("found");
@@ -94,18 +107,22 @@ ITカンファー株式会社　採用担当
 
     expect(parsed.title.value).toBe("インフラエンジニア");
     expect(parsed.companyName.value).toBe("ITカンファー株式会社");
-    expect(parsed.salaryText.value).toBe("初年度想定年収：300～400万円");
+    expect(parsed.salaryText.value).toBe("300～400万円");
     expect(parsed.baseSalaryMin.value).toBe(230000);
     expect(parsed.baseSalaryMax.status).toBe("unknown");
     expect(parsed.fixedOvertimeHours.status).toBe("none");
     expect(parsed.fixedOvertimePay.status).toBe("none");
     expect(parsed.annualHolidays.value).toBe(134);
+    expect(parsed.annualHolidays.source).toBe("direct_label");
     expect(parsed.holidayType.value).toBe("完全週休2日制");
+    expect(parsed.holidayType.source).toBe("section");
     expect(parsed.bonusCount.value).toBe(3);
+    expect(parsed.bonusCount.source).toBe("global_scan");
     expect(parsed.retirementAllowance.status).toBe("found");
     expect(parsed.benefits.value).toEqual(
       expect.arrayContaining(["社会保険完備", "交通費（全額支給）", "資格手当", "引越手当", "通信費補助"])
     );
+    expect(parsed.benefits.source).toBe("section");
   });
 
   it("extracts bonus count and lowers confidence hint when bonus is performance-linked", () => {
@@ -137,35 +154,7 @@ ITカンファー株式会社　採用担当
   });
 
   it("extracts skeptical warnings from hype-heavy sns job posts", () => {
-    const raw = `
-募集職種
-YouTube/TikTok運用
-
-仕事内容
-【未経験歓迎】SNSを活用した広報活動・企画・編集・投稿・分析・Live配信までお任せします！
-
-求める人材
-■32歳以下の方
-※［例外事由3号イ］長期勤続によるキャリア形成を図るため
-
-休日・休暇
-【年間休日120日＋有給10日付与】
-☆有給消化率100％！
-
-福利厚生
-湘南美容外科クリニック提携
-
-公式SNSも日々更新中！「freemova」で検索！
-■TikTok
-＃フォロワー：5.6万人以上
-＃総再生回数：2.5億回／いいね数：150万
-＃「2m社長」をはじめバズ実績多数！
-
-受賞歴多数あり！
-☆ホワイト企業認定取得！
-☆ベストベンチャー100に選出！
-☆Wantedly Awards 2024 Profile Craft部門 GOLD 受賞！
-`;
+    const raw = readFixture("sns-media-anon.txt");
 
     const parsed = parseJobText(raw);
 
@@ -232,5 +221,48 @@ YouTube/TikTok運用
     expect(parsed.baseSalaryMin.evidence).toContain("月給記載: 280,000円 / 240,000円");
     expect(parsed.baseSalaryMin.evidence).toContain("基本給記載なしのため月給の最小値から固定残業代を差し引いて算出");
     expect(parsed.warnings.value).toContain("基本給記載なし");
+  });
+
+  it("extracts company name and employment type from media summary lines without explicit labels", () => {
+    const raw = readFixture("media-summary-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.companyName.value).toBe("エクシオ・デジタルソリューションズ株式会社");
+    expect(parsed.companyName.evidence).toBe("エクシオ・デジタルソリューションズ株式会社");
+    expect(parsed.companyName.source).toBe("summary_line");
+    expect(parsed.companyName.confidence).toBe("medium");
+    expect(parsed.employmentType.value).toBe("正社員");
+    expect(parsed.employmentType.evidence).toContain("正社員");
+    expect(parsed.employmentType.source).toBe("summary_line");
+    expect(parsed.employmentType.confidence).toBe("medium");
+    expect(parsed.salaryText.value).toBe("25万円以上");
+    expect(parsed.baseSalaryMin.value).toBe(250000);
+    expect(parsed.baseSalaryMin.source).toBe("summary_line");
+    expect(parsed.baseSalaryMin.confidence).toBe("medium");
+    expect(parsed.annualHolidays.value).toBe(126);
+    expect(parsed.annualHolidays.source).toBe("direct_label");
+    expect(parsed.holidayType.value).toBe("完全週休2日制");
+    expect(parsed.holidayType.source).toBe("global_scan");
+    expect(parsed.benefits.value).toEqual(expect.arrayContaining(["家賃補助有", "フレックス制度有"]));
+    expect(parsed.benefits.source).toBe("summary_line");
+    expect(parsed.benefits.confidence).toBe("medium");
+  });
+
+  it("extracts company name from a contact line when only recruiting contact is present", () => {
+    const raw = `
+募集職種
+クラウド運用サポート
+
+連絡先
+青葉クラウドサポート株式会社 採用担当
+`;
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.companyName.value).toBe("青葉クラウドサポート株式会社");
+    expect(parsed.companyName.evidence).toBe("青葉クラウドサポート株式会社 採用担当");
+    expect(parsed.companyName.source).toBe("contact");
+    expect(parsed.companyName.confidence).toBe("medium");
   });
 });

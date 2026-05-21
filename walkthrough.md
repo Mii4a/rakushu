@@ -1,27 +1,49 @@
 # walkthrough.md
 
-## 今回の作業
+## 今回の主題
+次に進めるべきなのは、この 3 つ。
 
-らくしゅう開発で再利用できる agent prompt テンプレートを作る。
-前回作った `docs/agent-task-splitting.md` は「分割判断のルール」だったので、今回はその実行版として「親agent と worker に何を言うか」を固める。
+1. 求人解析の安定化
+2. SNS 広報
+3. Stripe 有効化設定
 
-## 進め方
+ただし順番が大事。
 
-1. 既存の分割運用表と AGENTS.md を読む
-2. 親agent に持たせる責務を明確にする
-3. worker を Analysis / UI / Platform / QA に分ける
-4. それぞれの prompt をコピペしやすい形で docs に書く
-5. 最後に使い方と禁止例を添える
+## 結論
+優先順はこう。
 
-## 今回の判断軸
+1. 求人解析の安定化
+2. β CTA と計測を入れたうえで SNS 広報
+3. Stripe 本番有効化
 
-- 役割ごとに触る責務が分かれているか
-- worker に渡すべき禁止事項が明確か
-- 同じ prompt を別 feature でも再利用できるか
-- Hermes の `delegate_task` や別セッション起動にそのまま流せるか
+## その理由
+- 解析が弱いまま人を連れてくると初回体験で落ちる
+- 広報しても計測がないと何が効いたか残らない
+- Stripe は重要だが、価値体験と需要観測が先に固まっていた方が強い
 
-## 期待する成果
+## まずやること
+### 1. 求人解析
+- 実失敗ケースを匿名 fixture にする
+- parser test を fixture ベースで増やす
+- summary line fallback を強化する
+- 高シグナルな失敗だけを 1 analysis = 1 feedback row で自動収集する
+- internal review 一覧で fixture 化候補を見返せるようにする
 
-- Lead agent が毎回ゼロから指示文を考えなくてよくなる
-- worker の責務逸脱やスコープ膨張を抑えやすくなる
-- らくしゅう全般で使える multi-agent の基本形ができる
+### 2. SNS 広報
+- 訴求を 1 本に絞る
+- LP に β CTA を置く
+- 投稿リンクに UTM を付ける
+- `cta_beta_click` と `beta_form_submit` を取る
+
+### 3. Stripe
+- 本番 Product / Price / Webhook / secrets を揃える
+- Checkout → Webhook → subscription 同期 → Portal を通す
+
+## 他にもやるべきこと
+- β フォーム整備
+- 最低限のイベント計測
+- `/pricing` 含む本番スモークテスト
+- auth / stripe / parser エラーの観測
+
+## 最初の 1 アクション
+今の実装着手は、まず `quality.test.ts` を RED で追加し、lean feedback loop の evaluator と schema を先に固めるのがいちばん堅い。

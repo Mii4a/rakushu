@@ -120,6 +120,30 @@ export const jobAnalyses = sqliteTable(
   (table) => [index("job_analyses_job_id_idx").on(table.jobId)]
 );
 
+export const jobAnalysisFeedback = sqliteTable(
+  "job_analysis_feedback",
+  {
+    id: text("id").primaryKey(),
+    jobAnalysisId: text("job_analysis_id").notNull().references(() => jobAnalyses.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("open"),
+    source: text("source").notNull().default("auto"),
+    severity: text("severity").notNull(),
+    failureTypesJson: text("failure_types_json").notNull(),
+    summaryText: text("summary_text").notNull(),
+    rawExcerpt: text("raw_excerpt").notNull(),
+    userReasonCode: text("user_reason_code"),
+    userNote: text("user_note"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
+  },
+  (table) => [
+    uniqueIndex("job_analysis_feedback_job_analysis_id_unique").on(table.jobAnalysisId),
+    index("job_analysis_feedback_status_idx").on(table.status),
+    index("job_analysis_feedback_created_at_idx").on(table.createdAt),
+    index("job_analysis_feedback_severity_idx").on(table.severity)
+  ]
+);
+
 export const jobStatusEvents = sqliteTable(
   "job_status_events",
   {
@@ -516,6 +540,10 @@ export const jobsRelations = relations(jobs, ({ one, many }) => ({
   user: one(user, { fields: [jobs.userId], references: [user.id] }),
   analyses: many(jobAnalyses),
   statusEvents: many(jobStatusEvents)
+}));
+
+export const jobAnalysisFeedbackRelations = relations(jobAnalysisFeedback, ({ one }) => ({
+  analysis: one(jobAnalyses, { fields: [jobAnalysisFeedback.jobAnalysisId], references: [jobAnalyses.id] })
 }));
 
 export const userCommuteProfilesRelations = relations(userCommuteProfiles, ({ one }) => ({

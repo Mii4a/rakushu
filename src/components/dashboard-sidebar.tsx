@@ -19,7 +19,17 @@ const navItems = [
 
 type SidebarKey = (typeof navItems)[number]["key"];
 
-export function DashboardSidebar({ activeKey, note }: { activeKey: SidebarKey; note: string }) {
+export function DashboardSidebar({
+  activeKey,
+  note,
+  desktopVisible = true,
+  showMobileToggle = true,
+}: {
+  activeKey: SidebarKey;
+  note: string;
+  desktopVisible?: boolean;
+  showMobileToggle?: boolean;
+}) {
   const pathname = usePathname();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
@@ -69,16 +79,18 @@ export function DashboardSidebar({ activeKey, note }: { activeKey: SidebarKey; n
 
   return (
     <>
-      <button
-        type="button"
-        aria-label="サイドバーを開く"
-        aria-expanded={isMobileOpen}
-        onClick={() => setIsMobileOpen(true)}
-        className="dashboard-mobile-sidebar-toggle"
-      >
-        <Menu className="size-5" />
-        <span>メニュー</span>
-      </button>
+      {showMobileToggle ? (
+        <button
+          type="button"
+          aria-label="サイドバーを開く"
+          aria-expanded={isMobileOpen}
+          onClick={() => setIsMobileOpen(true)}
+          className="dashboard-mobile-sidebar-toggle"
+        >
+          <Menu className="size-5" />
+          <span>メニュー</span>
+        </button>
+      ) : null}
 
       {isMobileOpen ? (
         <div className="dashboard-mobile-sidebar-overlay" onClick={() => setIsMobileOpen(false)}>
@@ -99,7 +111,7 @@ export function DashboardSidebar({ activeKey, note }: { activeKey: SidebarKey; n
         </div>
       ) : null}
 
-      <aside className="dashboard-sidebar">{content}</aside>
+      {desktopVisible ? <aside className="dashboard-sidebar">{content}</aside> : null}
     </>
   );
 }

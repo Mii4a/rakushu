@@ -40,6 +40,71 @@ body:has(.home-demo-shell) .page-shell {
   padding: 0;
 }
 
+@media print {
+  @page {
+    size: A4;
+    margin: 10mm 9mm;
+  }
+
+  body {
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body:has(.resume-print-root) > header,
+  body:has(.resume-print-root) > footer,
+  body:has(.resume-print-root) .dashboard-sidebar,
+  body:has(.resume-print-root) .dashboard-mobile-nav,
+  body:has(.resume-print-root) .dashboard-mobile-sidebar-toggle,
+  body:has(.resume-print-root) .dashboard-mobile-sidebar-overlay,
+  body:has(.resume-print-root) .page-hero,
+  body:has(.resume-print-root) .metric-tile {
+    display: none !important;
+  }
+
+  body:has(.resume-print-root) .dashboard-frame,
+  body:has(.resume-print-root) .dashboard-shell,
+  body:has(.resume-print-root) .dashboard-main,
+  body:has(.resume-print-root) .page-stack,
+  body:has(.resume-print-root) .panel {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+  }
+
+  body:has(.resume-print-root) .resume-print-root > :not(.resume-print-form) {
+    display: none !important;
+  }
+
+  body:has(.resume-print-root) .resume-print-form {
+    display: block !important;
+  }
+
+  body:has(.resume-print-root) .resume-print-form > :not(.resume-preview-column) {
+    display: none !important;
+  }
+
+  body:has(.resume-print-root) .resume-preview-column {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  body:has(.resume-print-root) .resume-print-surface {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  body:has(.resume-print-root) .resume-print-section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
 a,
 button,
 input,

@@ -1,0 +1,40 @@
+{
+  "feeds": [
+    {
+      "provider": "Tokyo Metro",
+      "region": "kanto-tokyometro",
+      "file": "/absolute/path/to/TokyoMetro-Train-GTFS.zip",
+      "downloadUrl": "https://api.odpt.org/api/v4/files/TokyoMetro/data/TokyoMetro-Train-GTFS.zip?acl:consumerKey=YOUR_ACCESS_TOKEN",
+      "downloadTo": "/absolute/path/to/cache/TokyoMetro-Train-GTFS.zip",
+      "sourceUrl": "https://api.odpt.org/api/v4/files/TokyoMetro/data/TokyoMetro-Train-GTFS.zip?acl:consumerKey=YOUR_ACCESS_TOKEN",
+      "licenseNote": "Public Transportation Open Data Basic License"
+    },
+    {
+      "provider": "Toei",
+      "region": "kanto-toei",
+      "file": "/absolute/path/to/Toei-Train-GTFS.zip",
+      "downloadUrl": "https://api.odpt.org/api/v4/files/Toei/data/Toei-Train-GTFS.zip?acl:consumerKey=YOUR_ACCESS_TOKEN",
+      "downloadTo": "/absolute/path/to/cache/Toei-Train-GTFS.zip",
+      "sourceUrl": "https://api.odpt.org/api/v4/files/Toei/data/Toei-Train-GTFS.zip?acl:consumerKey=YOUR_ACCESS_TOKEN",
+      "licenseNote": "CC BY 4.0 / direct sync may still require ODPT token"
+    },
+    {
+      "provider": "TWR Rinkai Line",
+      "region": "kanto-twr",
+      "file": "/absolute/path/to/TWR-Train-GTFS.zip",
+      "downloadUrl": "https://api.odpt.org/api/v4/files/TWR/data/TWR-Train-GTFS.zip?acl:consumerKey=YOUR_ACCESS_TOKEN",
+      "downloadTo": "/absolute/path/to/cache/TWR-Train-GTFS.zip",
+      "sourceUrl": "https://api.odpt.org/api/v4/files/TWR/data/TWR-Train-GTFS.zip?acl:consumerKey=YOUR_ACCESS_TOKEN",
+      "licenseNote": "Public Transportation Open Data Basic License"
+    },
+    {
+      "provider": "Yokohama Municipal Subway",
+      "region": "kanto-yokohama-subway",
+      "file": "/absolute/path/to/YokohamaMunicipal-Train.zip",
+      "downloadUrl": "https://api.odpt.org/api/v4/files/odpt/YokohamaMunicipal/Train.zip?date=20251226&acl:consumerKey=YOUR_ACCESS_TOKEN",
+      "downloadTo": "/absolute/path/to/cache/YokohamaMunicipal-Train.zip",
+      "sourceUrl": "https://api.odpt.org/api/v4/files/odpt/YokohamaMunicipal/Train.zip?date=20251226&acl:consumerKey=YOUR_ACCESS_TOKEN",
+      "licenseNote": "Public Transportation Open Data Basic License"
+    }
+  ]
+}

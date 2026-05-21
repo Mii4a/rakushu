@@ -16,6 +16,7 @@
     "db:migrate:prod": "dotenv -e .env.production -- node scripts/migrate-turso.mjs",
     "db:backfill:commute": "dotenv -e .env.local -- node --import tsx scripts/backfill-gtfs-commute-ranges.ts",
     "db:import:gtfs": "dotenv -e .env.local -- node scripts/import-gtfs-manifest.mjs",
+    "db:sync:gtfs": "dotenv -e .env.local -- node scripts/sync-gtfs-feeds.mjs",
     "db:studio": "dotenv -e .env.local -- drizzle-kit studio",
     "test": "vitest run",
     "test:watch": "vitest"
