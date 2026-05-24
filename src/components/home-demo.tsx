@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   ArrowRight,
   BookOpen,
@@ -20,6 +21,8 @@ import {
 } from "lucide-react";
 
 import { DEFAULT_RANK_SETTINGS, parseJobText, scoreParsedJob } from "@/lib/analysis";
+import { buildTrackedHref, getTextLengthBucket, getUtmParams, sendMarketingEvent, sendMarketingEventBeacon } from "@/lib/marketing/client";
+import { MarketingEventTracker } from "@/components/marketing-event-tracker";
 import type { Rank } from "@/lib/analysis/types";
 import rakumoHappy from "../../yuru-chara/rakumo_happy.jpg";
 import rakumoNeutral from "../../yuru-chara/rakumo_neutral.jpg";
@@ -227,10 +230,55 @@ export function HomeDemo() {
   const [rawText, setRawText] = useState(initialText);
   const [showExtracted, setShowExtracted] = useState(false);
   const deferredText = useDeferredValue(rawText);
+  const searchParams = useSearchParams();
   const hasInput = deferredText.trim().length > 0;
   const parsed = parseJobText(deferredText);
   const scored = scoreParsedJob(parsed);
   const totalRankNote = hasInput ? getTotalRankNote(scored.totalRank) : null;
+  const trackedBetaHref = useMemo(() => buildTrackedHref("/beta", searchParams, { cta_variant: "a" }), [searchParams]);
+  const utmParams = useMemo(() => getUtmParams(searchParams), [searchParams]);
+  const demoStartedRef = useRef(false);
+  const jobPastedRef = useRef(false);
+  const analysisCompletedRef = useRef(false);
+
+  useEffect(() => {
+    if (!hasInput || demoStartedRef.current) return;
+    demoStartedRef.current = true;
+
+    void sendMarketingEvent({
+      eventType: "demo_interaction_started",
+      page: "/",
+      referrer: typeof document !== "undefined" ? document.referrer || undefined : undefined,
+      ...utmParams
+    });
+  }, [hasInput, utmParams]);
+
+  useEffect(() => {
+    const trimmedLength = deferredText.trim().length;
+    if (trimmedLength === 0 || jobPastedRef.current) return;
+    jobPastedRef.current = true;
+
+    void sendMarketingEvent({
+      eventType: "job_text_pasted",
+      page: "/",
+      referrer: typeof document !== "undefined" ? document.referrer || undefined : undefined,
+      textLengthBucket: getTextLengthBucket(trimmedLength),
+      ...utmParams
+    });
+  }, [deferredText, utmParams]);
+
+  useEffect(() => {
+    if (!hasInput || analysisCompletedRef.current) return;
+    analysisCompletedRef.current = true;
+
+    void sendMarketingEvent({
+      eventType: "analysis_completed",
+      page: "/",
+      referrer: typeof document !== "undefined" ? document.referrer || undefined : undefined,
+      totalRank: scored.totalRank,
+      ...utmParams
+    });
+  }, [hasInput, scored.totalRank, utmParams]);
 
   const rankItems = [
     { label: "固定残業", rank: scored.fixedOvertimeRank },
@@ -294,6 +342,7 @@ export function HomeDemo() {
 
   return (
     <section className="home-demo-shell bg-[linear-gradient(180deg,#fffdfa_0%,#fdfefe_100%)] text-[#17355b]">
+      <MarketingEventTracker eventType="lp_view" />
       <div className="mx-auto w-full max-w-[1560px] px-4 pb-8 pt-4 lg:px-8">
         <header className="rounded-[28px] border border-[#dce7ee] bg-white/95 px-5 py-4 shadow-[0_18px_36px_-30px_rgba(22,53,91,0.32)]">
           <div className="flex items-center justify-between gap-4">
@@ -361,18 +410,29 @@ export function HomeDemo() {
                     </span>
                   </Link>
                   <Link
-                    href="/criteria"
+                    href={trackedBetaHref}
+                    onClick={() =>
+                      sendMarketingEventBeacon({
+                        eventType: "cta_beta_click",
+                        page: "/",
+                        referrer: typeof document !== "undefined" ? document.referrer || undefined : undefined,
+                        ctaVariant: "a",
+                        ...utmParams
+                      })
+                    }
                     className="inline-flex min-h-[74px] items-center justify-center gap-3 rounded-2xl border border-[#bdd1de] bg-white px-7 py-4 text-lg font-black text-[#17355b] shadow-[0_18px_28px_-26px_rgba(22,53,91,0.35)]"
                   >
                     <BookOpen className="size-5 text-[#2d577a]" />
                     <span>
-                      基準の仕組みを見る
-                      <span className="mt-1 block text-sm font-semibold text-[#35546f]">判断基準の一覧へ →</span>
+                      β参加はこちら
+                      <span className="mt-1 block text-sm font-semibold text-[#35546f]">困りごとを先に伝える →</span>
                     </span>
                   </Link>
                 </div>
 
-                <p className="mt-4 flex items-center gap-2 text-sm font-semibold text-[#506b82]">
+                <p className="mt-4 text-sm font-semibold text-[#506b82]">求人票の見極めに不安がある人向け。15秒で内容確認、気になればβ登録。</p>
+
+                <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-[#506b82]">
                   <Lock className="size-4" />
                   保存・応募状況の管理にはログインが必要です
                 </p>

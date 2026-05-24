@@ -1,7 +1,15 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
+import { parseJobText } from "./parser";
 import type { ExtractedValue, JobWarnings, ParsedJob } from "./types";
 import { evaluateParsedJobQuality, shouldCreateFeedback } from "./quality";
+
+function readFixture(name: string): string {
+  return readFileSync(resolve(process.cwd(), "fixtures/jobs", name), "utf8");
+}
 
 function extracted<T>(overrides: Partial<ExtractedValue<T>> = {}): ExtractedValue<T> {
   return {
@@ -41,6 +49,7 @@ function buildParsedJob(overrides: Partial<ParsedJob> = {}): ParsedJob {
 describe("evaluateParsedJobQuality", () => {
   it("marks salary text without base salary as save-worthy feedback", () => {
     const parsed = buildParsedJob({
+      salaryText: extracted({ status: "found", value: "25万円以上", evidence: "月給25万円以上", source: "summary_line", confidence: "medium" }),
       baseSalaryMin: extracted<number>({ status: "unknown", value: null, evidence: null, source: "validation", confidence: "low" }),
       baseSalaryMax: extracted<number>({ status: "unknown", value: null, evidence: null, source: "validation", confidence: "low" })
     });
@@ -50,6 +59,45 @@ describe("evaluateParsedJobQuality", () => {
     expect(report.failureTypes).toContain("salary_text_without_base_salary");
     expect(report.severity).toBe("high");
     expect(shouldCreateFeedback(report)).toBe(true);
+  });
+
+  it("does not mark structured annual-salary detail pages as missing critical salary normalization", () => {
+    const raw = readFixture("phase4-job-board-detail-annual-salary-usable-anon.txt");
+    const parsed = parseJobText(raw);
+
+    const report = evaluateParsedJobQuality(raw, parsed);
+
+    expect(parsed.salaryText.value).toBe("305万円～315万円");
+    expect(parsed.salaryText.source).toBe("section");
+    expect(report.failureTypes).not.toContain("salary_text_without_base_salary");
+    expect(shouldCreateFeedback(report)).toBe(false);
+  });
+
+  it("does not mark structured monthly-salary detail pages as missing critical salary normalization", () => {
+    const raw = readFixture("phase4-job-board-detail-monthly-salary-usable-anon.txt");
+    const parsed = parseJobText(raw);
+
+    const report = evaluateParsedJobQuality(raw, parsed);
+
+    expect(parsed.salaryText.value).toBe("21万7,100円 ～ 23万8,100円");
+    expect(parsed.salaryText.source).toBe("section");
+    expect(report.failureTypes).not.toContain("salary_text_without_base_salary");
+    expect(shouldCreateFeedback(report)).toBe(false);
+  });
+
+  it("does not mark annual-salary-only listcards as missing critical salary normalization", () => {
+    const raw = readFixture("phase3-en-agent-annual-salary-listcard-anon.txt");
+    const parsed = parseJobText(raw);
+
+    const report = evaluateParsedJobQuality(raw, parsed);
+
+    expect(parsed.companyName.value).toBe("株式会社サンプルIR");
+    expect(parsed.employmentType.value).toBe("正社員");
+    expect(parsed.salaryText.value).toBe("600万円～1000万円");
+    expect(parsed.annualHolidays.status).toBe("unknown");
+    expect(report.failureTypes).not.toContain("salary_text_without_base_salary");
+    expect(report.failureTypes).not.toContain("too_many_unknown_critical_fields");
+    expect(shouldCreateFeedback(report)).toBe(false);
   });
 
   it("marks benefits suspicion without extracted benefits as save-worthy feedback", () => {
@@ -63,7 +111,7 @@ describe("evaluateParsedJobQuality", () => {
     expect(shouldCreateFeedback(report)).toBe(true);
   });
 
-  it("marks summary-line-heavy parses with missing critical fields as save-worthy feedback", () => {
+  it("marks summary-line-heavy parses with one missing documented critical field as save-worthy feedback", () => {
     const parsed = buildParsedJob({
       companyName: extracted({ status: "found", value: "株式会社らくしゅう", evidence: "株式会社らくしゅう", source: "summary_line", confidence: "medium" }),
       employmentType: extracted({ status: "found", value: "正社員", evidence: "正社員", source: "summary_line", confidence: "medium" }),
@@ -75,7 +123,7 @@ describe("evaluateParsedJobQuality", () => {
     const report = evaluateParsedJobQuality("株式会社らくしゅう 正社員 月給25万円以上", parsed);
 
     expect(report.failureTypes).toContain("summary_line_only_extraction");
-    expect(report.failureTypes).toContain("too_many_unknown_critical_fields");
+    expect(report.failureTypes).not.toContain("too_many_unknown_critical_fields");
     expect(shouldCreateFeedback(report)).toBe(true);
   });
 
@@ -106,5 +154,78 @@ describe("evaluateParsedJobQuality", () => {
     expect(report.failureTypes).toEqual([]);
     expect(report.severity).toBe("none");
     expect(shouldCreateFeedback(report)).toBe(false);
+  });
+
+  it("marks negative inferred base salary as save-worthy feedback", () => {
+    const parsed = buildParsedJob({
+      baseSalaryMin: extracted<number>({
+        status: "found",
+        value: -33200,
+        evidence: "月給257,420円 / 固定残業代43,200円 / 基本給記載なしのため月給の最小値から固定残業代を差し引いて算出",
+        source: "global_scan",
+        confidence: "medium"
+      }),
+      baseSalaryMax: extracted<number>({ status: "unknown", value: null, evidence: null, source: "validation", confidence: "low" })
+    });
+
+    const report = evaluateParsedJobQuality("想定年収：300～400万円\n固定残業代43,200円", parsed);
+
+    expect(report.failureTypes).toContain("negative_base_salary_detected");
+    expect(report.severity).toBe("high");
+    expect(shouldCreateFeedback(report)).toBe(true);
+  });
+
+  it("marks platform-polluted company names as save-worthy feedback", () => {
+    const parsed = buildParsedJob({
+      companyName: extracted({
+        status: "found",
+        value: "転職・求人doda（デューダ）トップ人材サービス・アウトソーシング業界・コールセンター人材派遣北斗株式会社",
+        evidence: "転職・求人doda（デューダ）トップ人材サービス・アウトソーシング業界・コールセンター人材派遣北斗株式会社の求人・中途採用情報",
+        source: "summary_line",
+        confidence: "medium"
+      })
+    });
+
+    const report = evaluateParsedJobQuality("転職・求人doda（デューダ）トップ…\n北斗株式会社", parsed);
+
+    expect(report.failureTypes).toContain("company_name_suspected_platform_noise");
+    expect(report.severity).toBe("high");
+    expect(shouldCreateFeedback(report)).toBe(true);
+  });
+
+  it("marks bonus keywords without extracted bonus count as save-worthy feedback", () => {
+    const parsed = buildParsedJob({
+      bonusCount: extracted<number>({ status: "unknown", value: null, evidence: null, source: "validation", confidence: "low" })
+    });
+
+    const report = evaluateParsedJobQuality("昇給・賞与\n昇給: 年1回\n賞与: 年2回", parsed);
+
+    expect(report.failureTypes).toContain("bonus_count_unknown_with_keyword");
+    expect(report.summaryText).toContain("賞与");
+    expect(shouldCreateFeedback(report)).toBe(true);
+  });
+
+  it("marks retirement allowance keywords without extracted verdict as save-worthy feedback", () => {
+    const parsed = buildParsedJob({
+      retirementAllowance: extracted<boolean>({ status: "unknown", value: null, evidence: null, source: "validation", confidence: "low" })
+    });
+
+    const report = evaluateParsedJobQuality("福利厚生\n退職金制度\n資格取得支援制度", parsed);
+
+    expect(report.failureTypes).toContain("retirement_allowance_unknown_with_keyword");
+    expect(report.summaryText).toContain("退職金");
+    expect(shouldCreateFeedback(report)).toBe(true);
+  });
+
+  it("clears benefits suspicion for wantedly prose-heavy pages once benefit blocks are extracted", () => {
+    const raw = readFixture("phase3-wantedly-prose-heavy-049-anon.txt");
+    const parsed = parseJobText(raw);
+
+    const report = evaluateParsedJobQuality(raw, parsed);
+
+    expect(parsed.benefits.status).toBe("found");
+    expect(report.failureTypes).not.toContain("benefits_suspected_but_not_extracted");
+    expect(report.failureTypes).toContain("too_many_unknown_critical_fields");
+    expect(report.signals.benefitsSuspected).toBe(false);
   });
 });

@@ -6,10 +6,41 @@ import { AccountMenu } from "@/components/account-menu";
 import { AppNavLinks } from "@/components/app-nav-links";
 import "./globals.css";
 import { getSession } from "@/lib/auth/session";
+import { getSiteOrigin } from "../lib/site";
+
+const siteName = "らくしゅう";
+const defaultTitle = "求人を見極めて、就活を整える";
+const defaultDescription = "求人票の条件差や危険信号を整理し、納得できる求人だけを保存・比較しやすくする就活ワークスペース";
+const googleSiteVerification =
+  process.env.GOOGLE_SEARCH_CONSOLE_SITE_VERIFICATION ?? process.env.GOOGLE_SITE_VERIFICATION;
 
 export const metadata: Metadata = {
-  title: "らくしゅう",
-  description: "就活情報の整理と見極めをやさしく支援するアプリ"
+  metadataBase: getSiteOrigin(),
+  title: {
+    default: `${siteName} | ${defaultTitle}`,
+    template: `%s | ${siteName}`
+  },
+  description: defaultDescription,
+  applicationName: siteName,
+  alternates: {
+    canonical: "/"
+  },
+  openGraph: {
+    type: "website",
+    locale: "ja_JP",
+    url: "/",
+    siteName,
+    title: `${siteName} | ${defaultTitle}`,
+    description: defaultDescription
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${siteName} | ${defaultTitle}`,
+    description: defaultDescription
+  },
+  verification: {
+    google: googleSiteVerification
+  }
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

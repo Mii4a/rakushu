@@ -67,3 +67,22 @@
 3. `ExtractedValue` の拡張案を型定義に落とす
 4. `salaryText` と `benefits` の summary line fallback を強化する
 5. 保存済み求人から匿名 fixture を継続追加する
+
+## Phase 1 execution note
+- `fixtures/jobs/phase1-salary-summary-anon.txt` を追加
+- `fixtures/jobs/phase1-benefits-summary-anon.txt` を追加
+- `fixtures/jobs/phase1-mixed-prose-anon.txt` を追加
+- `src/lib/analysis/parser.test.ts` に fixture ベースの再現テストを追加
+- `salaryText` の summary/prose fallback を強化
+- `benefits` の prose fallback と benefit token を追加
+- 次は internal parser feedback の open/high を 5件以上 fixture 化する
+
+## Phase 2 execution note
+- `fixtures/jobs/phase2-en-gage-fixed-overtime-anon.txt` を追加
+- `fixtures/jobs/phase2-en-gage-trial-period-anon.txt` を追加
+- `fixtures/jobs/phase2-en-japan-listcard-anon.txt` を追加
+- `fixtures/jobs/phase2-kyujinbox-shortlines-anon.txt` を追加
+- `src/lib/analysis/parser.test.ts` に web 由来 fixture の回帰テストを追加
+- `parser.ts` で `想定年収` 見出し直下の金額行を優先するよう補強
+- `parser.ts` で `みなし残業代` と `3万8000円` / `19万8,300円` 形式の金額正規化を追加
+- `parser.ts` で `完全土日祝休み` を `完全週休2日制` 相当として扱う fallback を追加

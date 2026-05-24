@@ -79,6 +79,9 @@ Operating rules:
 5. Limit concurrent implementation workers to 2 or 3 max.
 6. Every task must have a clear done condition.
 7. Always finish with QA gate review before declaring completion.
+8. Keep design judgment in the lead agent: architecture decisions, implementation direction, root cause analysis, multi-option comparison, large refactor direction, and docs/issue/plan authoring stay with the parent.
+9. Use workers for material gathering and narrow execution: related-file discovery, log summarization, diff reading, small implementations, and first-pass test drafts.
+10. Re-edit every worker output before turning it into task docs, plans, issues, or final decisions.
 
 Your output each time must include:
 - Scope

@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { parseJobText, scoreParsedJob } from "@/lib/analysis";
-import { evaluateParsedJobQuality, shouldCreateFeedback } from "@/lib/analysis/quality";
+import { buildJobAnalysisFeedbackInsert } from "@/lib/analysis/feedback";
 import type { ExtractedValue, ParsedJob, ScoredJob } from "@/lib/analysis/types";
 import { requireUser } from "@/lib/auth/require-user";
 import { resolveCommuteFields } from "@/lib/commute";
@@ -131,24 +131,18 @@ async function insertAutoAnalysisFeedback(params: {
   parsed: ParsedJob;
   now: Date;
 }) {
-  const report = evaluateParsedJobQuality(params.rawText, params.parsed);
+  const feedbackValues = buildJobAnalysisFeedbackInsert({
+    analysisId: params.analysisId,
+    rawText: params.rawText,
+    parsed: params.parsed,
+    now: params.now
+  });
 
-  if (!shouldCreateFeedback(report)) {
+  if (!feedbackValues) {
     return;
   }
 
-  await db.insert(jobAnalysisFeedback).values({
-    id: crypto.randomUUID(),
-    jobAnalysisId: params.analysisId,
-    status: "open",
-    source: "auto",
-    severity: report.severity,
-    failureTypesJson: JSON.stringify(report.failureTypes),
-    summaryText: report.summaryText,
-    rawExcerpt: report.excerpt,
-    createdAt: params.now,
-    updatedAt: params.now
-  });
+  await db.insert(jobAnalysisFeedback).values(feedbackValues);
 }
 
 function parseDateOnlyToUtc(value: string): Date | null {

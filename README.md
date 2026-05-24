@@ -86,6 +86,12 @@ npm run deploy
 
 現在の本番公開 URL は `https://rakushu.mii4a.workers.dev` です。
 
+Google Search Console 対応のため、以下も用意しています。
+- `src/app/robots.ts` → `/robots.txt`
+- `src/app/sitemap.ts` → `/sitemap.xml`
+- `GOOGLE_SEARCH_CONSOLE_SITE_VERIFICATION` → `<meta name="google-site-verification">`
+- 登録手順: `docs/google-search-console-checklist.md`
+
 ## Stripe ローカル検証
 1. `.env.local` に Stripe のテスト用値を設定
 2. 開発サーバーを起動
