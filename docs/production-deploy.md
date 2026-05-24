@@ -52,6 +52,8 @@ STRIPE_CAMPAIGN_PROMOTION_CODE_ID=
 OPENAI_API_KEY=sk-...
 OPENAI_MAIN_MODEL=gpt-4.1-mini
 OPENAI_LIGHT_MODEL=gpt-4.1-nano
+GOOGLE_SEARCH_CONSOLE_SITE_VERIFICATION=
+GOOGLE_SITE_VERIFICATION=
 ```
 
 注意:
@@ -62,6 +64,8 @@ OPENAI_LIGHT_MODEL=gpt-4.1-nano
 - `STRIPE_*` は live mode の値に切り替える
 - `.env.production` はテンプレート用途にとどめ、秘密値は Git に載せない
 - 追跡対象のテンプレートは `.env.production.example`
+- `GOOGLE_SEARCH_CONSOLE_SITE_VERIFICATION` は Search Console の HTML tag 方式を使うときだけ設定する
+- `GOOGLE_SITE_VERIFICATION` は旧名の互換 alias として残してある
 
 Cloudflare への投入例:
 
@@ -138,6 +142,17 @@ Google Cloud Console で以下を登録します。
   - 固定 egress を持てるなら `IP addresses`
   - 固定 egress を持てないなら `API restrictions` を必要最小限に絞る
 
+### Google Search Console
+
+詳細な手順は `docs/google-search-console-checklist.md` を参照。
+
+最短では次の順です。
+1. Search Console で `https://rakushu.mii4a.workers.dev` の URL prefix property を追加
+2. HTML tag 方式で verification code を取得
+3. その値を `GOOGLE_SEARCH_CONSOLE_SITE_VERIFICATION` に入れて再デプロイ
+4. `https://rakushu.mii4a.workers.dev/sitemap.xml` を sitemap として送信
+5. 独自ドメインへ移るときは、そのドメインでも property を追加し直す
+
 ### Stripe
 
 Stripe 側で以下を設定します。
@@ -148,12 +163,22 @@ Stripe 側で以下を設定します。
   - `Pro`
 - Webhook endpoint:
   - `https://rakushu.mii4a.workers.dev/api/stripe/webhook`
+- Billing Portal:
+  - 支払い方法更新
+  - サブスクリプション解約
+  - 請求履歴の閲覧
 
 受信イベント例:
 
 - `checkout.session.completed`
 - `customer.subscription.updated`
 - `customer.subscription.deleted`
+
+本番有効化前の release gate:
+- `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `STRIPE_PRICE_*` が live mode で揃っている
+- `/pricing` に「月額」「自動更新」「解約導線」が見えている
+- 実カードで 1 回購入し、Webhook 反映と Billing Portal 解約まで通している
+- 詳細チェックは `docs/stripe-activation-checklist.md`
 
 ## 4. データベース反映
 

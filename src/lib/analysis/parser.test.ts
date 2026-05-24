@@ -265,4 +265,308 @@ ITカンファー株式会社　採用担当
     expect(parsed.companyName.source).toBe("contact");
     expect(parsed.companyName.confidence).toBe("medium");
   });
+
+  it("extracts salary text from summary-style fixture", () => {
+    const raw = readFixture("phase1-salary-summary-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.companyName.value).toBe("株式会社サンプルキャリア");
+    expect(parsed.employmentType.value).toBe("正社員");
+    expect(parsed.salaryText.status).toBe("found");
+    expect(parsed.salaryText.value).toContain("320万円〜420万円");
+    expect(parsed.benefits.value).toEqual(expect.arrayContaining(["社会保険完備", "交通費支給", "資格手当"]));
+  });
+
+  it("extracts benefits from prose-heavy fixture", () => {
+    const raw = readFixture("phase1-benefits-summary-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.salaryText.status).toBe("found");
+    expect(parsed.salaryText.value).toContain("24万円〜28万円");
+    expect(parsed.benefits.value).toEqual(expect.arrayContaining(["社会保険完備", "交通費支給", "住宅手当", "書籍購入補助"]));
+    expect(parsed.housingAllowance.status).toBe("found");
+  });
+
+  it("extracts salary and benefits from mixed prose fixture", () => {
+    const raw = readFixture("phase1-mixed-prose-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.employmentType.value).toBe("正社員");
+    expect(parsed.salaryText.status).toBe("found");
+    expect(parsed.salaryText.value).toContain("300万円〜360万円");
+    expect(parsed.benefits.value).toEqual(expect.arrayContaining(["社会保険完備", "PC支給", "通勤手当", "社宅制度"]));
+    expect(parsed.companyHousing.status).toBe("found");
+  });
+
+  it("extracts fixed overtime and salary range from en-gage style fixture", () => {
+    const raw = readFixture("phase2-en-gage-fixed-overtime-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.employmentType.value).toBe("正社員");
+    expect(parsed.salaryText.status).toBe("found");
+    expect(parsed.salaryText.value).toContain("350万円～520万円");
+    expect(parsed.fixedOvertimeHours.value).toBe(20);
+    expect(parsed.fixedOvertimePay.value).toBe(38000);
+    expect(parsed.annualHolidays.value).toBe(125);
+    expect(parsed.holidayType.value).toBe("完全週休2日制");
+    expect(parsed.benefits.value).toEqual(expect.arrayContaining(["社会保険完備", "交通費支給"]));
+  });
+
+  it("extracts holiday type from compressed en-gage workstyle lines", () => {
+    const raw = readFixture("phase2-en-gage-trial-period-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.employmentType.value).toBe("正社員");
+    expect(parsed.salaryText.value).toContain("250,000円 ～ 300,000円");
+    expect(parsed.annualHolidays.value).toBe(120);
+    expect(parsed.holidayType.value).toBe("完全週休2日制");
+  });
+
+  it("keeps list-card salary context from en-japan style fixture", () => {
+    const raw = readFixture("phase2-en-japan-listcard-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.employmentType.value).toBe("正社員");
+    expect(parsed.salaryText.value).toContain("28万円");
+    expect(parsed.baseSalaryMin.value).toBe(267800);
+    expect(parsed.baseSalaryMax.value).toBe(280000);
+    expect(parsed.annualHolidays.value).toBe(120);
+    expect(parsed.bonusCount.value).toBe(2);
+    expect(parsed.warnings.value).toContain("基本給記載なし");
+  });
+
+  it("extracts man-plus-yen monthly ranges from kyujinbox short lines", () => {
+    const raw = readFixture("phase2-kyujinbox-shortlines-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.employmentType.value).toBe("正社員");
+    expect(parsed.salaryText.value).toContain("19万8,300円～23万9,700円");
+    expect(parsed.baseSalaryMin.value).toBe(198300);
+    expect(parsed.baseSalaryMax.value).toBe(239700);
+    expect(parsed.benefits.value).toEqual(expect.arrayContaining(["社会保険完備", "交通費支給"]));
+  });
+
+  it("extracts a clean company name from doda-style platform noise", () => {
+    const raw = readFixture("phase3-doda-platform-noise-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.companyName.value).toBe("北斗株式会社");
+    expect(parsed.companyName.source).toBe("summary_line");
+    expect(parsed.employmentType.value).toBe("正社員");
+    expect(parsed.salaryText.value).toContain("23万円～40万円");
+    expect(parsed.annualHolidays.value).toBe(125);
+  });
+
+  it("extracts company and salary from green company-authored search cards with split top lines", () => {
+    const raw = readFixture("phase3-green-company-search-card-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.companyName.value).toBe("株式会社ミラリンク");
+    expect(parsed.companyName.evidence).toBe("株式会社 ミラリンク");
+    expect(parsed.companyName.source).toBe("summary_line");
+    expect(parsed.salaryText.value).toBe("600万円〜650万円");
+    expect(parsed.salaryText.source).toBe("summary_line");
+    expect(parsed.employmentType.status).toBe("unknown");
+  });
+
+  it("keeps top-line company and salary fallback stable on noisy green company cards", () => {
+    const raw = readFixture("phase3-green-company-search-card-noisy-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.companyName.value).toBe("株式会社D・Ace");
+    expect(parsed.companyName.evidence).toBe("株式会社 D・Ace");
+    expect(parsed.companyName.source).toBe("summary_line");
+    expect(parsed.salaryText.value).toBe("410万円〜800万円");
+    expect(parsed.salaryText.source).toBe("summary_line");
+    expect(parsed.employmentType.status).toBe("unknown");
+  });
+
+  it("extracts company, employment type, and salary from condensed green top lines", () => {
+    const raw = readFixture("phase3-green-company-search-card-condensed-topline-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.companyName.value).toBe("株式会社ミラリンク");
+    expect(parsed.companyName.source).toBe("summary_line");
+    expect(parsed.employmentType.value).toBe("正社員");
+    expect(parsed.employmentType.evidence).toBe("東京都 / 正社員 / 600〜650万円");
+    expect(parsed.employmentType.source).toBe("summary_line");
+    expect(parsed.salaryText.value).toBe("600〜650万円");
+    expect(parsed.salaryText.evidence).toBe("600〜650万円");
+    expect(parsed.salaryText.source).toBe("summary_line");
+  });
+
+  it("extracts company and salary from compressed green company cards", () => {
+    const raw = readFixture("phase3-green-company-card-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.companyName.value).toBe("株式会社ミラリンク");
+    expect(parsed.companyName.evidence).toBe("株式会社 ミラリンク");
+    expect(parsed.salaryText.value).toBe("600万円〜650万円");
+    expect(parsed.salaryText.source).toBe("summary_line");
+  });
+
+  it("ignores green CTA noise that mentions salary-like labels without actual pay", () => {
+    const raw = readFixture("phase3-green-cta-noise-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.salaryText.status).toBe("unknown");
+    expect(parsed.baseSalaryMin.status).toBe("unknown");
+  });
+
+  it("extracts wantedly company fallback and avoids partner false positives", () => {
+    const raw = readFixture("phase3-wantedly-other-jobs-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.companyName.value).toBe("株式会社FLINTERS");
+    expect(["summary_line", "global_scan"]).toContain(parsed.companyName.source);
+    expect(parsed.employmentType.status).toBe("unknown");
+  });
+
+  it("keeps annual salary text from structured detail pages when annual compensation leads the salary section", () => {
+    const raw = readFixture("phase4-job-board-detail-annual-salary-usable-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.companyName.value).toBe("匿名化企業株式会社");
+    expect(parsed.employmentType.value).toBe("正社員");
+    expect(parsed.salaryText.value).toBe("305万円～315万円");
+    expect(parsed.salaryText.source).toBe("section");
+    expect(parsed.annualHolidays.value).toBe(127);
+  });
+
+  it("keeps monthly salary text from structured detail pages when the salary section starts with split 月給 lines", () => {
+    const raw = readFixture("phase4-job-board-detail-monthly-salary-usable-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.companyName.value).toBe("匿名レンタル株式会社");
+    expect(parsed.employmentType.value).toBe("正社員");
+    expect(parsed.salaryText.value).toBe("21万7,100円 ～ 23万8,100円");
+    expect(parsed.salaryText.source).toBe("section");
+    expect(parsed.annualHolidays.value).toBe(128);
+  });
+
+  it("does not infer パート from partner-related green prose", () => {
+    const raw = readFixture("phase3-green-partner-noise-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.employmentType.status).toBe("unknown");
+  });
+
+  it("ignores 年収UP実績 prose as salary while keeping annual holidays", () => {
+    const raw = readFixture("phase3-green-income-up-noise-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.salaryText.status).toBe("unknown");
+    expect(parsed.baseSalaryMin.status).toBe("unknown");
+    expect(parsed.annualHolidays.value).toBe(131);
+  });
+
+  it("extracts employment type and monthly-days-off annualized holidays from noisy Re就活 detail fixtures", () => {
+    const raw = readFixture("phase3-rekatsu-noisy-promo-010-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.companyName.value).toBe("ALSOK近畿株式会社");
+    expect(parsed.employmentType.value).toBe("正社員");
+    expect(parsed.employmentType.source).toBe("summary_line");
+    expect(parsed.salaryText.value).toBe("300～400万円");
+    expect(parsed.annualHolidays.value).toBe(96);
+    expect(parsed.annualHolidays.evidence).toContain("8～10日休み／1ヵ月");
+    expect(parsed.annualHolidays.source).toBe("section");
+  });
+
+  it("extracts company name from early branded prose in company-careers fixtures", () => {
+    const raw = readFixture("phase3-company-careers-prose-company-fallback-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.companyName.value).toBe("freemova");
+    expect(parsed.companyName.evidence).toContain("freemovaの広報活動");
+    expect(parsed.companyName.source).toBe("global_scan");
+    expect(parsed.salaryText.value).toBe("400～600万円");
+    expect(parsed.annualHolidays.value).toBe(120);
+  });
+
+  it("extracts benefits from wantedly prose-heavy culture blocks", () => {
+    const raw = readFixture("phase3-wantedly-prose-heavy-047-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.companyName.value).toBe("株式会社サンプルDX");
+    expect(parsed.companyName.source).toBe("global_scan");
+    expect(parsed.benefits.status).toBe("found");
+    expect(parsed.benefits.source).toBe("global_scan");
+    expect(parsed.benefits.value).toEqual(
+      expect.arrayContaining([
+        "リモート勤務可能",
+        "副業制度",
+        "産休・育休制度",
+        "自己啓発制度"
+      ])
+    );
+  });
+
+  it("extracts benefits from wantedly prose-heavy制度 blocks", () => {
+    const raw = readFixture("phase3-wantedly-prose-heavy-049-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.companyName.value).toBe("サンプルドア株式会社");
+    expect(parsed.companyName.source).toBe("global_scan");
+    expect(parsed.benefits.status).toBe("found");
+    expect(parsed.benefits.source).toBe("global_scan");
+    expect(parsed.benefits.value).toEqual(
+      expect.arrayContaining([
+        "フルリモート可能",
+        "副業可能",
+        "産休・育休制度",
+        "自己啓発制度",
+        "こども手当"
+      ])
+    );
+  });
+
+  it("extracts employment type from late wantedly prose notes without picking denied side-offers", () => {
+    const raw = readFixture("phase3-wantedly-prose-heavy-046-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.employmentType.value).toBe("正社員");
+    expect(parsed.employmentType.evidence).toBe("正社員募集（フル出社）");
+    expect(parsed.employmentType.source).toBe("global_scan");
+    expect(parsed.employmentType.confidence).toBe("medium");
+  });
+
+  it("keeps teaser-only noisy promo fixtures unresolved instead of hallucinating hidden critical fields", () => {
+    const raw043 = readFixture("phase3-rekatsu-noisy-promo-043-anon.txt");
+    const raw044 = readFixture("phase3-rekatsu-noisy-promo-044-anon.txt");
+
+    const parsed043 = parseJobText(raw043);
+    const parsed044 = parseJobText(raw044);
+
+    expect(parsed043.companyName.status).toBe("unknown");
+    expect(parsed043.employmentType.status).toBe("unknown");
+    expect(parsed043.salaryText.status).toBe("unknown");
+    expect(parsed044.companyName.status).toBe("unknown");
+    expect(parsed044.employmentType.status).toBe("unknown");
+    expect(parsed044.salaryText.status).toBe("unknown");
+    expect(parsed044.annualHolidays.value).toBe(131);
+  });
 });

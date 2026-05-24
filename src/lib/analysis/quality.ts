@@ -6,7 +6,11 @@ export type FailureType =
   | "too_many_unknown_critical_fields"
   | "summary_line_only_extraction"
   | "company_housing_unknown_with_keyword"
-  | "housing_allowance_unknown_with_keyword";
+  | "housing_allowance_unknown_with_keyword"
+  | "bonus_count_unknown_with_keyword"
+  | "retirement_allowance_unknown_with_keyword"
+  | "negative_base_salary_detected"
+  | "company_name_suspected_platform_noise";
 
 export type QualityReportSeverity = "none" | "medium" | "high";
 
@@ -19,16 +23,25 @@ export type QualityReport = {
     criticalUnknownCount: number;
     summaryLineOnly: boolean;
     benefitsSuspected: boolean;
+    bonusKeywordPresent: boolean;
+    retirementKeywordPresent: boolean;
     housingAllowanceKeywordPresent: boolean;
     companyHousingKeywordPresent: boolean;
   };
 };
 
-const CRITICAL_FIELD_KEYS = ["companyName", "employmentType", "salaryText", "baseSalaryMin", "annualHolidays"] as const satisfies ReadonlyArray<keyof ParsedJob>;
+const CRITICAL_FIELD_KEYS = ["companyName", "employmentType", "salaryText", "annualHolidays"] as const satisfies ReadonlyArray<keyof ParsedJob>;
 const SUMMARY_LINE_SOURCES: ExtractSource[] = ["summary_line"];
 const BENEFIT_HINT_PATTERN = /(福利厚生|待遇|手当|制度)/;
 const HOUSING_ALLOWANCE_PATTERN = /住宅手当/;
 const COMPANY_HOUSING_PATTERN = /(社宅|借上社宅)/;
+const COMPANY_NAME_PLATFORM_NOISE_PATTERN = /(doda|デューダ|転職・求人|中途採用情報|求人詳細|掲載予定期間|Green|Wantedly|トップ)/i;
+const BONUS_PATTERN = /(賞与|ボーナス|年\s*[12３１２]\s*回|年2回|年1回)/;
+const RETIREMENT_ALLOWANCE_PATTERN = /(退職金|退職金制度)/;
+const MONTHLY_SALARY_PATTERN = /(月給|月収|月額|想定月収|時給|日給)/;
+const HIGH_ANNUAL_SALARY_PATTERN = /(?:^|[^0-9０-９])([1-9][0-9]{2,}|[１-９][０-９]{2,})(?:\.[0-9０-９]+)?万円/;
+const STRUCTURED_SALARY_TEXT_PATTERN = /[0-9０-９].*(?:円|万円)/;
+const STRUCTURED_SALARY_TEXT_NOISE_PATTERN = /(応相談|経験|能力|インセンティブ|歩合|賞与|手当込み|条件により|詳細は面談)/;
 const MAX_EXCERPT_LENGTH = 400;
 const MIN_EXCERPT_LENGTH = 200;
 
@@ -51,6 +64,40 @@ function isSummaryLineOnlyExtraction(parsed: ParsedJob) {
 function hasBenefitsSuspectedWithoutExtraction(rawText: string, parsed: ParsedJob) {
   const benefitCount = parsed.benefits.value?.length ?? 0;
   return BENEFIT_HINT_PATTERN.test(rawText) && benefitCount === 0;
+}
+
+function hasNegativeBaseSalary(parsed: ParsedJob) {
+  const minValue = parsed.baseSalaryMin.value;
+  const maxValue = parsed.baseSalaryMax.value;
+
+  return (parsed.baseSalaryMin.status === "found" && minValue != null && minValue < 0)
+    || (parsed.baseSalaryMax.status === "found" && maxValue != null && maxValue < 0);
+}
+
+function hasPlatformPollutedCompanyName(parsed: ParsedJob) {
+  if (parsed.companyName.status !== "found") return false;
+  const companyValue = parsed.companyName.value ?? "";
+  const evidence = parsed.companyName.evidence ?? companyValue;
+  return COMPANY_NAME_PLATFORM_NOISE_PATTERN.test(companyValue) || COMPANY_NAME_PLATFORM_NOISE_PATTERN.test(evidence);
+}
+
+function hasComparisonUsableStructuredSalaryText(parsed: ParsedJob) {
+  if (parsed.salaryText.status !== "found") return false;
+  if (parsed.salaryText.source !== "section" && parsed.salaryText.source !== "direct_label") return false;
+
+  const salaryValue = parsed.salaryText.value ?? "";
+  return STRUCTURED_SALARY_TEXT_PATTERN.test(salaryValue) && !STRUCTURED_SALARY_TEXT_NOISE_PATTERN.test(salaryValue);
+}
+
+function needsBaseSalaryNormalization(rawText: string, parsed: ParsedJob) {
+  if (parsed.salaryText.status !== "found") return false;
+  if (parsed.baseSalaryMin.status !== "unknown") return false;
+  if (hasComparisonUsableStructuredSalaryText(parsed)) return false;
+
+  const salarySignals = [parsed.salaryText.evidence ?? "", parsed.salaryText.value ?? "", rawText].join("\n");
+  if (HIGH_ANNUAL_SALARY_PATTERN.test(parsed.salaryText.value ?? "")) return false;
+  if (MONTHLY_SALARY_PATTERN.test(salarySignals)) return true;
+  return false;
 }
 
 function buildExcerpt(rawText: string, keywords: string[]) {
@@ -80,6 +127,14 @@ function buildSummaryText(failureTypes: FailureType[]) {
     return "給与表記は取れているのに基本給へ正規化できていません。";
   }
 
+  if (failureTypes.includes("negative_base_salary_detected")) {
+    return "固定残業代の差し引き結果が負値になっており、基本給推定が崩れています。";
+  }
+
+  if (failureTypes.includes("company_name_suspected_platform_noise")) {
+    return "会社名に媒体ノイズが混入しており、重要項目の誤抽出候補です。";
+  }
+
   if (failureTypes.includes("benefits_suspected_but_not_extracted")) {
     return "福利厚生らしき記述があるのに福利厚生抽出が空です。";
   }
@@ -100,6 +155,14 @@ function buildSummaryText(failureTypes: FailureType[]) {
     return "住宅手当の語があるのに判定できていません。";
   }
 
+  if (failureTypes.includes("bonus_count_unknown_with_keyword")) {
+    return "賞与の語があるのに回数を判定できていません。";
+  }
+
+  if (failureTypes.includes("retirement_allowance_unknown_with_keyword")) {
+    return "退職金の語があるのに判定できていません。";
+  }
+
   return "保存対象ではない解析です。";
 }
 
@@ -108,11 +171,21 @@ export function evaluateParsedJobQuality(rawText: string, parsed: ParsedJob): Qu
   const criticalUnknownCount = countCriticalUnknownFields(parsed);
   const summaryLineOnly = isSummaryLineOnlyExtraction(parsed);
   const benefitsSuspected = hasBenefitsSuspectedWithoutExtraction(rawText, parsed);
+  const bonusKeywordPresent = BONUS_PATTERN.test(rawText);
+  const retirementKeywordPresent = RETIREMENT_ALLOWANCE_PATTERN.test(rawText);
   const housingAllowanceKeywordPresent = HOUSING_ALLOWANCE_PATTERN.test(rawText);
   const companyHousingKeywordPresent = COMPANY_HOUSING_PATTERN.test(rawText);
 
-  if (parsed.salaryText.status === "found" && parsed.baseSalaryMin.status === "unknown") {
+  if (needsBaseSalaryNormalization(rawText, parsed)) {
     failureTypes.push("salary_text_without_base_salary");
+  }
+
+  if (hasNegativeBaseSalary(parsed)) {
+    failureTypes.push("negative_base_salary_detected");
+  }
+
+  if (hasPlatformPollutedCompanyName(parsed)) {
+    failureTypes.push("company_name_suspected_platform_noise");
   }
 
   if (benefitsSuspected) {
@@ -135,22 +208,37 @@ export function evaluateParsedJobQuality(rawText: string, parsed: ParsedJob): Qu
     failureTypes.push("company_housing_unknown_with_keyword");
   }
 
+  if (bonusKeywordPresent && parsed.bonusCount.status === "unknown") {
+    failureTypes.push("bonus_count_unknown_with_keyword");
+  }
+
+  if (retirementKeywordPresent && parsed.retirementAllowance.status === "unknown") {
+    failureTypes.push("retirement_allowance_unknown_with_keyword");
+  }
+
   const deduped = Array.from(new Set(failureTypes));
   const highSeverityTypes: FailureType[] = [
     "salary_text_without_base_salary",
+    "negative_base_salary_detected",
+    "company_name_suspected_platform_noise",
     "benefits_suspected_but_not_extracted",
     "too_many_unknown_critical_fields",
-    "summary_line_only_extraction"
+    "summary_line_only_extraction",
+    "bonus_count_unknown_with_keyword",
+    "retirement_allowance_unknown_with_keyword"
   ];
   const severity: QualityReportSeverity = deduped.some((failureType) => highSeverityTypes.includes(failureType))
     ? "high"
     : deduped.length > 0
       ? "medium"
       : "none";
-  const excerptKeywords = deduped.flatMap((failureType) => {
+  const excerptKeywords = deduped.flatMap((failureType): string[] => {
     switch (failureType) {
       case "salary_text_without_base_salary":
-        return ["給与", "月給", "年収"];
+      case "negative_base_salary_detected":
+        return ["給与", "月給", "年収", "固定残業代"];
+      case "company_name_suspected_platform_noise":
+        return [parsed.companyName.evidence ?? parsed.companyName.value ?? "", "会社名", "求人"];
       case "benefits_suspected_but_not_extracted":
         return ["福利厚生", "待遇", "手当", "制度"];
       case "summary_line_only_extraction":
@@ -159,10 +247,16 @@ export function evaluateParsedJobQuality(rawText: string, parsed: ParsedJob): Qu
         return ["住宅手当"];
       case "company_housing_unknown_with_keyword":
         return ["社宅", "借上社宅"];
+      case "bonus_count_unknown_with_keyword":
+        return ["賞与", "ボーナス"];
+      case "retirement_allowance_unknown_with_keyword":
+        return ["退職金", "退職金制度"];
       case "too_many_unknown_critical_fields":
         return ["給与", "雇用形態", "年間休日", "会社名"];
+      default:
+        return [];
     }
-  }).filter((keyword) => keyword.length > 0);
+  }).filter((keyword): keyword is string => keyword.length > 0);
 
   return {
     severity,
@@ -173,6 +267,8 @@ export function evaluateParsedJobQuality(rawText: string, parsed: ParsedJob): Qu
       criticalUnknownCount,
       summaryLineOnly,
       benefitsSuspected,
+      bonusKeywordPresent,
+      retirementKeywordPresent,
       housingAllowanceKeywordPresent,
       companyHousingKeywordPresent
     }
@@ -181,10 +277,14 @@ export function evaluateParsedJobQuality(rawText: string, parsed: ParsedJob): Qu
 
 export function shouldCreateFeedback(report: QualityReport) {
   if (report.failureTypes.includes("salary_text_without_base_salary")) return true;
+  if (report.failureTypes.includes("negative_base_salary_detected")) return true;
+  if (report.failureTypes.includes("company_name_suspected_platform_noise")) return true;
   if (report.failureTypes.includes("benefits_suspected_but_not_extracted")) return true;
   if (report.signals.criticalUnknownCount >= 2) return true;
   if (report.failureTypes.includes("summary_line_only_extraction") && report.signals.criticalUnknownCount >= 1) return true;
   if (report.failureTypes.includes("company_housing_unknown_with_keyword")) return true;
   if (report.failureTypes.includes("housing_allowance_unknown_with_keyword")) return true;
+  if (report.failureTypes.includes("bonus_count_unknown_with_keyword")) return true;
+  if (report.failureTypes.includes("retirement_allowance_unknown_with_keyword")) return true;
   return false;
 }

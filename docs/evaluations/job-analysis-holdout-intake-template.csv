@@ -1,0 +1,4 @@
+candidate_id,collected_date,collector,source_shape,source_note,company_or_hint,duplicate_check,fixture_overlap_check,status,raw_text_path,source_identifier,notes
+holdout-candidate-001,2026-05-22,taro,job_board_detail,en-gage detail,example-company,pass,pass,candidate,docs/evaluations/job-analysis-holdout-raw/candidate/holdout-candidate-001.txt,,first pass candidate
+holdout-candidate-002,2026-05-22,taro,prose_heavy,manual paste from user,example-company-2,needs_review,pass,needs_review,docs/evaluations/job-analysis-holdout-raw/review/holdout-candidate-002.txt,,prose-heavy, check duplicate risk
+holdout-candidate-003,2026-05-22,taro,job_board_listcard,en-japan listcard,example-company-3,fail_similar_repost,pass,excluded_duplicate,docs/evaluations/job-analysis-holdout-raw/excluded/holdout-candidate-003.txt,,same posting shape as existing candidate

@@ -144,6 +144,61 @@ export const jobAnalysisFeedback = sqliteTable(
   ]
 );
 
+export const marketingEvents = sqliteTable(
+  "marketing_events",
+  {
+    id: text("id").primaryKey(),
+    eventType: text("event_type").notNull(),
+    page: text("page"),
+    referrer: text("referrer"),
+    utmSource: text("utm_source"),
+    utmMedium: text("utm_medium"),
+    utmCampaign: text("utm_campaign"),
+    utmContent: text("utm_content"),
+    utmTerm: text("utm_term"),
+    ctaVariant: text("cta_variant"),
+    currentStatus: text("current_status"),
+    topProblemCategory: text("top_problem_category"),
+    textLengthBucket: text("text_length_bucket"),
+    totalRank: text("total_rank"),
+    interviewOptIn: integer("interview_opt_in", { mode: "boolean" }),
+    metadataJson: text("metadata_json"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
+  },
+  (table) => [
+    index("marketing_events_event_type_idx").on(table.eventType),
+    index("marketing_events_created_at_idx").on(table.createdAt),
+    index("marketing_events_utm_campaign_idx").on(table.utmCampaign)
+  ]
+);
+
+export const betaIntakeSubmissions = sqliteTable(
+  "beta_intake_submissions",
+  {
+    id: text("id").primaryKey(),
+    contact: text("contact").notNull(),
+    currentStatus: text("current_status").notNull(),
+    topProblemCategory: text("top_problem_category").notNull(),
+    topProblem: text("top_problem").notNull(),
+    desiredJobCategory: text("desired_job_category"),
+    jobsPerWeekBucket: text("jobs_per_week_bucket"),
+    interviewOptIn: integer("interview_opt_in", { mode: "boolean" }).notNull().default(false),
+    referrer: text("referrer"),
+    utmSource: text("utm_source"),
+    utmMedium: text("utm_medium"),
+    utmCampaign: text("utm_campaign"),
+    utmContent: text("utm_content"),
+    utmTerm: text("utm_term"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
+  },
+  (table) => [
+    index("beta_intake_submissions_created_at_idx").on(table.createdAt),
+    index("beta_intake_submissions_current_status_idx").on(table.currentStatus),
+    index("beta_intake_submissions_top_problem_category_idx").on(table.topProblemCategory)
+  ]
+);
+
 export const jobStatusEvents = sqliteTable(
   "job_status_events",
   {
