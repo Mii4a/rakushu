@@ -231,6 +231,37 @@ ITカンファー株式会社　採用担当
     expect(parsed.warnings.value).toContain("基本給記載なし");
   });
 
+  it("derives the sample demo base salary from monthly salary when only fixed overtime is explicitly included", () => {
+    const raw = `
+株式会社サンプルテック
+【WEBエンジニア】自社サービスの開発・運用を担当。
+
+給与：月給28万円〜（固定残業代45時間分、70,000円を含む）
+※超過分は別途支給
+`;
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.salaryText.value).toBe("28万円〜（固定残業代45時間分、70,000円を含む）");
+    expect(parsed.baseSalaryMin.value).toBe(210000);
+    expect(parsed.baseSalaryMax.value).toBe(210000);
+    expect(parsed.fixedOvertimeHours.value).toBe(45);
+    expect(parsed.fixedOvertimePay.value).toBe(70000);
+  });
+
+  it("does not subtract fixed overtime when the salary text explicitly says other allowances are included", () => {
+    const raw = `
+給与
+月給28万円〜（固定残業代45時間分、70,000円を含む。諸手当を含む）
+`;
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.baseSalaryMin.value).toBe(280000);
+    expect(parsed.baseSalaryMax.status).toBe("unknown");
+    expect(parsed.fixedOvertimePay.value).toBe(70000);
+  });
+
   it("extracts fixed overtime with minute precision when minutes are present", () => {
     const raw = `固定残業代は10時間30分分で20,000円を含む`;
 

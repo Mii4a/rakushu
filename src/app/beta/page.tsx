@@ -48,7 +48,7 @@ export default async function BetaPage({ searchParams }: { searchParams: SearchP
           <h2 className="mt-3 text-[2.1rem] font-black leading-tight text-[#17355b]">らくしゅうは、求人票の不安を先に減らしたい人のための案内制β版</h2>
           <p className="mt-4 text-sm leading-8 text-[#4f6a80]">
             ブラック求人の危険信号や、比較しづらい条件差を整理しやすくするための道具を作ってる。
-            今は少人数で改善を回したいから、困りごとが強い人から優先して案内する。
+            今は少人数で改善を回したいから、悩みの内容や使い方の相性を見ながら順番に案内している。
           </p>
 
           <div className="mt-6 rounded-[24px] border border-[#ffe2cf] bg-[#fff8f3] p-5">
@@ -57,7 +57,7 @@ export default async function BetaPage({ searchParams }: { searchParams: SearchP
               <li>・まだ改善中のβ版です</li>
               <li>・すべての求人媒体や求人文で完全対応しているわけではありません</li>
               <li>・比較材料が薄い求人は「本文未記載」「要確認」が増えることがあります</li>
-              <li>・まずは困りごとの強い人から少人数で案内します</li>
+              <li>・状況を見ながら少人数ずつ順番に案内します</li>
             </ul>
           </div>
 

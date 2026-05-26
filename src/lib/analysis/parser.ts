@@ -505,6 +505,10 @@ function extractFixedOvertimeMatch(text: string) {
   };
 }
 
+function salaryTextIncludesOtherAllowances(text: string): boolean {
+  return /(固定残業代[^\n]{0,20}を含む(?:、|。|）)?(?:[^\n]{0,20})?(?:一律|諸|各種)?手当を含む|(?:一律|諸|各種)手当(?:を|も)?含む|インセンティブを含む)/.test(text);
+}
+
 function extractBaseSalary(
   context: ParserContext,
   salaryText: ExtractedValue<string>
@@ -516,6 +520,8 @@ function extractBaseSalary(
   const fixedOvertime = extractFixedOvertimeMatch(text);
   const salarySection = getSectionValue(context.sections, ["給与", "給与・報酬", "想定年収", "年収例"]);
   const monthlyAmountSource = salarySection ?? text;
+  const salaryTextValue = salaryText.value ?? salaryText.evidence ?? "";
+  const includesOtherAllowances = salaryTextValue.length > 0 && salaryTextIncludesOtherAllowances(salaryTextValue);
 
   const rangeMatch = captureByRegex(text, [/基本給[:：]?\s*([\d,]+)円?\s*[〜~\-]\s*([\d,]+)円?/]);
   if (rangeMatch) {
@@ -553,7 +559,7 @@ function extractBaseSalary(
     const summaryAmount = summaryAmounts.length > 0 ? summaryAmounts[0] : null;
 
     if (summaryAmount != null) {
-      if (fixedOvertime.pay != null) {
+      if (fixedOvertime.pay != null && !includesOtherAllowances) {
         return {
           min: found(summaryAmount - fixedOvertime.pay, summaryEvidence, "summary_line", salaryText.confidence ?? "medium"),
           max: unknown("summary_line", salaryText.confidence ?? "medium")
@@ -572,7 +578,7 @@ function extractBaseSalary(
     const monthlyMax = Math.max(...monthlyAmounts);
     const monthlyEvidence = `月給記載: ${monthlyAmounts.map((amount) => `${amount.toLocaleString("ja-JP")}円`).join(" / ")}`;
 
-    if (fixedOvertime.pay != null) {
+    if (fixedOvertime.pay != null && !includesOtherAllowances) {
       const evidence = `${monthlyEvidence} / ${fixedOvertime.evidence ?? "固定残業代"} / 基本給記載なしのため月給の最小値から固定残業代を差し引いて算出`;
       return {
         min: found(monthlyMin - fixedOvertime.pay, evidence),

@@ -11,8 +11,9 @@ import { getSiteOrigin } from "../lib/site";
 const siteName = "らくしゅう";
 const defaultTitle = "求人を見極めて、就活を整える";
 const defaultDescription = "求人票の条件差や危険信号を整理し、納得できる求人だけを保存・比較しやすくする就活ワークスペース";
+const defaultGoogleSiteVerification = "NcOgsMkKevVP1gYlcxCOIaynqmoCEKKHvokL0cdT1-U";
 const googleSiteVerification =
-  process.env.GOOGLE_SEARCH_CONSOLE_SITE_VERIFICATION ?? process.env.GOOGLE_SITE_VERIFICATION;
+  process.env.GOOGLE_SEARCH_CONSOLE_SITE_VERIFICATION ?? process.env.GOOGLE_SITE_VERIFICATION ?? defaultGoogleSiteVerification;
 
 export const metadata: Metadata = {
   metadataBase: getSiteOrigin(),
