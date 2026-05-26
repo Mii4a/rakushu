@@ -55,6 +55,7 @@
   - `prose_heavy`
   - `noisy_promo`
   - `other`
+- `review_cohort`: `comparison_grade` / `thin_input`。critical field が raw text にあるかどうかの判定
 - `raw_text_origin_note`: 取得元の簡単なメモ。媒体名やページ種別までで十分
 
 ### Product-level judgment
@@ -73,6 +74,10 @@
 - `annualHolidays_eval`
 - `critical_usable_count`: `usable` の数
 - `critical_wrong_count`: `wrong` の数
+- `raw_missing_critical_count`: raw text に最初から無い critical field 数
+- `raw_missing_critical_fields`: raw text に無い critical field 名 (`|` 区切り)
+- `visible_unparsed_critical_count`: raw text には見えているのに parser が拾えていない critical field 数
+- `visible_unparsed_critical_fields`: raw text には見えているのに parser が拾えていない critical field 名 (`|` 区切り)
 
 ### Secondary fields
 
@@ -105,6 +110,7 @@
 - `feedback_saved`: `yes` / `no` / `unknown`
 - `feedback_quality`: `high_signal` / `noisy` / `not_applicable`
 - `fixture_priority`: `high` / `medium` / `low`
+- full-cohort sign-off は全 row を残したまま判定する。`review_cohort` は parser-accountability の shadow read 用
 - `suggested_fixture_shape`: 例: `salary-next-line`, `benefits-prose`, `summary-line-only`
 
 ### Notes
@@ -116,15 +122,15 @@
 ## CSV header template
 
 ```csv
-sample_id,job_id,analysis_id,parser_version,review_date,reviewer,source_shape,raw_text_origin_note,overall_grade,overall_reason,comparison_usable,companyName_eval,employmentType_eval,salaryText_eval,annualHolidays_eval,critical_usable_count,critical_wrong_count,benefits_eval,housingAllowance_eval,companyHousing_eval,bonusCount_eval,retirementAllowance_eval,secondary_miss_count,secondary_wrong_count,salary_text_without_base_salary,negative_base_salary_detected,company_name_suspected_platform_noise,benefits_suspected_but_not_extracted,too_many_unknown_critical_fields,summary_line_only_extraction,company_housing_unknown_with_keyword,housing_allowance_unknown_with_keyword,feedback_expected,feedback_saved,feedback_quality,fixture_priority,suggested_fixture_shape,notes,parser_regression_risk,next_action
+sample_id,job_id,analysis_id,parser_version,review_date,reviewer,source_shape,review_cohort,raw_text_origin_note,overall_grade,overall_reason,comparison_usable,companyName_eval,employmentType_eval,salaryText_eval,annualHolidays_eval,critical_usable_count,critical_wrong_count,raw_missing_critical_count,raw_missing_critical_fields,visible_unparsed_critical_count,visible_unparsed_critical_fields,benefits_eval,housingAllowance_eval,companyHousing_eval,bonusCount_eval,retirementAllowance_eval,secondary_miss_count,secondary_wrong_count,salary_text_without_base_salary,negative_base_salary_detected,company_name_suspected_platform_noise,benefits_suspected_but_not_extracted,too_many_unknown_critical_fields,summary_line_only_extraction,company_housing_unknown_with_keyword,housing_allowance_unknown_with_keyword,bonus_count_unknown_with_keyword,retirement_allowance_unknown_with_keyword,feedback_expected,feedback_saved,feedback_quality,fixture_priority,suggested_fixture_shape,notes,parser_regression_risk,next_action
 ```
 
 ## Sample rows
 
 ```csv
-holdout-001,job-001,analysis-001,v1.6.0,2026-05-22,taro,job_board_detail,求人媒体詳細,A,salary ok and holidays ok,yes,usable,usable,usable,usable,4,0,present_and_correct,not_present,not_present,present_and_correct,not_present,0,0,no,no,no,no,no,no,no,no,no,unknown,not_applicable,low,,比較に十分使える,low,ignore
-holdout-002,job-002,analysis-002,v1.6.0,2026-05-22,taro,prose_heavy,紹介文中心,B,benefits missed but comparison still possible,yes,usable,usable,usable,miss,3,0,present_but_missed,not_present,not_present,not_present,not_present,1,0,no,no,no,yes,no,no,no,no,yes,yes,high_signal,medium,benefits-prose,福利厚生 prose の再現に向く,medium,fixture
-holdout-003,job-003,analysis-003,v1.6.0,2026-05-22,taro,noisy_promo,装飾文多め,C,critical fields too sparse,no,miss,miss,miss,miss,0,0,not_present,not_present,not_present,not_present,not_present,0,0,no,no,no,no,yes,no,no,no,yes,yes,high_signal,high,noisy-promo-critical-fields,summary 依存ではなく critical fields が不足,high,parser_fix
+holdout-001,job-001,analysis-001,v1.6.0,2026-05-22,taro,job_board_detail,comparison_grade,求人媒体詳細,A,salary ok and holidays ok,yes,usable,usable,usable,usable,4,0,0,,0,,present_and_correct,not_present,not_present,present_and_correct,not_present,0,0,no,no,no,no,no,no,no,no,no,no,unknown,not_applicable,low,,比較に十分使える,low,ignore
+holdout-002,job-002,analysis-002,v1.6.0,2026-05-22,taro,prose_heavy,comparison_grade,紹介文中心,B,benefits missed but comparison still possible,yes,usable,usable,usable,miss,3,0,0,,1,annualHolidays,present_but_missed,not_present,not_present,not_present,not_present,1,0,no,no,no,yes,no,no,no,no,no,no,yes,yes,high_signal,medium,benefits-prose,福利厚生 prose の再現に向く,medium,fixture
+holdout-003,job-003,analysis-003,v1.6.0,2026-05-22,taro,noisy_promo,thin_input,装飾文多め,C,critical fields too sparse,no,miss,miss,miss,miss,0,0,3,employmentType|salaryText|annualHolidays,0,,not_present,not_present,not_present,not_present,not_present,0,0,no,no,no,no,yes,no,no,no,no,no,yes,yes,high_signal,high,noisy-promo-critical-fields,summary 依存ではなく critical fields が不足,high,parser_fix
 ```
 
 ## Markdown review template

@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { buildMissingItemSummary } from "../src/lib/analysis/missing-items";
 import { PARSER_VERSION, parseJobText } from "../src/lib/analysis/parser";
 import { evaluateParsedJobQuality, shouldCreateFeedback, type FailureType } from "../src/lib/analysis/quality";
 import type { ExtractedValue, ParsedJob } from "../src/lib/analysis/types";
@@ -14,6 +15,7 @@ type RegressionRisk = "high" | "medium" | "low";
 type NextAction = "ignore" | "watch" | "fixture" | "parser_fix" | "feedback_rule_fix";
 type SourceShape = "job_board_detail" | "job_board_listcard" | "company_careers" | "prose_heavy" | "noisy_promo" | "other";
 type CompanyCareersInterpretation = "thin_input" | "parser_miss_worthy" | "mixed_signal" | "not_applicable";
+type ReviewCohort = "comparison_grade" | "thin_input";
 
 type CsvRow = Record<string, string>;
 
@@ -35,6 +37,7 @@ type RescoredRow = {
   review_date: string;
   reviewer: string;
   source_shape: SourceShape;
+  review_cohort: ReviewCohort;
   raw_text_origin_note: string;
   overall_grade: OverallGrade;
   overall_reason: string;
@@ -45,6 +48,10 @@ type RescoredRow = {
   annualHolidays_eval: CriticalEval;
   critical_usable_count: string;
   critical_wrong_count: string;
+  raw_missing_critical_count: string;
+  raw_missing_critical_fields: string;
+  visible_unparsed_critical_count: string;
+  visible_unparsed_critical_fields: string;
   benefits_eval: SecondaryEval;
   housingAllowance_eval: SecondaryEval;
   companyHousing_eval: SecondaryEval;
@@ -89,6 +96,7 @@ const HEADER = [
   "review_date",
   "reviewer",
   "source_shape",
+  "review_cohort",
   "raw_text_origin_note",
   "overall_grade",
   "overall_reason",
@@ -99,6 +107,10 @@ const HEADER = [
   "annualHolidays_eval",
   "critical_usable_count",
   "critical_wrong_count",
+  "raw_missing_critical_count",
+  "raw_missing_critical_fields",
+  "visible_unparsed_critical_count",
+  "visible_unparsed_critical_fields",
   "benefits_eval",
   "housingAllowance_eval",
   "companyHousing_eval",
@@ -150,9 +162,16 @@ const REQUIRED_SHAPES: SourceShape[] = [
 const HIGH_RISK_SHAPES = new Set<SourceShape>(["company_careers", "prose_heavy", "noisy_promo"]);
 const SALARY_NOISE_PATTERN = /(応募要件|選考プロセス|ご覧いただくには|話を聞きに行く|応募する|気になる|もっと見る)/;
 const BONUS_HINT_PATTERN = /(賞与|ボーナス|年\s*[12３１２]\s*回|年2回|年1回)/;
+const BONUS_COUNT_SIGNAL_PATTERN = /(賞与[^\n]{0,20}?年\s*[0-9０-９]\s*回|賞与[^\n]{0,20}?[0-9０-９]回|年\s*[0-9０-９]\s*回[^\n]{0,12}?賞与|[0-9０-９]回[^\n]{0,12}?賞与|賞与\s*\n\s*年\s*[0-9０-９]\s*回|賞与\s*\n\s*[0-9０-９]回|ボーナス[^\n]{0,20}?年\s*[0-9０-９]\s*回|ボーナス[^\n]{0,20}?[0-9０-９]回|年\s*[0-9０-９]\s*回[^\n]{0,12}?ボーナス|[0-9０-９]回[^\n]{0,12}?ボーナス|ボーナス\s*\n\s*年\s*[0-9０-９]\s*回|ボーナス\s*\n\s*[0-9０-９]回)/;
 const RETIREMENT_HINT_PATTERN = /(退職金|退職金制度)/;
 const EMPLOYMENT_TYPE_SIGNAL_PATTERN = /(雇用形態|正社員|契約社員|派遣社員|業務委託|アルバイト|パート|インターン)/;
 const ANNUAL_HOLIDAYS_SIGNAL_PATTERN = /(年間休日|休日・休暇|休日休暇|完全週休|週休2日|土日祝休み|休暇制度)/;
+const COMPANY_NAME_SIGNAL_PATTERN = /(株式会社|有限会社|合同会社|学校法人|社会福祉法人|一般社団法人|弁護士法人)/;
+const SALARY_SIGNAL_PATTERN = /((?:給与|想定年収|年収|月給|月収|報酬)[:：]?|[0-9０-９].*(?:円|万円))/;
+const SALARY_SIGNAL_NOISE_PATTERN = /(応募要件|選考プロセス|ご覧いただくには|話を聞きに行く|応募する|気になる|もっと見る|平均年収UP|年収UP実績|還元率|売上[0-9０-９]|取扱高[0-9０-９])/;
+const EMPLOYMENT_TYPE_SIGNAL_NOISE_PATTERN = /(インタビュー|会社の注目のストーリー|採用担当|もっと見る|他の募集|話を聞きに行くステップ|応募する|応援する)/;
+const EXPLICIT_ANNUAL_HOLIDAYS_COUNT_PATTERN = /(年間休日[^\n]{0,20}?[0-9０-９]{2,3}日|年休\s*[0-9０-９]{2,3}日)/;
+const GENERIC_HOLIDAY_STYLE_PATTERN = /(完全週休2日|週休2日|土日祝休み)/;
 
 function parseArgs(): ParsedArgs {
   const args = process.argv.slice(2);
@@ -319,7 +338,10 @@ function classifyCountSecondary(value: ExtractedValue<number>, hintPattern: RegE
 
 function classifyBenefits(rawText: string, parsed: ParsedJob, failureTypes: FailureType[]): SecondaryEval {
   if ((parsed.benefits.value?.length ?? 0) > 0) return "present_and_correct";
-  if (hasFailureType(failureTypes, "benefits_suspected_but_not_extracted") || /(福利厚生|待遇|手当|制度)/.test(rawText)) {
+  if (
+    hasFailureType(failureTypes, "benefits_suspected_but_not_extracted")
+    || /(福利厚生|待遇・福利厚生|副業|在宅|リモート|フレックス|服装自由|ネイル|私服勤務可|住宅手当|交通費|社宅|産休|育休|書籍購入補助|社会保険)/.test(rawText)
+  ) {
     return "present_but_missed";
   }
   return "not_present";
@@ -329,6 +351,77 @@ function countValues<T extends string>(values: T[], target: T) {
   return values.filter((value) => value === target).length;
 }
 
+function salarySignalVisible(rawText: string) {
+  return rawText
+    .split("\n")
+    .map((line) => line.trim())
+    .some((line) => line.length > 0 && SALARY_SIGNAL_PATTERN.test(line) && !SALARY_SIGNAL_NOISE_PATTERN.test(line));
+}
+
+function employmentTypeSignalVisible(rawText: string) {
+  return rawText
+    .split("\n")
+    .map((line) => line.trim())
+    .some((line) => line.length > 0 && EMPLOYMENT_TYPE_SIGNAL_PATTERN.test(line) && !EMPLOYMENT_TYPE_SIGNAL_NOISE_PATTERN.test(line));
+}
+
+function isAnnualHolidaysOnlyGenericHolidayRow(rawText: string, parsed: ParsedJob) {
+  return parsed.companyName.status === "found"
+    && parsed.employmentType.status === "found"
+    && parsed.salaryText.status === "found"
+    && parsed.annualHolidays.status !== "found"
+    && !EXPLICIT_ANNUAL_HOLIDAYS_COUNT_PATTERN.test(rawText)
+    && GENERIC_HOLIDAY_STYLE_PATTERN.test(rawText);
+}
+
+function countVisibleMissingCriticalSignals(rawText: string, parsed: ParsedJob) {
+  return [
+    parsed.companyName.status !== "found" && COMPANY_NAME_SIGNAL_PATTERN.test(rawText),
+    parsed.employmentType.status !== "found" && employmentTypeSignalVisible(rawText),
+    parsed.salaryText.status !== "found" && salarySignalVisible(rawText),
+    parsed.annualHolidays.status !== "found" && ANNUAL_HOLIDAYS_SIGNAL_PATTERN.test(rawText)
+  ].filter(Boolean).length;
+}
+
+const COHORT_CRITICAL_KEYS = new Set(["companyName", "employmentType", "salaryText", "annualHolidays"]);
+
+function classifyReviewCohort(rawText: string, parsed: ParsedJob): {
+  reviewCohort: ReviewCohort;
+  rawMissingCriticalFields: string[];
+  visibleUnparsedCriticalFields: string[];
+} {
+  const missingSummary = buildMissingItemSummary(parsed, rawText);
+  const rawMissingCriticalFields = missingSummary.missingInRawText.filter((key) => COHORT_CRITICAL_KEYS.has(key));
+  const visibleUnparsedCriticalFields = missingSummary.ambiguousButVisible.filter((key) => COHORT_CRITICAL_KEYS.has(key));
+
+  return {
+    reviewCohort: rawMissingCriticalFields.length > 0 ? "thin_input" : "comparison_grade",
+    rawMissingCriticalFields,
+    visibleUnparsedCriticalFields
+  };
+}
+
+function isThinInputCriticalRow(params: {
+  sourceShape: SourceShape;
+  rawText: string;
+  parsed: ParsedJob;
+  failureTypes: FailureType[];
+}) {
+  const { sourceShape, rawText, parsed, failureTypes } = params;
+  if (!["company_careers", "noisy_promo", "prose_heavy"].includes(sourceShape)) {
+    return false;
+  }
+
+  const criticalUnknownCount = [parsed.companyName, parsed.employmentType, parsed.salaryText, parsed.annualHolidays]
+    .filter((field) => field.status !== "found")
+    .length;
+
+  if (criticalUnknownCount < 2) return false;
+  if (hasFailureType(failureTypes, "too_many_unknown_critical_fields")) return false;
+
+  return countVisibleMissingCriticalSignals(rawText, parsed) < 2;
+}
+
 function classifyCompanyCareersInterpretation(params: {
   sourceShape: SourceShape;
   rawText: string;
@@ -336,7 +429,7 @@ function classifyCompanyCareersInterpretation(params: {
   failureTypes: FailureType[];
 }): CompanyCareersInterpretation {
   const { sourceShape, rawText, parsed, failureTypes } = params;
-  if (sourceShape !== "company_careers" || !hasFailureType(failureTypes, "too_many_unknown_critical_fields")) {
+  if (sourceShape !== "company_careers") {
     return "not_applicable";
   }
 
@@ -354,6 +447,9 @@ function classifyCompanyCareersInterpretation(params: {
     missingAnnualHolidays && !annualHolidaysVisible
   ].filter(Boolean).length;
 
+  if (thinInputSignals === 0 && parserMissSignals === 0) {
+    return hasFailureType(failureTypes, "too_many_unknown_critical_fields") ? "mixed_signal" : "not_applicable";
+  }
   if (thinInputSignals > 0 && parserMissSignals === 0) return "thin_input";
   if (parserMissSignals > 0 && thinInputSignals === 0) return "parser_miss_worthy";
   return "mixed_signal";
@@ -366,8 +462,10 @@ function inferOverallReason(params: {
   failureTypes: FailureType[];
   secondaryMissCount: number;
   companyCareersInterpretation: CompanyCareersInterpretation;
+  thinInputCriticalRow: boolean;
+  sourceShape: SourceShape;
 }) {
-  const { overallGrade, criticalUsableCount, criticalWrongFields, failureTypes, secondaryMissCount, companyCareersInterpretation } = params;
+  const { overallGrade, criticalUsableCount, criticalWrongFields, failureTypes, secondaryMissCount, companyCareersInterpretation, thinInputCriticalRow, sourceShape } = params;
 
   if (criticalWrongFields.length > 0) {
     return `critical wrong: ${criticalWrongFields.join("+")}`;
@@ -392,6 +490,10 @@ function inferOverallReason(params: {
 
   if (hasFailureType(failureTypes, "benefits_suspected_but_not_extracted")) {
     return "benefits_suspected_but_not_extracted";
+  }
+
+  if (overallGrade === "C" && thinInputCriticalRow) {
+    return `thin-input ${sourceShape} row`;
   }
 
   if (overallGrade === "A") {
@@ -440,11 +542,12 @@ function inferNextAction(params: {
   criticalWrongCount: number;
   failureTypes: FailureType[];
   companyCareersInterpretation: CompanyCareersInterpretation;
+  thinInputCriticalRow: boolean;
 }) {
-  const { overallGrade, feedbackExpected, feedbackSaved, fixturePriority, criticalWrongCount, failureTypes, companyCareersInterpretation } = params;
+  const { overallGrade, feedbackExpected, feedbackSaved, fixturePriority, criticalWrongCount, failureTypes, companyCareersInterpretation, thinInputCriticalRow } = params;
 
   if (overallGrade === "A" && feedbackExpected === "no") return "ignore" satisfies NextAction;
-  if (companyCareersInterpretation === "thin_input") {
+  if (companyCareersInterpretation === "thin_input" || thinInputCriticalRow) {
     return fixturePriority === "high" ? "fixture" : "watch";
   }
   if (criticalWrongCount > 0 || overallGrade === "C" || hasFailureType(failureTypes, "too_many_unknown_critical_fields")) {
@@ -459,6 +562,37 @@ function inferNextAction(params: {
   }
   if (fixturePriority === "high" || fixturePriority === "medium") return "fixture" satisfies NextAction;
   return "watch" satisfies NextAction;
+}
+
+function resolveFeedbackExpected(params: {
+  overallGrade: OverallGrade;
+  secondaryMissCount: number;
+  failureTypes: FailureType[];
+  companyCareersInterpretation: CompanyCareersInterpretation;
+  simulatedFeedbackSaved: ScoreValue;
+  thinInputCriticalRow: boolean;
+  rawText: string;
+  parsed: ParsedJob;
+}) {
+  const { overallGrade, secondaryMissCount, failureTypes, companyCareersInterpretation, simulatedFeedbackSaved, thinInputCriticalRow, rawText, parsed } = params;
+
+  if (overallGrade === "A" && secondaryMissCount === 0 && failureTypes.length === 0) {
+    return "no" satisfies ScoreValue;
+  }
+
+  if (companyCareersInterpretation === "thin_input" && simulatedFeedbackSaved === "no") {
+    return "no" satisfies ScoreValue;
+  }
+
+  if (thinInputCriticalRow && simulatedFeedbackSaved === "no") {
+    return "no" satisfies ScoreValue;
+  }
+
+  if (isAnnualHolidaysOnlyGenericHolidayRow(rawText, parsed) && simulatedFeedbackSaved === "no") {
+    return "no" satisfies ScoreValue;
+  }
+
+  return "yes" satisfies ScoreValue;
 }
 
 function resolveRawPath(rawDir: string, sampleId: string) {
@@ -515,7 +649,7 @@ function buildRescoredRow(seedRow: CsvRow, args: ParsedArgs, observedFeedbackByA
   const benefitsEval = classifyBenefits(rawText, parsed, failureTypes);
   const housingAllowanceEval = classifyBooleanSecondary(parsed.housingAllowance, hasFailureType(failureTypes, "housing_allowance_unknown_with_keyword"));
   const companyHousingEval = classifyBooleanSecondary(parsed.companyHousing, hasFailureType(failureTypes, "company_housing_unknown_with_keyword"));
-  const bonusCountEval = classifyCountSecondary(parsed.bonusCount, BONUS_HINT_PATTERN, rawText);
+  const bonusCountEval = classifyCountSecondary(parsed.bonusCount, BONUS_COUNT_SIGNAL_PATTERN, rawText);
   const retirementAllowanceEval = classifyBooleanSecondary(parsed.retirementAllowance, RETIREMENT_HINT_PATTERN.test(rawText));
   const companyCareersInterpretation = classifyCompanyCareersInterpretation({
     sourceShape: (seedRow.source_shape as SourceShape) ?? "other",
@@ -523,6 +657,13 @@ function buildRescoredRow(seedRow: CsvRow, args: ParsedArgs, observedFeedbackByA
     parsed,
     failureTypes
   });
+  const thinInputCriticalRow = isThinInputCriticalRow({
+    sourceShape: (seedRow.source_shape as SourceShape) ?? "other",
+    rawText,
+    parsed,
+    failureTypes
+  });
+  const { reviewCohort, rawMissingCriticalFields, visibleUnparsedCriticalFields } = classifyReviewCohort(rawText, parsed);
   const secondaryEvals: SecondaryEval[] = [benefitsEval, housingAllowanceEval, companyHousingEval, bonusCountEval, retirementAllowanceEval];
   const secondaryMissCount = countValues(secondaryEvals, "present_but_missed");
   const secondaryWrongCount = countValues(secondaryEvals, "wrong");
@@ -533,7 +674,16 @@ function buildRescoredRow(seedRow: CsvRow, args: ParsedArgs, observedFeedbackByA
     : criticalUsableCount === 4 && secondaryMissCount === 0 && failureTypes.length === 0
       ? "A"
       : "B";
-  const feedbackExpected = overallGrade === "A" && secondaryMissCount === 0 && failureTypes.length === 0 ? "no" : "yes";
+  const feedbackExpected = resolveFeedbackExpected({
+    overallGrade,
+    secondaryMissCount,
+    failureTypes,
+    companyCareersInterpretation,
+    simulatedFeedbackSaved,
+    thinInputCriticalRow,
+    rawText,
+    parsed
+  });
   const feedbackQuality: FeedbackQuality = feedbackExpected === "yes" ? "high_signal" : "not_applicable";
   const overallReason = inferOverallReason({
     overallGrade,
@@ -541,7 +691,9 @@ function buildRescoredRow(seedRow: CsvRow, args: ParsedArgs, observedFeedbackByA
     criticalWrongFields,
     failureTypes,
     secondaryMissCount,
-    companyCareersInterpretation
+    companyCareersInterpretation,
+    thinInputCriticalRow,
+    sourceShape: (seedRow.source_shape as SourceShape) ?? "other"
   });
   const fixturePriority = inferFixturePriority(overallGrade, criticalWrongCount, secondaryMissCount, failureTypes);
   const parserRegressionRisk = inferRegressionRisk(fixturePriority, failureTypes);
@@ -553,7 +705,8 @@ function buildRescoredRow(seedRow: CsvRow, args: ParsedArgs, observedFeedbackByA
     fixturePriority,
     criticalWrongCount,
     failureTypes,
-    companyCareersInterpretation
+    companyCareersInterpretation,
+    thinInputCriticalRow
   });
 
   const notes: string[] = [
@@ -572,6 +725,7 @@ function buildRescoredRow(seedRow: CsvRow, args: ParsedArgs, observedFeedbackByA
   if (companyCareersInterpretation !== "not_applicable") {
     notes.push(`company_careers_interpretation=${companyCareersInterpretation}`);
   }
+  notes.push(`review_cohort=${reviewCohort}`);
 
   const row: RescoredRow = {
     sample_id: sampleId,
@@ -581,6 +735,7 @@ function buildRescoredRow(seedRow: CsvRow, args: ParsedArgs, observedFeedbackByA
     review_date: args.reviewDate,
     reviewer: args.reviewer,
     source_shape: (seedRow.source_shape as SourceShape) ?? "other",
+    review_cohort: reviewCohort,
     raw_text_origin_note: seedRow.raw_text_origin_note ?? "",
     overall_grade: overallGrade,
     overall_reason: overallReason,
@@ -591,6 +746,10 @@ function buildRescoredRow(seedRow: CsvRow, args: ParsedArgs, observedFeedbackByA
     annualHolidays_eval: annualHolidaysEval,
     critical_usable_count: String(criticalUsableCount),
     critical_wrong_count: String(criticalWrongCount),
+    raw_missing_critical_count: String(rawMissingCriticalFields.length),
+    raw_missing_critical_fields: rawMissingCriticalFields.join("|"),
+    visible_unparsed_critical_count: String(visibleUnparsedCriticalFields.length),
+    visible_unparsed_critical_fields: visibleUnparsedCriticalFields.join("|"),
     benefits_eval: benefitsEval,
     housingAllowance_eval: housingAllowanceEval,
     companyHousing_eval: companyHousingEval,
@@ -632,6 +791,8 @@ function countBy<T extends string>(values: T[]) {
 function buildSummaryMarkdown(artifacts: ReviewArtifacts[], args: ParsedArgs, scorecardPath: string, notesPath: string) {
   const rows = artifacts.map((artifact) => artifact.row);
   const total = rows.length;
+  const comparisonGradeRows = rows.filter((row) => row.review_cohort === "comparison_grade");
+  const thinInputRows = rows.filter((row) => row.review_cohort === "thin_input");
   const shapeCounts = countBy(rows.map((row) => row.source_shape));
   const gradeCounts = countBy(rows.map((row) => row.overall_grade));
   const highRiskCount = rows.filter((row) => HIGH_RISK_SHAPES.has(row.source_shape)).length;
@@ -649,6 +810,41 @@ function buildSummaryMarkdown(artifacts: ReviewArtifacts[], args: ParsedArgs, sc
   const fieldMiss = (field: keyof RescoredRow) => rows.filter((row) => row[field] === "present_but_missed").length;
   const fieldWrong = (field: keyof RescoredRow) => rows.filter((row) => row[field] === "wrong").length;
   const secondaryWrongTotal = fieldWrong("benefits_eval") + fieldWrong("housingAllowance_eval") + fieldWrong("companyHousing_eval") + fieldWrong("bonusCount_eval") + fieldWrong("retirementAllowance_eval");
+
+  const summarizeCohort = (subset: RescoredRow[]) => {
+    const subsetTotal = subset.length;
+    const subsetGradeCounts = countBy(subset.map((row) => row.overall_grade));
+    const subsetComparisonYes = subset.filter((row) => row.comparison_usable === "yes").length;
+    const subsetTrustBreakingCCount = subset.filter((row) => row.overall_grade === "C" && Number(row.critical_wrong_count) > 0).length;
+    const subsetCritical44Count = subset.filter((row) => Number(row.critical_usable_count) === 4).length;
+    const subsetCritical34PlusCount = subset.filter((row) => Number(row.critical_usable_count) >= 3).length;
+    const subsetCriticalWrongPresentCount = subset.filter((row) => Number(row.critical_wrong_count) > 0).length;
+    const productGate = subsetTotal === 0
+      ? "n/a"
+      : passConditionalFail(
+        subsetComparisonYes / subsetTotal >= 0.9 && (subsetGradeCounts.get("C") ?? 0) <= 5 && subsetTrustBreakingCCount <= 2,
+        subsetComparisonYes / subsetTotal >= 0.85 && (subsetGradeCounts.get("C") ?? 0) <= 7 && subsetTrustBreakingCCount <= 3
+      );
+    const criticalGate = subsetTotal === 0
+      ? "n/a"
+      : passConditionalFail(
+        subsetCritical34PlusCount / subsetTotal >= 0.9 && subsetCritical44Count / subsetTotal >= 0.75 && subsetCriticalWrongPresentCount / subsetTotal <= 0.03,
+        subsetCritical34PlusCount / subsetTotal >= 0.85 && subsetCritical44Count / subsetTotal >= 0.7 && subsetCriticalWrongPresentCount / subsetTotal <= 0.05
+      );
+    return {
+      total: subsetTotal,
+      a: subsetGradeCounts.get("A") ?? 0,
+      b: subsetGradeCounts.get("B") ?? 0,
+      c: subsetGradeCounts.get("C") ?? 0,
+      comparisonYes: subsetComparisonYes,
+      trustBreakingCCount: subsetTrustBreakingCCount,
+      critical44Count: subsetCritical44Count,
+      critical34PlusCount: subsetCritical34PlusCount,
+      criticalWrongPresentCount: subsetCriticalWrongPresentCount,
+      productGate,
+      criticalGate,
+    };
+  };
 
   const feedbackExpectedCount = rows.filter((row) => row.feedback_expected === "yes").length;
   const feedbackSavedCount = rows.filter((row) => row.feedback_expected === "yes" && row.feedback_saved === "yes").length;
@@ -706,10 +902,12 @@ function buildSummaryMarkdown(artifacts: ReviewArtifacts[], args: ParsedArgs, sc
     critical34PlusCount / total >= 0.9 && critical44Count / total >= 0.75 && criticalWrongPresentCount / total <= 0.03,
     critical34PlusCount / total >= 0.85 && critical44Count / total >= 0.7 && criticalWrongPresentCount / total <= 0.05
   );
-  const feedbackGate = passConditionalFail(
-    observedExpectedCount > 0 && observedSavedCount / observedExpectedCount >= 0.8 && noisyCount / Math.max(feedbackSavedCount, 1) < 0.2,
-    observedExpectedCount > 0 && observedSavedCount / observedExpectedCount >= 0.7 && noisyCount / Math.max(feedbackSavedCount, 1) < 0.25
-  );
+  const feedbackGate = observedExpectedCount === 0 && simulatedAllExpectedCount === 0
+    ? "pass"
+    : passConditionalFail(
+      observedExpectedCount > 0 && observedSavedCount / observedExpectedCount >= 0.8 && noisyCount / Math.max(feedbackSavedCount, 1) < 0.2,
+      observedExpectedCount > 0 && observedSavedCount / observedExpectedCount >= 0.7 && noisyCount / Math.max(feedbackSavedCount, 1) < 0.25
+    );
   const requiredDatasetPass = total >= 50 && REQUIRED_SHAPES.every((shape) => (shapeCounts.get(shape) ?? 0) >= 5);
   const recommendedDatasetPass = dominantShapeEntry[1] / total <= 0.5 && highRiskCount / total >= 0.4;
   const datasetGate = requiredDatasetPass ? (recommendedDatasetPass ? "pass (recommended mix also pass)" : "pass (required mix only)") : "fail";
@@ -761,6 +959,22 @@ function buildSummaryMarkdown(artifacts: ReviewArtifacts[], args: ParsedArgs, sc
     : [productGate, criticalGate, feedbackGate].every((gate) => gate !== "fail")
       ? "CONDITIONAL PASS"
       : "FAIL";
+  const comparisonGradeMetrics = summarizeCohort(comparisonGradeRows);
+  const thinInputMetrics = summarizeCohort(thinInputRows);
+  const comparisonGradeShadowDecision = comparisonGradeMetrics.total === 0
+    ? "N/A"
+    : [comparisonGradeMetrics.productGate, comparisonGradeMetrics.criticalGate, feedbackGate, regressionGate].every((gate) => gate === "pass")
+      ? "PASS"
+      : [comparisonGradeMetrics.productGate, comparisonGradeMetrics.criticalGate, feedbackGate].every((gate) => gate !== "fail")
+        ? "CONDITIONAL PASS"
+        : "FAIL";
+  const thinInputShadowDecision = thinInputMetrics.total === 0
+    ? "N/A"
+    : [thinInputMetrics.productGate, thinInputMetrics.criticalGate, feedbackGate, regressionGate].every((gate) => gate === "pass")
+      ? "PASS"
+      : [thinInputMetrics.productGate, thinInputMetrics.criticalGate, feedbackGate].every((gate) => gate !== "fail")
+        ? "CONDITIONAL PASS"
+        : "FAIL";
 
   return `# Job Analysis Holdout Review Summary
 
@@ -787,6 +1001,12 @@ function buildSummaryMarkdown(artifacts: ReviewArtifacts[], args: ParsedArgs, sc
 - dominant shape ratio: ${dominantShapeEntry[0]} ${dominantShapeEntry[1]}/${total} (${formatPercent(dominantShapeEntry[1], total)})
 - dataset gate: ${datasetGate}
 
+## Cohort split
+- official verdict cohort: full_cohort (all pasted jobs stay in sign-off denominator)
+- comparison_grade cohort: ${comparisonGradeMetrics.total}
+- thin_input cohort: ${thinInputMetrics.total}
+- thin_input definition: 1+ critical items absent from raw text (\`review_cohort=thin_input\`)
+
 ## Product-level result
 - A: ${gradeCounts.get("A") ?? 0}
 - B: ${gradeCounts.get("B") ?? 0}
@@ -796,6 +1016,7 @@ function buildSummaryMarkdown(artifacts: ReviewArtifacts[], args: ParsedArgs, sc
 - comparison_usable_yes: ${comparisonYes}
 - comparison_usable_no: ${comparisonNo}
 - product gate: ${productGate}
+- shadow comparison-grade read: ${comparisonGradeShadowDecision} (A+B ${formatPercent(comparisonGradeMetrics.a + comparisonGradeMetrics.b, comparisonGradeMetrics.total)}, C ${comparisonGradeMetrics.c}/${comparisonGradeMetrics.total || 0})
 
 ## Critical field result
 - 4/4 usable: ${formatPercent(critical44Count, total)}
@@ -845,6 +1066,12 @@ function buildSummaryMarkdown(artifacts: ReviewArtifacts[], args: ParsedArgs, sc
 - parser-miss-worthy rows: ${parserMissCompanyCareers.length > 0 ? parserMissCompanyCareers.map((artifact) => artifact.row.sample_id).join(", ") : "none"}
 - mixed-signal rows: ${mixedSignalCompanyCareers.length > 0 ? mixedSignalCompanyCareers.map((artifact) => artifact.row.sample_id).join(", ") : "none"}
 
+## Cohort decision read
+- official full-cohort verdict: ${finalDecision}
+- comparison-grade shadow verdict: ${comparisonGradeShadowDecision}
+- thin-input shadow verdict: ${thinInputShadowDecision}
+- policy note: this summary keeps full-cohort as the sign-off verdict and shows cohort split as a separate decision aid
+
 ## Feedback loop result
 - feedback_expected: ${feedbackExpectedCount}
 - feedback_saved: ${feedbackSavedCount}
@@ -873,6 +1100,8 @@ ${feedbackFixBullets}
 
 ## Conclusion
 - final decision: ${finalDecision}
+- official policy frame: full-cohort verdict is the source of truth unless criteria are explicitly revised
+- shadow comparison-grade decision: ${comparisonGradeShadowDecision}
 - biggest remaining gap: ${recurringClusters.length > 0 ? `${recurringClusters[0][0]} recurring ${recurringClusters[0][1]} times` : "feedback / regression evidence refresh"}
 - why it is not done yet / why it is good enough: rerun parser quality is updated, but observed feedback evidence is still tied to historical saved analyses; judge parser improvements and feedback-loop improvements separately
 - next review trigger: parser fixes + fixture additions + observed feedback rerun を揃えたあと、同じ 50件 rubric を再実行する
@@ -920,6 +1149,7 @@ function buildNotesMarkdown(artifacts: ReviewArtifacts[], args: ParsedArgs) {
 - review_window: ${args.reviewDate} rerun batch
 - total approved samples reviewed: ${rows.length}
 - corpus source: ${args.rawDir}
+- review_cohort split: comparison_grade=${rows.filter((row) => row.review_cohort === "comparison_grade").length}, thin_input=${rows.filter((row) => row.review_cohort === "thin_input").length}
 
 ## Method
 - seed manifest: ${args.seed}
@@ -944,6 +1174,7 @@ function buildNotesMarkdown(artifacts: ReviewArtifacts[], args: ParsedArgs) {
 ${dominantFailures || "- none"}
 
 ## Shape interpretation note
+- \`review_cohort\` is now written into the scorecard: \`comparison_grade\` means no critical field is absent from raw text, \`thin_input\` means 1+ critical fields are absent from raw text.
 - company_careers rows, especially Green-style search cards, must be split into thin-input vs parser-miss-worthy before they are used to justify parser fallback expansion.
 - thin-input rows in this rerun: ${thinInputCompanyCareers.length > 0 ? thinInputCompanyCareers.map((artifact) => artifact.row.sample_id).join(", ") : "none"}
 - parser-miss-worthy rows in this rerun: ${parserMissCompanyCareers.length > 0 ? parserMissCompanyCareers.map((artifact) => artifact.row.sample_id).join(", ") : "none"}

@@ -45,11 +45,21 @@ export default async function BetaPage({ searchParams }: { searchParams: SearchP
       <div className="mx-auto grid w-full max-w-[1200px] gap-6 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1fr)]">
         <article className="rounded-[28px] border border-[#dce7ee] bg-white p-6 shadow-[0_18px_36px_-30px_rgba(22,53,91,0.28)]">
           <p className="text-sm font-bold text-[#1ea9a4]">SNSから来た人向けの先行案内</p>
-          <h2 className="mt-3 text-[2.1rem] font-black leading-tight text-[#17355b]">らくしゅうは、求人票の不安を先に減らしたい人のためのβ版</h2>
+          <h2 className="mt-3 text-[2.1rem] font-black leading-tight text-[#17355b]">らくしゅうは、求人票の不安を先に減らしたい人のための案内制β版</h2>
           <p className="mt-4 text-sm leading-8 text-[#4f6a80]">
             ブラック求人の危険信号や、比較しづらい条件差を整理しやすくするための道具を作ってる。
-            今は少人数で改善を回したいから、困りごとが強い人から優先して案内する。
+            今は少人数で改善を回したいから、悩みの内容や使い方の相性を見ながら順番に案内している。
           </p>
+
+          <div className="mt-6 rounded-[24px] border border-[#ffe2cf] bg-[#fff8f3] p-5">
+            <p className="text-base font-black text-[#17355b]">先に共有しておきたいこと</p>
+            <ul className="mt-3 space-y-2 text-sm leading-7 text-[#35546f]">
+              <li>・まだ改善中のβ版です</li>
+              <li>・すべての求人媒体や求人文で完全対応しているわけではありません</li>
+              <li>・比較材料が薄い求人は「本文未記載」「要確認」が増えることがあります</li>
+              <li>・状況を見ながら少人数ずつ順番に案内します</li>
+            </ul>
+          </div>
 
           <div className="mt-6 rounded-[24px] bg-[#f7fbfd] p-5">
             <p className="text-base font-black text-[#17355b]">いま拾いたいシグナル</p>
@@ -58,6 +68,25 @@ export default async function BetaPage({ searchParams }: { searchParams: SearchP
               <li>・比較のたびに手間になるポイントは何か</li>
               <li>・応募管理までつながると本当に楽か</li>
             </ul>
+          </div>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            <div className="rounded-[20px] border border-[#dce7ee] p-4">
+              <p className="text-sm font-black text-[#17355b]">向いている人</p>
+              <ul className="mt-2 space-y-2 text-sm leading-6 text-[#4f6a80]">
+                <li>・求人比較で毎回迷う</li>
+                <li>・本文を貼って整理する流れを試したい</li>
+                <li>・保存や応募管理まで一緒に見たい</li>
+              </ul>
+            </div>
+            <div className="rounded-[20px] border border-[#dce7ee] p-4">
+              <p className="text-sm font-black text-[#17355b]">まだ向いていない人</p>
+              <ul className="mt-2 space-y-2 text-sm leading-6 text-[#4f6a80]">
+                <li>・どの求人でも完璧に自動判定してほしい</li>
+                <li>・説明なしですぐ公開サービス品質を期待している</li>
+                <li>・課金込みの完成版だけを探している</li>
+              </ul>
+            </div>
           </div>
 
           <div className="mt-6 flex flex-col gap-3 text-sm font-semibold text-[#35546f]">

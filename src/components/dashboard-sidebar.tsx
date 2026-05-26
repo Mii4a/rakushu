@@ -7,7 +7,7 @@ import { Bookmark, BriefcaseBusiness, CreditCard, FileText, GitCompareArrows, Ho
 
 const navItems = [
   { href: "/dashboard", label: "ダッシュボード", icon: Home, key: "dashboard" },
-  { href: "/jobs/new", label: "応募状況", icon: Plane, key: "jobs-new" },
+  { href: "/jobs/new", label: "ランクを付ける", icon: Plane, key: "jobs-new" },
   { href: "/jobs", label: "求人一覧", icon: BriefcaseBusiness, key: "jobs" },
   { href: "/jobs", label: "保存した求人", icon: Bookmark, key: "saved-jobs" },
   { href: "/compare", label: "比較", icon: GitCompareArrows, key: "compare" },

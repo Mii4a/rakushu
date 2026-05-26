@@ -370,6 +370,12 @@ export async function updateJobAction(formData: FormData) {
     throw new Error("編集対象の求人が見つかりません");
   }
 
+  const rawTextChanged = rawText !== target.rawText;
+  if (rawTextChanged) {
+    await enforceAnalysisLimit(user.id);
+  }
+
+  const now = new Date();
   const commuteFields = await resolveCommuteFields({
     userId: user.id,
     destinationStationName: nearestStation || null,
@@ -387,9 +393,22 @@ export async function updateJobAction(formData: FormData) {
       nearestStation: nearestStation || null,
       ...commuteFields,
       rawText,
-      updatedAt: new Date()
+      updatedAt: now
     })
     .where(and(eq(jobs.id, jobId), eq(jobs.userId, user.id)));
+
+  if (rawTextChanged) {
+    const parsed = parseJobText(rawText);
+    const rankSettings = await getUserRankSettings(user.id);
+    const scored = scoreParsedJob(parsed, rankSettings);
+    const analysisId = crypto.randomUUID();
+
+    await db.insert(jobAnalyses).values(buildJobAnalysisValues({ analysisId, jobId, parsed, scored, now }));
+    await insertAutoAnalysisFeedback({ analysisId, rawText, parsed, now });
+
+    const plan = await getUserPlan(user.id);
+    await incrementAnalysisCount(user.id, PLAN_LIMITS[plan].analysisPeriod === "week" ? getWeekKey() : getMonthKey());
+  }
 
   revalidatePath("/jobs");
   revalidatePath(`/jobs/${jobId}`);

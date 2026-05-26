@@ -101,6 +101,6 @@ export async function submitBetaIntakeAction(
 
   return {
     status: "success",
-    message: "β参加ありがとうございます。内容を確認して案内します。"
+    message: "ありがとうございます。案内制βとして内容を確認し、順番に連絡します。"
   };
 }

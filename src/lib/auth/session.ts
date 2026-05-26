@@ -8,7 +8,12 @@ export async function getSession() {
     return null;
   }
 
-  return auth.api.getSession({
-    headers: await headers()
-  });
+  try {
+    return await auth.api.getSession({
+      headers: await headers()
+    });
+  } catch (error) {
+    console.error("[auth] failed to resolve session", error);
+    return null;
+  }
 }

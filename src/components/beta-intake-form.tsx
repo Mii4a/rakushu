@@ -38,10 +38,19 @@ export function BetaIntakeForm({
 
         <div>
           <p className="text-sm font-bold text-[#1ea9a4]">無料でβ参加して、求人票の見極めを先に試す</p>
-          <h1 className="mt-2 text-[2rem] font-black leading-tight text-[#17355b]">困りごとを先に教えてくれた人から案内する</h1>
+          <h1 className="mt-2 text-[2rem] font-black leading-tight text-[#17355b]">先行βの案内を受け取る</h1>
           <p className="mt-3 text-sm leading-7 text-[#4f6a80]">
-            まだ作り込み途中なので、まずは悩みの強い人から優先して改善したい。連絡先と困りごとだけ置いていって。
+            まだ改善中のβ版なので、使い心地や困りごとを聞きながら少人数ずつ案内しています。連絡先と、いま困っていることを教えてください。
           </p>
+        </div>
+
+        <div className="rounded-[24px] border border-[#ffe2cf] bg-[#fff8f3] p-4 text-sm leading-7 text-[#4f6a80]">
+          <p className="font-black text-[#17355b]">申し込み前に知っておいてほしいこと</p>
+          <ul className="mt-2 space-y-1">
+            <li>・いまは案内制の少人数βです</li>
+            <li>・すべての求人媒体で完全対応しているわけではありません</li>
+            <li>・比較材料が薄い求人は、判定より先に「本文未記載」「要確認」が増えることがあります</li>
+          </ul>
         </div>
 
         <label className="block space-y-2 text-sm font-semibold text-[#17355b]">

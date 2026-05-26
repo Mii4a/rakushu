@@ -32,16 +32,23 @@ export type QualityReport = {
 
 const CRITICAL_FIELD_KEYS = ["companyName", "employmentType", "salaryText", "annualHolidays"] as const satisfies ReadonlyArray<keyof ParsedJob>;
 const SUMMARY_LINE_SOURCES: ExtractSource[] = ["summary_line"];
-const BENEFIT_HINT_PATTERN = /(福利厚生|待遇|手当|制度)/;
+const BENEFIT_HINT_PATTERN = /(福利厚生|待遇・福利厚生|副業|在宅|リモート|フレックス|服装自由|ネイル|私服勤務可|住宅手当|交通費|社宅|産休|育休|書籍購入補助|社会保険)/;
 const HOUSING_ALLOWANCE_PATTERN = /住宅手当/;
 const COMPANY_HOUSING_PATTERN = /(社宅|借上社宅)/;
 const COMPANY_NAME_PLATFORM_NOISE_PATTERN = /(doda|デューダ|転職・求人|中途採用情報|求人詳細|掲載予定期間|Green|Wantedly|トップ)/i;
 const BONUS_PATTERN = /(賞与|ボーナス|年\s*[12３１２]\s*回|年2回|年1回)/;
+const BONUS_COUNT_SIGNAL_PATTERN = /(賞与[^\n]{0,20}?年\s*[0-9０-９]\s*回|賞与[^\n]{0,20}?[0-9０-９]回|年\s*[0-9０-９]\s*回[^\n]{0,12}?賞与|[0-9０-９]回[^\n]{0,12}?賞与|賞与\s*\n\s*年\s*[0-9０-９]\s*回|賞与\s*\n\s*[0-9０-９]回|ボーナス[^\n]{0,20}?年\s*[0-9０-９]\s*回|ボーナス[^\n]{0,20}?[0-9０-９]回|年\s*[0-9０-９]\s*回[^\n]{0,12}?ボーナス|[0-9０-９]回[^\n]{0,12}?ボーナス|ボーナス\s*\n\s*年\s*[0-9０-９]\s*回|ボーナス\s*\n\s*[0-9０-９]回)/;
 const RETIREMENT_ALLOWANCE_PATTERN = /(退職金|退職金制度)/;
 const MONTHLY_SALARY_PATTERN = /(月給|月収|月額|想定月収|時給|日給)/;
 const HIGH_ANNUAL_SALARY_PATTERN = /(?:^|[^0-9０-９])([1-9][0-9]{2,}|[１-９][０-９]{2,})(?:\.[0-9０-９]+)?万円/;
 const STRUCTURED_SALARY_TEXT_PATTERN = /[0-9０-９].*(?:円|万円)/;
 const STRUCTURED_SALARY_TEXT_NOISE_PATTERN = /(応相談|経験|能力|インセンティブ|歩合|賞与|手当込み|条件により|詳細は面談)/;
+const COMPANY_NAME_VISIBLE_PATTERN = /(株式会社|有限会社|合同会社|学校法人|社会福祉法人|一般社団法人|弁護士法人)/;
+const EMPLOYMENT_TYPE_VISIBLE_PATTERN = /(雇用形態|正社員|契約社員|派遣社員|紹介予定派遣|業務委託|アルバイト・パート|アルバイト|パート|インターン)/;
+const EMPLOYMENT_TYPE_VISIBLE_NOISE_PATTERN = /(インタビュー|会社の注目のストーリー|採用担当|もっと見る|他の募集|話を聞きに行くステップ|応募する|応援する)/;
+const ANNUAL_HOLIDAYS_VISIBLE_PATTERN = /(年間休日|休日・休暇|休日休暇|完全週休|週休2日|土日祝休み|休暇制度|フルフレックス)/;
+const SALARY_VISIBLE_PATTERN = /((?:給与|想定年収|年収|月給|月収|報酬)[:：]?|[0-9０-９].*(?:円|万円))/;
+const SALARY_VISIBLE_NOISE_PATTERN = /(応募要件|選考プロセス|ご覧いただくには|話を聞きに行く|応募する|気になる|もっと見る|平均年収UP|年収UP実績|還元率|売上[0-9０-９]|取扱高[0-9０-９])/;
 const MAX_EXCERPT_LENGTH = 400;
 const MIN_EXCERPT_LENGTH = 200;
 
@@ -98,6 +105,31 @@ function needsBaseSalaryNormalization(rawText: string, parsed: ParsedJob) {
   if (HIGH_ANNUAL_SALARY_PATTERN.test(parsed.salaryText.value ?? "")) return false;
   if (MONTHLY_SALARY_PATTERN.test(salarySignals)) return true;
   return false;
+}
+
+function hasVisibleSalarySignal(rawText: string) {
+  return rawText
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .some((line) => SALARY_VISIBLE_PATTERN.test(line) && !SALARY_VISIBLE_NOISE_PATTERN.test(line));
+}
+
+function hasVisibleEmploymentSignal(rawText: string) {
+  return rawText
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .some((line) => EMPLOYMENT_TYPE_VISIBLE_PATTERN.test(line) && !EMPLOYMENT_TYPE_VISIBLE_NOISE_PATTERN.test(line));
+}
+
+function countVisibleMissingCriticalSignals(rawText: string, parsed: ParsedJob) {
+  return [
+    parsed.companyName.status === "unknown" && COMPANY_NAME_VISIBLE_PATTERN.test(rawText),
+    parsed.employmentType.status === "unknown" && hasVisibleEmploymentSignal(rawText),
+    parsed.salaryText.status === "unknown" && hasVisibleSalarySignal(rawText),
+    parsed.annualHolidays.status === "unknown" && ANNUAL_HOLIDAYS_VISIBLE_PATTERN.test(rawText)
+  ].filter(Boolean).length;
 }
 
 function buildExcerpt(rawText: string, keywords: string[]) {
@@ -169,9 +201,11 @@ function buildSummaryText(failureTypes: FailureType[]) {
 export function evaluateParsedJobQuality(rawText: string, parsed: ParsedJob): QualityReport {
   const failureTypes: FailureType[] = [];
   const criticalUnknownCount = countCriticalUnknownFields(parsed);
+  const visibleMissingCriticalSignals = countVisibleMissingCriticalSignals(rawText, parsed);
   const summaryLineOnly = isSummaryLineOnlyExtraction(parsed);
   const benefitsSuspected = hasBenefitsSuspectedWithoutExtraction(rawText, parsed);
   const bonusKeywordPresent = BONUS_PATTERN.test(rawText);
+  const actionableBonusSignalPresent = BONUS_COUNT_SIGNAL_PATTERN.test(rawText);
   const retirementKeywordPresent = RETIREMENT_ALLOWANCE_PATTERN.test(rawText);
   const housingAllowanceKeywordPresent = HOUSING_ALLOWANCE_PATTERN.test(rawText);
   const companyHousingKeywordPresent = COMPANY_HOUSING_PATTERN.test(rawText);
@@ -192,11 +226,11 @@ export function evaluateParsedJobQuality(rawText: string, parsed: ParsedJob): Qu
     failureTypes.push("benefits_suspected_but_not_extracted");
   }
 
-  if (criticalUnknownCount >= 2) {
+  if (criticalUnknownCount >= 2 && visibleMissingCriticalSignals >= 2) {
     failureTypes.push("too_many_unknown_critical_fields");
   }
 
-  if (summaryLineOnly && criticalUnknownCount >= 1) {
+  if (summaryLineOnly && criticalUnknownCount >= 1 && visibleMissingCriticalSignals >= 1) {
     failureTypes.push("summary_line_only_extraction");
   }
 
@@ -208,7 +242,7 @@ export function evaluateParsedJobQuality(rawText: string, parsed: ParsedJob): Qu
     failureTypes.push("company_housing_unknown_with_keyword");
   }
 
-  if (bonusKeywordPresent && parsed.bonusCount.status === "unknown") {
+  if (actionableBonusSignalPresent && parsed.bonusCount.status === "unknown") {
     failureTypes.push("bonus_count_unknown_with_keyword");
   }
 
@@ -280,7 +314,7 @@ export function shouldCreateFeedback(report: QualityReport) {
   if (report.failureTypes.includes("negative_base_salary_detected")) return true;
   if (report.failureTypes.includes("company_name_suspected_platform_noise")) return true;
   if (report.failureTypes.includes("benefits_suspected_but_not_extracted")) return true;
-  if (report.signals.criticalUnknownCount >= 2) return true;
+  if (report.failureTypes.includes("too_many_unknown_critical_fields")) return true;
   if (report.failureTypes.includes("summary_line_only_extraction") && report.signals.criticalUnknownCount >= 1) return true;
   if (report.failureTypes.includes("company_housing_unknown_with_keyword")) return true;
   if (report.failureTypes.includes("housing_allowance_unknown_with_keyword")) return true;

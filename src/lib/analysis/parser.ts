@@ -1,7 +1,7 @@
 import { buildSectionMap, firstNonEmptyLine, getCombinedSectionValue, getSectionValue, isSectionHeadingLine, normalizeLineValue, normalizeText, type SectionMap } from "./section-map";
 import type { ExtractConfidence, ExtractedValue, ExtractSource, JobWarnings, ParsedJob } from "./types";
 
-export const PARSER_VERSION = "v1.6.1";
+export const PARSER_VERSION = "v1.6.2";
 
 type ParserContext = {
   text: string;
@@ -96,6 +96,34 @@ function findCompanyNameFromOtherJobsLine(context: ParserContext): ExtractedValu
   return null;
 }
 
+function findCompanyNameFromHeadlineLine(context: ParserContext): ExtractedValue<string> | null {
+  const lines = context.text
+    .split("\n")
+    .map((line) => normalizeLineValue(line))
+    .filter((line) => line.length > 0)
+    .slice(0, 40);
+  const roleLeadPattern = /(IT|Web|インフラ|ネットワーク|システム|アプリ|エンジニア|営業|事務|企画|開発|デザイナー|マーケ|コンサル|未経験|年休|残業|経理|人事|総務|広報)/;
+  const leadingSuffixPattern = new RegExp(`^(${companyNameTokenPattern}(?:[\\s　]+${companyNameTokenPattern}){0,3}?(?:${companyEntityWords.join("|")}))(?=[\\s　]+${roleLeadPattern.source}|[／/｜|]|$)`);
+  const leadingPrefixPattern = new RegExp(`^((?:${companyEntityWords.join("|")})[\\s　]*${companyNameTokenPattern}(?:[\\s　]+${companyNameTokenPattern}){0,2})(?=[\\s　]+${roleLeadPattern.source}|[／/｜|]|$)`);
+
+  for (const line of lines) {
+    if (isSectionHeadingLine(line)) continue;
+    if (!/(／|年休|残業|未経験|エンジニア|募集)/.test(line)) continue;
+
+    const suffixMatch = leadingSuffixPattern.exec(line);
+    if (suffixMatch?.[1]) {
+      return found(normalizeCompanyCandidate(suffixMatch[1]), line, "summary_line", "medium");
+    }
+
+    const prefixMatch = leadingPrefixPattern.exec(line);
+    if (prefixMatch?.[1]) {
+      return found(normalizeCompanyCandidate(prefixMatch[1]), line, "summary_line", "medium");
+    }
+  }
+
+  return null;
+}
+
 function findCompanyNameFromBrandedProse(context: ParserContext): ExtractedValue<string> | null {
   const lines = context.text
     .split("\n")
@@ -107,6 +135,28 @@ function findCompanyNameFromBrandedProse(context: ParserContext): ExtractedValue
     const brandedMatch = /([A-Za-z][A-Za-z0-9&._-]{1,30})の(?:広報活動|採用広報|採用活動|採用|サービス|事業|開発|プロダクト)/.exec(line);
     if (brandedMatch?.[1]) {
       return found(normalizeCompanyCandidate(brandedMatch[1]), line, "global_scan", "low");
+    }
+  }
+
+  return null;
+}
+
+function findCompanyNameFromCorporateProse(context: ParserContext): ExtractedValue<string> | null {
+  const lines = context.text
+    .split("\n")
+    .map((line) => normalizeLineValue(line))
+    .filter((line) => line.length > 0)
+    .slice(0, 80);
+
+  for (const line of lines) {
+    const prefixMatch = /((?:株式会社|有限会社|合同会社|学校法人|社会福祉法人|一般社団法人|弁護士法人)\s*[A-Za-zＡ-Ｚａ-ｚ0-9０-９ぁ-んァ-ヶー一-龠々・･＆&.．ー－_()（）\-\s　]{1,40}?)(?:は|が|です|として)/.exec(line);
+    if (prefixMatch?.[1]) {
+      return found(normalizeCompanyCandidate(prefixMatch[1]), line, "global_scan", "medium");
+    }
+
+    const suffixMatch = /([A-Za-zＡ-Ｚａ-ｚ0-9０-９ぁ-んァ-ヶー一-龠々・･＆&.．ー－_()（）\-\s　]{1,40}?(?:株式会社|有限会社|合同会社|学校法人|社会福祉法人|一般社団法人|弁護士法人))(?:は|が|です|として)/.exec(line);
+    if (suffixMatch?.[1]) {
+      return found(normalizeCompanyCandidate(suffixMatch[1]), line, "global_scan", "medium");
     }
   }
 
@@ -215,8 +265,14 @@ function extractCompanyName(context: ParserContext): ExtractedValue<string> {
   const otherJobsCompany = findCompanyNameFromOtherJobsLine(context);
   if (otherJobsCompany) return otherJobsCompany;
 
+  const headlineCompany = findCompanyNameFromHeadlineLine(context);
+  if (headlineCompany) return headlineCompany;
+
   const brandedProseCompany = findCompanyNameFromBrandedProse(context);
   if (brandedProseCompany) return brandedProseCompany;
+
+  const corporateProseCompany = findCompanyNameFromCorporateProse(context);
+  if (corporateProseCompany) return corporateProseCompany;
 
   const contactSection = getSectionValue(context.sections, ["連絡先"]);
   if (contactSection) {
@@ -368,6 +424,26 @@ function normalizeAsciiDigits(value: string): string {
   return value.replace(/[０-９]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xfee0));
 }
 
+function findAnnualHolidayShorthandInLines(context: ParserContext): ExtractedValue<number> | null {
+  const lines = context.text
+    .split("\n")
+    .map((line) => normalizeAsciiDigits(normalizeLineValue(line)))
+    .filter((line) => line.length > 0)
+    .slice(0, 20);
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const shorthandMatch = /(?:^|[／/・｜|××\s])年休\s*([0-9]{2,3})日(?:$|[^0-9])/.exec(line);
+    if (!shorthandMatch) continue;
+
+    const source = index <= 5 ? "summary_line" : "global_scan";
+    const confidence = index <= 5 ? "medium" : "low";
+    return found(Number(shorthandMatch[1]), shorthandMatch[0], source, confidence);
+  }
+
+  return null;
+}
+
 function parseJapaneseMoneyAmount(rawValue: string): number | null {
   const normalized = normalizeAsciiDigits(rawValue).replace(/,/g, "").trim();
 
@@ -393,8 +469,18 @@ function extractMoneyAmounts(text: string): number[] {
 
 function extractMonthlyAmounts(text: string): number[] {
   const normalizedText = normalizeAsciiDigits(text);
-  const lines = normalizedText.split("\n").filter((line) => /月給/.test(line));
-  return lines.flatMap((line) => extractMoneyAmounts(line));
+  const matches = normalizedText.matchAll(
+    /月給\s*[:：]?\s*([0-9,]+円|[0-9]+(?:\.[0-9]+)?万円|[0-9]+万[0-9,]+円)(?:\s*[〜～~\-]\s*([0-9,]+円|[0-9]+(?:\.[0-9]+)?万円|[0-9]+万[0-9,]+円))?/g
+  );
+
+  const amounts = Array.from(matches).flatMap((match) => {
+    return [match[1], match[2]].flatMap((value) => {
+      const amount = value ? parseJapaneseMoneyAmount(value) : null;
+      return amount == null ? [] : [amount];
+    });
+  });
+
+  return Array.from(new Set(amounts));
 }
 
 function extractFixedOvertimeMatch(text: string) {
@@ -419,6 +505,10 @@ function extractFixedOvertimeMatch(text: string) {
   };
 }
 
+function salaryTextIncludesOtherAllowances(text: string): boolean {
+  return /(固定残業代[^\n]{0,20}を含む(?:、|。|）)?(?:[^\n]{0,20})?(?:一律|諸|各種)?手当を含む|(?:一律|諸|各種)手当(?:を|も)?含む|インセンティブを含む)/.test(text);
+}
+
 function extractBaseSalary(
   context: ParserContext,
   salaryText: ExtractedValue<string>
@@ -428,6 +518,10 @@ function extractBaseSalary(
 } {
   const text = context.text;
   const fixedOvertime = extractFixedOvertimeMatch(text);
+  const salarySection = getSectionValue(context.sections, ["給与", "給与・報酬", "想定年収", "年収例"]);
+  const monthlyAmountSource = salarySection ?? text;
+  const salaryTextValue = salaryText.value ?? salaryText.evidence ?? "";
+  const includesOtherAllowances = salaryTextValue.length > 0 && salaryTextIncludesOtherAllowances(salaryTextValue);
 
   const rangeMatch = captureByRegex(text, [/基本給[:：]?\s*([\d,]+)円?\s*[〜~\-]\s*([\d,]+)円?/]);
   if (rangeMatch) {
@@ -446,7 +540,7 @@ function extractBaseSalary(
     };
   }
 
-  const monthlyAmounts = extractMonthlyAmounts(text);
+  const monthlyAmounts = extractMonthlyAmounts(monthlyAmountSource);
 
   if (salaryText.status === "found" && salaryText.source === "summary_line") {
     const summaryEvidence = salaryText.evidence ?? salaryText.value ?? "";
@@ -465,7 +559,7 @@ function extractBaseSalary(
     const summaryAmount = summaryAmounts.length > 0 ? summaryAmounts[0] : null;
 
     if (summaryAmount != null) {
-      if (fixedOvertime.pay != null) {
+      if (fixedOvertime.pay != null && !includesOtherAllowances) {
         return {
           min: found(summaryAmount - fixedOvertime.pay, summaryEvidence, "summary_line", salaryText.confidence ?? "medium"),
           max: unknown("summary_line", salaryText.confidence ?? "medium")
@@ -484,7 +578,7 @@ function extractBaseSalary(
     const monthlyMax = Math.max(...monthlyAmounts);
     const monthlyEvidence = `月給記載: ${monthlyAmounts.map((amount) => `${amount.toLocaleString("ja-JP")}円`).join(" / ")}`;
 
-    if (fixedOvertime.pay != null) {
+    if (fixedOvertime.pay != null && !includesOtherAllowances) {
       const evidence = `${monthlyEvidence} / ${fixedOvertime.evidence ?? "固定残業代"} / 基本給記載なしのため月給の最小値から固定残業代を差し引いて算出`;
       return {
         min: found(monthlyMin - fixedOvertime.pay, evidence),
@@ -531,6 +625,9 @@ function extractAnnualHolidays(context: ParserContext): ExtractedValue<number> {
   const holidayMatch = holidaySection ? captureByRegex(normalizeAsciiDigits(holidaySection), [/年間休日[^\n]{0,20}?([0-9]{2,3})日(?:以上)?/]) : null;
   if (holidayMatch) return found(Number(holidayMatch[1]), holidayMatch[0], "section", "high");
 
+  const shorthandMatch = findAnnualHolidayShorthandInLines(context);
+  if (shorthandMatch) return shorthandMatch;
+
   const monthlyDaysOffMatch = holidaySection
     ? captureByRegex(normalizeAsciiDigits(holidaySection), [/([0-9]{1,2})\s*[〜～~\-]\s*([0-9]{1,2})日休み\s*[／/]\s*1ヵ月/, /月\s*([0-9]{1,2})\s*[〜～~\-]\s*([0-9]{1,2})日休み/])
     : null;
@@ -570,11 +667,13 @@ function extractBonusCount(context: ParserContext): ExtractedValue<number> {
     /賞与[^\n]{0,20}?年\s*([0-9０-９])\s*回/,
     /賞与[^\n]{0,20}?([0-9０-９])回/,
     /年\s*([0-9０-９])\s*回[^\n]{0,12}?賞与/,
-    /([0-9０-９])回[^\n]{0,12}?賞与/
+    /([0-9０-９])回[^\n]{0,12}?賞与/,
+    /賞与\s*\n\s*年\s*([0-9０-９])\s*回/,
+    /賞与\s*\n\s*([0-9０-９])回/
   ]);
   if (exactMatch) return found(Number(normalizeAsciiDigits(exactMatch[1])), exactMatch[0], "global_scan", "high");
 
-  const bonusSection = getSectionValue(context.sections, ["昇給・賞与", "賞与・昇給"]);
+  const bonusSection = getSectionValue(context.sections, ["昇給・賞与", "賞与・昇給", "賞与"]);
   if (bonusSection) {
     if (/賞与\s*(?:なし|無|無し|支給なし)/.test(bonusSection)) {
       const sectionNone = /賞与\s*(?:なし|無|無し|支給なし)/.exec(bonusSection);
@@ -619,7 +718,7 @@ function extractRetirementAllowance(text: string): ExtractedValue<boolean> {
   const noneMatch = /退職金(?:制度)?\s*(?:なし|無|無し)/.exec(text);
   if (noneMatch) return none(noneMatch[0]);
 
-  const hasMatch = /退職金(?:制度)?(?:あり|有|支給|制度あり|共済加入)/.exec(text);
+  const hasMatch = /退職金(?:制度)?(?:あり|有|支給|制度あり)?(?:[（(][^）)]*[）)])?|退職金制度|退職金共済(?:の)?加入/.exec(text);
   if (!hasMatch) return unknown();
   return found(true, hasMatch[0]);
 }
@@ -650,7 +749,19 @@ const benefitKeywords = [
   "産休・育休制度",
   "自己啓発制度",
   "メンター制度",
-  "こども手当"
+  "こども手当",
+  "ランチのお弁当無料支給",
+  "フリードリンク",
+  "ジム無料利用可",
+  "生成AIを無制限で利用可能"
+] as const;
+
+const benefitAliasPatterns = [
+  { pattern: /副業(?:OK|可|可能)/, value: "副業可能" },
+  { pattern: /(?:在宅(?:勤務|ワーク)?OK|在宅勤務可|リモートワークあり|リモート勤務可能|リモート可|リモート中心の勤務可|週に1回以上のリモート|リモートベース)/, value: "リモート勤務可能" },
+  { pattern: /フルリモート(?:可能|OK)?/, value: "フルリモート可能" },
+  { pattern: /フレックス(?:勤務|OK|制)|フレックスタイム/, value: "フレックス勤務" },
+  { pattern: /ネイル(?:服装自由)?|服装自由|私服勤務可/, value: "ネイル・服装自由" }
 ] as const;
 
 const summaryBenefitKeywords = ["家賃補助有", "フレックス制度有", "家賃補助あり", "フレックス制度あり"] as const;
@@ -662,6 +773,13 @@ const proseBenefitNoisePattern = /^(続きを読む|応援する|もっと見る
 function collectBenefitTokens(text: string): string[] {
   const matched = benefitKeywords.filter((keyword) => text.includes(keyword));
   return Array.from(new Set(matched));
+}
+
+function collectBenefitAliasTokens(text: string): string[] {
+  const aliasMatches = benefitAliasPatterns
+    .filter(({ pattern }) => pattern.test(text))
+    .map(({ value }) => value);
+  return Array.from(new Set(aliasMatches));
 }
 
 function collectBenefitLinesFromProse(text: string): string[] {
@@ -692,7 +810,7 @@ function collectBenefitLinesFromProse(text: string): string[] {
 
 function extractBenefits(context: ParserContext): ExtractedValue<string[]> {
   const benefitsSection = getCombinedSectionValue(context.sections, ["福利厚生", "待遇・福利厚生", "諸手当"]);
-  const sectionMatches = benefitsSection ? collectBenefitTokens(benefitsSection) : [];
+  const sectionMatches = benefitsSection ? Array.from(new Set([...collectBenefitTokens(benefitsSection), ...collectBenefitAliasTokens(benefitsSection)])) : [];
 
   if (sectionMatches.length > 0) {
     return found(sectionMatches, sectionMatches.join(" / "), "section", "high");
@@ -717,6 +835,11 @@ function extractBenefits(context: ParserContext): ExtractedValue<string[]> {
 
   if (summaryMatches.length > 0) {
     return found(summaryMatches, summaryMatches.join(" / "), "summary_line", "medium");
+  }
+
+  const aliasMatches = collectBenefitAliasTokens(context.text);
+  if (aliasMatches.length > 0) {
+    return found(aliasMatches, aliasMatches.join(" / "), "global_scan", "medium");
   }
 
   return unknown();

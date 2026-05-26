@@ -28,7 +28,7 @@ import rakumoHappy from "../../yuru-chara/rakumo_happy.jpg";
 import rakumoNeutral from "../../yuru-chara/rakumo_neutral.jpg";
 
 const initialText = "";
-const demoSampleText = `株式会社サンプルテック
+const demoSampleTexts: readonly string[] = [`株式会社サンプルテック
 【WEBエンジニア】自社サービスの開発・運用を担当。
 
 必須要件：
@@ -44,7 +44,44 @@ const demoSampleText = `株式会社サンプルテック
 退職金制度あり
 有給休暇、夏季休暇、年末年始休暇、慶弔休暇
 社会保険完備、交通費支給、住宅手当、資格取得支援制度、
-書籍購入補助、リモートワーク可`;
+書籍購入補助、リモートワーク可`, `北浜オフィスサポート株式会社
+【事務】受発注データの入力と社内サポートを担当。
+
+必須要件：
+・PCでの入力業務経験
+・社内外とのメール対応経験
+
+給与：月給24万5,000円〜（固定残業代なし）
+
+年間休日128日
+完全週休2日制（土日祝）
+賞与 年2回
+退職金制度あり
+有給休暇、夏季休暇、年末年始休暇
+社会保険完備、交通費支給、服装自由、時短勤務相談可`, `みなとデザイン合同会社
+【Webデザイナー】LPとバナー制作、更新業務を担当。
+
+歓迎要件：
+・FigmaまたはAdobe XDの利用経験
+・チームでのデザインレビュー経験
+
+給与：月給30万円〜（固定残業代30時間分、58,000円を含む）
+※超過分は別途支給
+
+年間休日123日
+完全週休2日制（土日祝）
+賞与 年1回
+有給休暇、夏季休暇、年末年始休暇
+社会保険完備、交通費支給、書籍購入補助、資格取得支援制度、リモートワーク可`] as const;
+
+function pickRandomSampleText(currentText: string) {
+  if (demoSampleTexts.length === 0) return initialText;
+  if (demoSampleTexts.length === 1) return demoSampleTexts[0];
+
+  const candidates = demoSampleTexts.filter((sample) => sample !== currentText);
+  const pool = candidates.length > 0 ? candidates : demoSampleTexts;
+  return pool[Math.floor(Math.random() * pool.length)] ?? demoSampleTexts[0];
+}
 
 const navItems = [
   { href: "#features", label: "機能" },
@@ -425,7 +462,7 @@ export function HomeDemo() {
                     <BookOpen className="size-5 text-[#2d577a]" />
                     <span>
                       β参加はこちら
-                      <span className="mt-1 block text-sm font-semibold text-[#35546f]">困りごとを先に伝える →</span>
+                      <span className="mt-1 block text-sm font-semibold text-[#35546f]">先行βの案内を受け取る →</span>
                     </span>
                   </Link>
                 </div>
@@ -536,7 +573,7 @@ export function HomeDemo() {
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <button
                   type="button"
-                  onClick={() => setRawText(demoSampleText)}
+                  onClick={() => setRawText((currentText) => pickRandomSampleText(currentText))}
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-[linear-gradient(135deg,#24b4ae_0%,#129995_100%)] px-5 py-3 text-base font-black text-white"
                 >
                   <ClipboardList className="size-4" />

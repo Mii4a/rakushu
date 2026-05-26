@@ -23,6 +23,12 @@
 - dominant shape ratio:
 - dataset gate: pass / conditional / fail
 
+## Cohort split
+- official verdict cohort: full_cohort
+- comparison_grade cohort:
+- thin_input cohort:
+- shadow comparison-grade decision:
+
 ## Product-level result
 - A:
 - B:
@@ -71,6 +77,12 @@
 - new common failure class found repeatedly:
 - recurrence blocker: yes / no
 
+## Cohort decision read
+- official full-cohort verdict:
+- comparison-grade shadow verdict:
+- thin-input shadow verdict:
+- policy note: full-cohort verdict stays official unless criteria are explicitly revised
+
 ## Feedback loop result
 - feedback_expected:
 - feedback_saved:
@@ -103,6 +115,8 @@
 
 ## Conclusion
 - final decision: PASS / CONDITIONAL PASS / FAIL
+- official policy frame: full-cohort verdict is source of truth
+- shadow comparison-grade decision:
 - biggest remaining gap:
 - why it is not done yet / why it is good enough:
 - next fixture candidates:

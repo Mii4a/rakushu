@@ -1,62 +1,46 @@
 # Task
 
 ## Title
-らくしゅう job-analysis feedback 追加の完成判定を、求人コピペ入力の実測ベースで確定する
+らくしゅうを案内制の初期β募集へ進めるため、期待値・対象入力・フィードバック運用・missing-item説明・launch checklist を整える
 
 ## Goal
-「feedback を追加した」だけで完成扱いにせず、実在求人のコピペ入力に対して十分な情報抽出と failure 回収ができているかを、holdout 50件の rubric で判定できる状態にする。
+少人数の guided private beta を安全に始められる状態まで、ユーザー向け文言と運用ドキュメントを揃える。課金込みの public beta ではなく、まずは「改善中であることを明示した案内制β」を成立させる。
+
+## Scope for this task
+1. β募集文の期待値を固定する
+2. 初期βで受ける入力の範囲を明文化する
+3. βフィードバック回収ループを運用化する
+4. `本文未記載 / 要確認` の説明を主要画面で揃える
+5. beta launch checklist を作る
+
+## Non-goals
+- Stripe live E2E の実施
+- public beta の正式解禁
+- parser sign-off policy の最終決定
+- fallback の追加実装
 
 ## Deliverables
-- `fixtures/jobs/phase3-rekatsu-noisy-promo-010-anon.txt`
-- `fixtures/jobs/phase3-rekatsu-noisy-promo-043-anon.txt`
-- `fixtures/jobs/phase3-rekatsu-noisy-promo-044-anon.txt`
-- updated `src/lib/analysis/parser.ts`
-- updated `src/lib/analysis/parser.test.ts`
-- Hermes cron job for nightly rakushu QA
-- `scripts/rescore-job-analysis-holdout.ts`
-- `docs/job-analysis-completion-criteria.md`
-- `docs/evaluations/job-analysis-holdout-2026-05-23-v1.6.1-rerun-signoff-scorecard.csv`
-- `docs/evaluations/job-analysis-holdout-2026-05-23-v1.6.1-rerun-signoff-summary.md`
-- `docs/evaluations/job-analysis-holdout-2026-05-23-v1.6.1-rerun-signoff-notes.md`
-- `docs/evaluations/job-analysis-holdout-2026-05-22-rerun-signoff-scorecard.csv`
-- `docs/evaluations/job-analysis-holdout-2026-05-22-rerun-signoff-summary.md`
-- `docs/evaluations/job-analysis-holdout-2026-05-22-rerun-signoff-notes.md`
-- `docs/evaluations/job-analysis-holdout-2026-05-22-signoff-scorecard.csv`
-- `docs/evaluations/job-analysis-holdout-2026-05-22-signoff-summary.md`
-- `docs/evaluations/job-analysis-holdout-2026-05-22-signoff-notes.md`
-- `implementation_plan.md`
-- `walkthrough.md`
+- updated `src/app/beta/page.tsx`
+- updated `src/components/beta-intake-form.tsx`
+- updated `src/components/job-create-form.tsx`
+- updated `src/app/jobs/page.tsx`
+- new reusable helper component(s) if needed under `src/components/`
+- `docs/beta-user-ops.md`
+- updated `docs/beta-intake-and-traction-spec.md`
+- `docs/beta-feedback-review-loop.md`
+- `docs/beta-launch-checklist.md`
+- updated `implementation_plan.md`
+- updated `walkthrough.md`
 
-## Current verdict
-- Final decision: FAIL
-- Reason: dataset readiness は pass だが、product / critical-field / feedback(observed) の各 gate が未達。`job_board_listcard` は改善した一方で、`noisy_promo` / `company_careers` / `prose_heavy` の recurring failure が前面に出た
+## Completion criteria
+- βページに「改善中」「完全対応ではない」「困りごとの強い人から案内」の期待値が明記されている
+- 初期βで受ける入力の強いケース / 弱いケース / 運営対応ルールが docs にまとまっている
+- βフィードバックの weekly review 指標・定性バケット・エスカレーション先が docs にまとまっている
+- 主要画面で `本文未記載` と `要確認` の意味が短く説明されている
+- launch checklist が hard gate / soft gate / no-go を分けて記載している
+- `npm test` と `npm run build` が green
 
-## Measured blockers
-- A+B: 66%
-- C: 17 / 50
-- critical 3/4+ usable: 66%
-- critical 4/4 usable: 38%
-- observed feedback recall: 36% (4/11 observed saved-job subset)
-- simulated public feedback recall: 64% (21/33 public rerun subset)
-- high-signal fixture count: 19
-- recurring common failures:
-  - `too_many_unknown_critical_fields`
-  - `benefits_suspected_but_not_extracted`
-  - `salary_text_without_base_salary`
-
-## Immediate targets
-1. `holdout-candidate-035` を基準に、`company_careers` の C 判定が parser 責任か入力不足かを先に切り分ける
-2. 入力不足寄りなら、quality / signoff 側で「薄い company-authored search card に generic critical-field gate をそのまま当てる妥当性」を整理する
-3. Green 系 `company_careers` は、少なくとも `014` / `035` 代表行では input-insufficiency 寄りかを見極め、parser fix を急がない
-4. Wantedly 系 `prose_heavy` の global prose fallback を強化する（候補: `holdout-candidate-047`, `049`）
-5. `job_board_detail` に残る `salary_text_without_base_salary` 5件を narrow fix で削る
-6. observed feedback recall を 80%以上へ上げる
-
-## This turn
-- `job_board_detail:salary_text_without_base_salary` に残っていた 5件（`004`, `026`, `030`, `032`, `034`）の raw text と parser / quality 出力を照合し、全件とも salaryText 自体は comparison-usable だが baseSalary 正規化だけが未完了な structured detail だと確認する
-- `src/lib/analysis/quality.ts` の `needsBaseSalaryNormalization` を narrow に見直し、section / direct_label 由来の clean structured salary text は high-signal failure にしない
-- fixture-backed tests と docs を更新し、Track 4 を締める
-- Track 5 では `src/lib/analysis/feedback.ts` を新設して feedback insert payload を共通化し、`src/actions/job-actions.ts` の auto-save 条件を `evaluateParsedJobQuality` / `shouldCreateFeedback` と同一化した
-- `quality.ts` / `quality.test.ts` に `bonus_count_unknown_with_keyword` と `retirement_allowance_unknown_with_keyword` を追加し、賞与・退職金の raw keyword があるのに unknown のケースを save-worthy feedback へ格上げした
-- `scripts/rescore-job-analysis-holdout.ts` に `--observed-feedback-source manifest|db|simulate` を追加し、DB 実測ベースで observed feedback_saved を再採点できるようにした
-- DB source で `docs/evaluations/job-analysis-holdout-2026-05-24-task5-db-check-{scorecard,summary,notes}` を再生成し、observed feedback recall が 3/10 (30%) のまま・public simulated recall が 22/30 (73%) であることを確認した
+## Current decision
+- 今は self-serve public beta ではなく guided private beta を先に成立させる
+- parser quality 論点は残っているが、初期β募集の直近ボトルネックは user-facing expectation と運用ルールの未整備
+- thin-input / low-visibility row は「不具合扱いする前に、入力情報不足として説明する」運用を採る

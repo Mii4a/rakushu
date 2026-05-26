@@ -29,6 +29,13 @@
 - 取りこぼしや parser miss が起きても、その多くが high-signal feedback として回収される
 - 回収した失敗が fixture / test / parser hardening に接続され、同型の失敗が繰り返し残らない
 
+## Product priority note
+
+- らくしゅうの主価値は、まず「求人を貼ればその内容を採点できること」にある
+- 次に「その採点基準をみんなで共有できること」にある
+- 比較機能は重要だが、完成判定を考えるときの唯一の中心ではない
+- したがって raw text が薄い求人では、単に比較不能として除外するのではなく、**どの採点項目が本文に未記載か** をユーザーに返せることも品質要件に含める
+
 ## Decision states
 
 完成判定は 3 段階で行う。
@@ -71,6 +78,7 @@
 - Required gate 未達なら、parser が良く見えても sign-off しない
 - Recommended gate 未達でも Required gate を満たしていれば評価実施は可能。ただし conclusion に偏りを明記する
 - high-risk shape に含まれる row のうち、raw text 自体が薄く critical field が露出していない thin-input row は別途ラベルする。high-risk shape だからといって、そのまま parser hardening の根拠にしない
+- sign-off artifact では `review_cohort=comparison_grade | thin_input` を持たせ、full-cohort verdict と parser-accountability read を並記する
 
 ## 2. Product-level usability gate
 
@@ -91,11 +99,15 @@
 - minor miss はある
 - ただし companyName / employmentType / salaryText / annualHolidays の致命傷はない
 - 読み直しが必要でも確認は局所的で済む
+- 典型例として、companyName / employmentType / salaryText は比較に使えるが `annualHolidays` total だけ raw text に見えない thin row は B に残りうる
+- この種の row は product 上の取りこぼしとしては数えるが、raw text に annual-holiday count/value が無い限り parser-miss-worthy 根拠には使わない
 
 #### C
 - companyName / employmentType / salaryText / annualHolidays のいずれかに trust-breaking mistake がある
 - 取りこぼしが多く、比較判断がかなり不安定
 - 元本文をほぼ読み直さないと使いづらい
+- raw text 自体が薄く、採点に必要な critical item が複数そもそも書かれていない場合も C に残りうる
+- このときは parser failure と source-thinness を分けて記録しつつ、**未記載項目は最低点として扱い、未記載であること自体をユーザーに明示する**
 
 ### Pass line
 - A + B が 90%以上
@@ -143,6 +155,22 @@
 - `unknown` は許容するが、誤値より `unknown` を優先する
 - evidence と source を見たときに抽出理由が説明できる
 - summary / normalized value / raw text の間で明白な矛盾がない
+- raw text に採点項目が存在しない場合は、その missing を隠さず返し、どの項目が本文未記載かを説明できる
+
+### Thin annual-holidays row rule
+- `annualHolidays` は strict に numeric usable / miss を採点する
+- ただし raw text に `年間休日NN日` や `年休NN日` のような count/value 自体が無い row は、`annualHolidays=miss` でも parser-miss-worthy と同一視しない
+- 特に listcard / teaser / prose の thin row で、companyName / employmentType / salaryText は usable だが annual-holiday total だけ不在なケースは、`thin annual-holidays row` として summary / notes に別記する
+- これらの row は 4/4 usable 率を押し下げるが、recurring parser bug の証拠としては数えない
+
+### Thin-row boundary rule
+- thin-row 解釈を追加しても、full-cohort の product / critical gate を自動で conditional pass へ引き上げたことにはしない
+- 特に residual C rows が low-visibility teaser / prose / company-card に残っている場合、`annualHolidays` の薄い B rows だけを別解釈しても final verdict は変えない
+- その代わり sign-off では、次の 2 つを分けて書く
+  1. **full-cohort verdict**: 実ユーザーが遭遇する入力のまま採点した最終 verdict
+  2. **parser-accountability read**: recurring parser bug がどこまで閉じたかを示す補助 read
+- `parser-accountability read` は parser の責任範囲を示す補助情報であり、final sign-off verdict そのものではない
+- 明示的に criteria を改訂しない限り、official verdict は full-cohort を維持する
 
 ### 3-2. Secondary fields
 
@@ -187,6 +215,20 @@ feedback loop は「失敗を保存できるか」ではなく、「改善価値
   - `summaryText` が failure shape を説明している
   - `rawExcerpt` が短すぎず長すぎない
   - `parsedSnapshot` で原因切り分けに入れる
+
+### Expected-feedback denominator rule
+- `feedback_expected=yes` に数えるのは、「current save rule でも保存すべき」と判断できる row に限る
+- thin-input `company_careers` で raw text に比較用 critical field 自体が露出していない row は、generic な C / unknown 判定だけでは expected-feedback denominator に入れない
+- ただし thin-input row でも、current `shouldCreateFeedback(report)` が high-signal failure type を返すなら `feedback_expected=yes` のまま扱う
+- 典型例: `holdout-candidate-014` のように thin-input かつ current save rule が `no` の row は observed recall denominator から外す
+- 典型例: `holdout-candidate-035` のように thin-input でも current save rule が `yes` の row は denominator に残す
+
+### Zero-denominator rule
+- current rerun が `feedback_expected=0` / `feedback_saved=0` になった場合、機械的に recall `0%` と読んで feedback gate を fail にしない
+- この状態は「current parser / current save rule 上で open な high-signal feedback row が残っていない」ことを示す補助シグナルとして扱う
+- sign-off summary / checklist では、`current rerun open rows: 0/0` と `latest observed DB-backed rerun` を並記して evidence を分ける
+- feedback gate の主判定は、直近の observed DB-backed rerun が non-zero denominator を持つならそちらを優先する
+- つまり `0/0` は evidence vacuum であって save miss ではない。feedback loop を止める理由にするなら、別途 observed miss か noisy save の根拠が必要
 
 ### Conditional pass line
 - recall が 70%以上 80%未満
