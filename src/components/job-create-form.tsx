@@ -6,6 +6,7 @@ import { AlertCircle, CheckCircle2, FilePenLine, Info } from "lucide-react";
 
 import { createJobAction, type JobActionState } from "@/actions/job-actions";
 import { AnalysisLimitModal } from "@/components/analysis-limit-modal";
+import { MissingItemStatusExplainer } from "@/components/missing-item-status-explainer";
 import rakumoImage from "../../yuru-chara/rakumo_happy.jpg";
 
 const initialState: JobActionState = {
@@ -132,6 +133,8 @@ export function JobCreateForm() {
               URL は入力する場合のみ正しい形式で入力します
             </p>
           </div>
+
+          <MissingItemStatusExplainer title="結果で出る表示の見方" />
 
           {state.status === "error" && state.code !== "analysis_limit" ? <p className="text-sm font-medium text-rose-700">{state.message}</p> : null}
 

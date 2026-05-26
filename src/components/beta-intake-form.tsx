@@ -44,6 +44,15 @@ export function BetaIntakeForm({
           </p>
         </div>
 
+        <div className="rounded-[24px] border border-[#ffe2cf] bg-[#fff8f3] p-4 text-sm leading-7 text-[#4f6a80]">
+          <p className="font-black text-[#17355b]">申し込み前に知っておいてほしいこと</p>
+          <ul className="mt-2 space-y-1">
+            <li>・いまは案内制の少人数βです</li>
+            <li>・すべての求人媒体で完全対応しているわけではありません</li>
+            <li>・比較材料が薄い求人は、判定より先に「本文未記載」「要確認」が増えることがあります</li>
+          </ul>
+        </div>
+
         <label className="block space-y-2 text-sm font-semibold text-[#17355b]">
           <span>連絡先（メール or Discord）</span>
           <input

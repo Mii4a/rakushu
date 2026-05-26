@@ -24,6 +24,7 @@ import type { ParsedJob } from "@/lib/analysis";
 import { JobDeleteForm } from "@/components/job-delete-form";
 import { RerunAnalysisButton } from "@/components/rerun-analysis-button";
 import { getChecklistItems } from "@/components/jobs/JobCheckList";
+import { MissingItemStatusExplainer } from "@/components/missing-item-status-explainer";
 import { RakumoAvatar } from "@/components/rakumo/RakumoAvatar";
 import { SelectionProgressForm } from "@/components/selection-progress-form";
 import { RakumoEmptyState } from "@/components/rakumo/RakumoEmptyState";
@@ -500,6 +501,11 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
                     条件の近い求人から見比べると整理しやすいよ ✨
                   </div>
 
+                  <div className="mb-4 rounded-[20px] border border-[#dce7ee] bg-[#f7fbfd] p-4 text-sm text-rakumo-ink/75">
+                    <p className="font-bold text-rakumo-ink">表示の見方</p>
+                    <p className="mt-2 leading-7">`本文未記載` は元の求人文に比較材料が見当たらない状態、`要確認` は書かれていそうでも自動整理がまだ不安定な状態です。</p>
+                  </div>
+
                   {sortedList.map((job) => {
                     const displayCompanyName = job.parsed?.companyName.value ?? job.companyName ?? "会社名不明";
                     const displayTitle = job.parsed?.title.value ?? job.title ?? "職種不明";
@@ -724,6 +730,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
                         </div>
 
                         <div className="rounded-[18px] border border-rakumo-border bg-[#fbfdf8] p-4">
+                          <MissingItemStatusExplainer title="求人結果の見方" className="mb-4 bg-white" />
                           {selectedMissingSummary?.thinInput ? (
                             <div className="mb-4 rounded-[16px] border border-[#ffd6bf] bg-[#fff7f1] p-4 text-sm text-rakumo-ink">
                               <p className="font-bold text-[#c7732a]">この求人は情報が薄めです</p>
