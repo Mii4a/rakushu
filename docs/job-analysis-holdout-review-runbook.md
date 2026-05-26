@@ -24,6 +24,7 @@
 - scorecard CSV
 - 補足メモ Markdown
 - 集計サマリ Markdown
+- cohort 付き scorecard（`review_cohort`, raw-missing / visible-unparsed critical columns を含む）
 - 必要なら fixture 化候補リスト
 
 推奨パス:
@@ -62,6 +63,7 @@ holdout 50件以上に対して、少なくとも次の shape を混ぜる。
 - 各 sample に `sample_id` を振る
 - saved job を使う場合は `job_id` / `analysis_id` / `parser_version` も最初から埋める
 - source shape を先に埋めておく
+- rerun script を使う場合は `review_cohort`, `raw_missing_critical_*`, `visible_unparsed_critical_*` を自動出力する
 
 ### Step 2: Run or open the parser result
 
@@ -189,6 +191,28 @@ holdout 50件以上に対して、少なくとも次の shape を混ぜる。
 - `feedback_expected=yes`: 見逃すと今後も壊れやすい failure shape
 - `feedback_quality=high_signal`: summary / excerpt / parsed snapshot を見てすぐ次アクションが決まる
 - `feedback_quality=noisy`: 見ても修正方針が出ない、または低価値
+- thin-input `company_careers` は追加ルールを使う
+- final verdict では full-cohort を official denominator に残し、`comparison_grade` cohort は shadow read として summary に併記する
+  - raw text に critical field が露出していないだけの row は、generic な C / unknown だけでは `feedback_expected=yes` にしない
+  - current `shouldCreateFeedback(report)` が `yes` を返す high-signal failure type があるなら `feedback_expected=yes`
+  - `holdout-candidate-014` 型は denominator から外し、`holdout-candidate-035` 型は denominator に残す
+- `job_board_listcard` / `prose_heavy` の row-level例外
+  - missing critical が `annualHolidays` だけで、raw text に `年休124日` / `年休125日` のような **count付き holiday signal** が visible なら `feedback_expected=yes` を検討する
+  - `完全週休2日` / `土日祝休み` のような generic holiday-style signal しか見えず、annual-holiday count/value が visible でない row は `feedback_expected=no` を基本にする
+  - `prose_heavy` で holiday-style benefits だけ visible だが employmentType / salaryText / annualHolidays の recoverable signal が足りない row も `feedback_expected=no` を基本にする
+- zero-denominator rule
+  - current rerun が `feedback_expected=0` / `feedback_saved=0` なら、機械的に recall `0%` と読んで feedback gate を fail にしない
+  - このときは `current rerun open rows: 0/0` と `latest observed DB-backed rerun` を並記して、open miss が残っていないことと observed evidence を分けて示す
+
+### Step 7.5: Split residual B/C rows before final verdict
+
+failure type が 0 でも sign-off が通るとは限らない。B/C が残る場合は、最終 verdict の前に row-level で次を分ける。
+
+- parser-miss-worthy: raw text に critical field が visible なのに parser が取り逃がしている
+- thin-input: raw text に critical field 自体が露出していない
+- mixed-signal: 一部だけ visible で parser hardening と sign-off 解釈の両方が絡む
+
+特に `company_careers` / `noisy_promo` / `prose_heavy` は、この分離をしないと「parser bug は減ったのに product gate が落ちる」状態を誤読しやすい。
 
 ### Step 8: Set next action
 
@@ -234,6 +258,7 @@ holdout 50件以上に対して、少なくとも次の shape を混ぜる。
 - 4/4 usable 率
 - 3/4 以上 usable 率
 - `wrong` を含む件数
+- `annualHolidays` miss のうち、raw text に count/value 自体が無い thin annual-holidays rows 件数
 
 ### Secondary fields
 
@@ -252,6 +277,18 @@ holdout 50件以上に対して、少なくとも次の shape を混ぜる。
 - そのうち `feedback_saved=yes` 件数
 - save recall (`feedback_saved / feedback_expected`)
 - noisy feedback 件数
+- `feedback_expected=0` のときは `current rerun open rows: 0/0` として別記し、最新 observed DB-backed rerun を併記する
+
+### Thin-row boundary check
+
+recurring parser blocker が 0 なのに full-cohort verdict が fail のときは、最終 verdict を動かす前に次を確認する。
+
+- thin annual-holidays B rows だけを別扱いにしても、C rate や 4/4 usable rate の未達が残るか
+- residual C rows が parser-miss-worthy ではなく low-visibility teaser / prose / company-card に偏っていないか
+- `parser-accountability read` を書く価値はあるか
+
+ここでの目的は、thin-row 解釈だけで fail を conditional pass に見せかけないこと。
+`parser-accountability read` は recurring parser bug の閉じ具合を示す補助情報であり、full-cohort final verdict の代替ではない。
 
 ## Decision rules
 
@@ -300,6 +337,12 @@ holdout 50件以上に対して、少なくとも次の shape を混ぜる。
 - `shouldCreateFeedback(report)` の閾値を見直す
 - excerpt / summaryText の質も同時に見る
 
+### If failure type は 0 なのに product / critical gate が落ちる
+
+- residual B/C rows を thin-input / parser-miss-worthy / mixed-signal に分け直す
+- 特に `annualHolidays` total を raw text が持たない listcard / teaser / prose row を別バケットで列挙する
+- parser hardening の不足ではなく sign-off rubric の論点なら、criteria / checklist / summary wording を先に揃える
+
 ## Recommended summary format
 
 最終サマリは次の見出しで残すと見返しやすい。
@@ -340,6 +383,11 @@ holdout 50件以上に対して、少なくとも次の shape を混ぜる。
 - feedback_saved: 10
 - recall: 83%
 - noisy: 2
+
+## Thin-row interpretation
+- thin annual-holidays rows:
+- parser-miss-worthy rows:
+- mixed-signal rows:
 
 ## Conclusion
 - provisional decision: pass / fail

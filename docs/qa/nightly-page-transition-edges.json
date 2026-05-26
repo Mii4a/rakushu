@@ -1,0 +1,273 @@
+{
+  "baseUrlEnv": "RAKUSHU_QA_BASE_URL",
+  "authState": {
+    "mode": "signed-session-cookie-script",
+    "required": true,
+    "prepareScript": "node --env-file=.env.production scripts/prepare-nightly-qa-auth.mjs",
+    "notes": [
+      "Nightly QA creates a fresh Better Auth session row and injects the signed session cookie into the browser.",
+      "Google OAuth itself is not part of this nightly navigation suite.",
+      "If RAKUSHU_QA_USER_EMAIL is unset and the database has exactly one user, the helper script auto-selects that user."
+    ]
+  },
+  "routeInventory": {
+    "public": [
+      "/",
+      "/beta",
+      "/login",
+      "/legal/commerce",
+      "/legal/privacy",
+      "/legal/refund",
+      "/legal/terms"
+    ],
+    "authenticated": [
+      "/dashboard",
+      "/pricing",
+      "/criteria",
+      "/criteria/[id]",
+      "/jobs",
+      "/jobs/new",
+      "/jobs/[id]",
+      "/jobs/[id]/edit",
+      "/compare",
+      "/resume",
+      "/settings",
+      "/settings/account",
+      "/settings/commute",
+      "/internal/parser-feedback"
+    ]
+  },
+  "edges": [
+    {
+      "id": "home-to-login-cta",
+      "from": "/",
+      "to": "/login",
+      "auth": "public",
+      "action": { "kind": "click-text", "target": "ログイン" },
+      "assert": {
+        "urlIncludes": "/login",
+        "pageText": ["Googleアカウントで始める", "ログイン"]
+      }
+    },
+    {
+      "id": "home-to-criteria-cta",
+      "from": "/",
+      "to": "/criteria",
+      "auth": "public",
+      "action": { "kind": "click-text", "target": "判断基準" },
+      "assert": {
+        "redirectAllowed": ["/login"],
+        "pageText": ["判断基準", "公開基準", "ログイン"]
+      }
+    },
+    {
+      "id": "home-to-legal-commerce-footer",
+      "from": "/",
+      "to": "/legal/commerce",
+      "auth": "public",
+      "action": { "kind": "click-text", "target": "特定商取引法に基づく表記" },
+      "assert": {
+        "urlIncludes": "/legal/commerce"
+      }
+    },
+    {
+      "id": "home-to-legal-terms-footer",
+      "from": "/",
+      "to": "/legal/terms",
+      "auth": "public",
+      "action": { "kind": "click-text", "target": "利用規約" },
+      "assert": {
+        "urlIncludes": "/legal/terms"
+      }
+    },
+    {
+      "id": "home-to-legal-privacy-footer",
+      "from": "/",
+      "to": "/legal/privacy",
+      "auth": "public",
+      "action": { "kind": "click-text", "target": "プライバシーポリシー" },
+      "assert": {
+        "urlIncludes": "/legal/privacy"
+      }
+    },
+    {
+      "id": "home-to-legal-refund-footer",
+      "from": "/",
+      "to": "/legal/refund",
+      "auth": "public",
+      "action": { "kind": "click-text", "target": "返金ポリシー" },
+      "assert": {
+        "urlIncludes": "/legal/refund"
+      }
+    },
+    {
+      "id": "beta-to-pricing-cta",
+      "from": "/beta",
+      "to": "/pricing",
+      "auth": "public",
+      "action": { "kind": "click-text", "target": "料金プランを見る" },
+      "assert": {
+        "redirectAllowed": ["/login"],
+        "pageText": ["料金", "ログイン"]
+      }
+    },
+    {
+      "id": "dashboard-to-jobs-sidebar",
+      "from": "/dashboard",
+      "to": "/jobs",
+      "auth": "required",
+      "action": { "kind": "click-text", "target": "求人一覧" },
+      "assert": {
+        "urlIncludes": "/jobs",
+        "pageText": ["求人一覧", "保存した求人"]
+      }
+    },
+    {
+      "id": "dashboard-to-criteria-sidebar",
+      "from": "/dashboard",
+      "to": "/criteria",
+      "auth": "required",
+      "action": { "kind": "click-text", "target": "判断基準" },
+      "assert": {
+        "urlIncludes": "/criteria",
+        "pageText": ["判断基準", "公開基準"]
+      }
+    },
+    {
+      "id": "dashboard-to-pricing-card",
+      "from": "/dashboard",
+      "to": "/pricing",
+      "auth": "required",
+      "action": { "kind": "click-text", "target": "プラン詳細" },
+      "assert": {
+        "urlIncludes": "/pricing",
+        "pageText": ["料金", "プラン"]
+      }
+    },
+    {
+      "id": "jobs-to-new-cta",
+      "from": "/jobs",
+      "to": "/jobs/new",
+      "auth": "required",
+      "action": { "kind": "click-text", "target": "求人を入力してみる" },
+      "assert": {
+        "urlIncludes": "/jobs/new",
+        "pageText": ["ランク付け", "求人"]
+      }
+    },
+    {
+      "id": "jobs-to-detail-first-row",
+      "from": "/jobs",
+      "to": "/jobs/[id]",
+      "auth": "required",
+      "dataDependency": {
+        "type": "job",
+        "minimumCount": 1
+      },
+      "action": { "kind": "click-text", "target": "詳細を見る", "occurrence": 1 },
+      "assert": {
+        "urlMatches": "^/jobs/[^/]+$",
+        "pageText": ["詳細", "再解析", "応募状況"]
+      }
+    },
+    {
+      "id": "criteria-to-new-cta",
+      "from": "/criteria",
+      "to": "/jobs/new",
+      "auth": "required",
+      "action": { "kind": "click-text", "target": "この基準でランク付け" },
+      "assert": {
+        "urlIncludes": "/jobs/new",
+        "pageText": ["ランク付け", "求人"]
+      }
+    },
+    {
+      "id": "compare-to-jobs-empty-state",
+      "from": "/compare",
+      "to": "/jobs",
+      "auth": "required",
+      "action": { "kind": "click-text", "target": "求人一覧へ" },
+      "assert": {
+        "urlIncludes": "/jobs",
+        "pageText": ["求人一覧", "保存した求人"]
+      }
+    },
+    {
+      "id": "compare-to-jobs-new-empty-state",
+      "from": "/compare",
+      "to": "/jobs/new",
+      "auth": "required",
+      "action": { "kind": "click-text", "target": "求人を入力する" },
+      "assert": {
+        "urlIncludes": "/jobs/new",
+        "pageText": ["ランク付け", "求人"]
+      }
+    },
+    {
+      "id": "settings-redirect-to-account",
+      "from": "/settings",
+      "to": "/settings/account",
+      "auth": "required",
+      "action": { "kind": "navigate-only" },
+      "assert": {
+        "urlIncludes": "/settings/account",
+        "pageText": ["アカウント設定"]
+      }
+    },
+    {
+      "id": "account-to-commute-link",
+      "from": "/settings/account",
+      "to": "/settings/commute",
+      "auth": "required",
+      "action": { "kind": "click-text", "target": "通勤プロフィールを開く" },
+      "assert": {
+        "urlIncludes": "/settings/commute",
+        "pageText": ["通勤", "設定"]
+      }
+    },
+    {
+      "id": "commute-to-account-link",
+      "from": "/settings/commute",
+      "to": "/settings/account",
+      "auth": "required",
+      "action": { "kind": "click-text", "target": "アカウント設定へ" },
+      "assert": {
+        "urlIncludes": "/settings/account",
+        "pageText": ["アカウント設定"]
+      }
+    },
+    {
+      "id": "unauth-dashboard-redirect",
+      "from": "/dashboard",
+      "to": "/login",
+      "auth": "unauth-only",
+      "action": { "kind": "navigate-only" },
+      "assert": {
+        "urlIncludes": "/login",
+        "pageText": ["ログイン", "Googleアカウントで始める"]
+      }
+    },
+    {
+      "id": "auth-root-redirect",
+      "from": "/",
+      "to": "/dashboard",
+      "auth": "required",
+      "action": { "kind": "navigate-only" },
+      "assert": {
+        "urlIncludes": "/dashboard",
+        "pageText": ["おかえりなさい", "今日の焦点"]
+      }
+    },
+    {
+      "id": "auth-login-redirect",
+      "from": "/login",
+      "to": "/dashboard",
+      "auth": "required",
+      "action": { "kind": "navigate-only" },
+      "assert": {
+        "urlIncludes": "/dashboard",
+        "pageText": ["おかえりなさい", "今日の焦点"]
+      }
+    }
+  ]
+}

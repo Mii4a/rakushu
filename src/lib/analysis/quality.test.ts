@@ -120,11 +120,24 @@ describe("evaluateParsedJobQuality", () => {
       annualHolidays: extracted<number>({ status: "unknown", value: null, evidence: null, source: "validation", confidence: "low" })
     });
 
-    const report = evaluateParsedJobQuality("株式会社らくしゅう 正社員 月給25万円以上", parsed);
+    const report = evaluateParsedJobQuality("株式会社らくしゅう 正社員 月給25万円以上 年間休日125日", parsed);
 
     expect(report.failureTypes).toContain("summary_line_only_extraction");
     expect(report.failureTypes).not.toContain("too_many_unknown_critical_fields");
     expect(shouldCreateFeedback(report)).toBe(true);
+  });
+
+  it("does not create summary-line-only feedback for thin company_careers cards with no visible missing critical field", () => {
+    const raw = readFixture("phase4-summary-line-only-038-anon.txt");
+    const parsed = parseJobText(raw);
+
+    const report = evaluateParsedJobQuality(raw, parsed);
+
+    expect(parsed.companyName.source).toBe("summary_line");
+    expect(parsed.salaryText.source).toBe("summary_line");
+    expect(parsed.annualHolidays.status).toBe("unknown");
+    expect(report.failureTypes).not.toContain("summary_line_only_extraction");
+    expect(shouldCreateFeedback(report)).toBe(false);
   });
 
   it("does not create feedback when only company name is unknown", () => {
@@ -134,6 +147,20 @@ describe("evaluateParsedJobQuality", () => {
 
     const report = evaluateParsedJobQuality("雇用形態: 正社員\n給与: 月給25万円以上\n年間休日125日", parsed);
 
+    expect(report.failureTypes).not.toContain("too_many_unknown_critical_fields");
+    expect(shouldCreateFeedback(report)).toBe(false);
+  });
+
+  it("does not mark thin-input noisy promo pages as too_many_unknown_critical_fields", () => {
+    const raw = readFixture("phase3-rekatsu-noisy-promo-043-anon.txt");
+    const parsed = parseJobText(raw);
+
+    const report = evaluateParsedJobQuality(raw, parsed);
+
+    expect(parsed.companyName.status).toBe("unknown");
+    expect(parsed.employmentType.status).toBe("unknown");
+    expect(parsed.salaryText.status).toBe("unknown");
+    expect(parsed.annualHolidays.status).toBe("unknown");
     expect(report.failureTypes).not.toContain("too_many_unknown_critical_fields");
     expect(shouldCreateFeedback(report)).toBe(false);
   });
@@ -156,8 +183,10 @@ describe("evaluateParsedJobQuality", () => {
     expect(shouldCreateFeedback(report)).toBe(false);
   });
 
-  it("marks negative inferred base salary as save-worthy feedback", () => {
+  it("marks negative derived base salary as save-worthy feedback", () => {
     const parsed = buildParsedJob({
+      salaryText: extracted({ status: "found", value: "300～400万円", evidence: "想定年収：300～400万円", source: "direct_label", confidence: "high" }),
+      fixedOvertimePay: extracted<number>({ status: "found", value: 43200, evidence: "固定残業代43,200円", source: "global_scan", confidence: "medium" }),
       baseSalaryMin: extracted<number>({
         status: "found",
         value: -33200,
@@ -173,6 +202,21 @@ describe("evaluateParsedJobQuality", () => {
     expect(report.failureTypes).toContain("negative_base_salary_detected");
     expect(report.severity).toBe("high");
     expect(shouldCreateFeedback(report)).toBe(true);
+  });
+
+  it("clears negative-base-salary feedback once polluted monthly allowance amounts are ignored", () => {
+    const raw003 = readFixture("phase4-negative-base-salary-003-anon.txt");
+    const raw011 = readFixture("phase4-negative-base-salary-011-anon.txt");
+    const parsed003 = parseJobText(raw003);
+    const parsed011 = parseJobText(raw011);
+
+    const report003 = evaluateParsedJobQuality(raw003, parsed003);
+    const report011 = evaluateParsedJobQuality(raw011, parsed011);
+
+    expect(parsed003.baseSalaryMin.value).toBe(170000);
+    expect(parsed011.baseSalaryMin.value).toBe(190200);
+    expect(report003.failureTypes).not.toContain("negative_base_salary_detected");
+    expect(report011.failureTypes).not.toContain("negative_base_salary_detected");
   });
 
   it("marks platform-polluted company names as save-worthy feedback", () => {
@@ -205,6 +249,17 @@ describe("evaluateParsedJobQuality", () => {
     expect(shouldCreateFeedback(report)).toBe(true);
   });
 
+  it("does not mark bonus-count feedback when the raw text only mentions 賞与実績 in months without a recoverable count", () => {
+    const raw = readFixture("phase4-bonus-count-036-anon.txt");
+    const parsed = parseJobText(raw);
+
+    const report = evaluateParsedJobQuality(raw, parsed);
+
+    expect(parsed.bonusCount.status).toBe("unknown");
+    expect(report.failureTypes).not.toContain("bonus_count_unknown_with_keyword");
+    expect(shouldCreateFeedback(report)).toBe(false);
+  });
+
   it("marks retirement allowance keywords without extracted verdict as save-worthy feedback", () => {
     const parsed = buildParsedJob({
       retirementAllowance: extracted<boolean>({ status: "unknown", value: null, evidence: null, source: "validation", confidence: "low" })
@@ -225,7 +280,44 @@ describe("evaluateParsedJobQuality", () => {
 
     expect(parsed.benefits.status).toBe("found");
     expect(report.failureTypes).not.toContain("benefits_suspected_but_not_extracted");
-    expect(report.failureTypes).toContain("too_many_unknown_critical_fields");
+    expect(report.failureTypes).not.toContain("too_many_unknown_critical_fields");
     expect(report.signals.benefitsSuspected).toBe(false);
+    expect(shouldCreateFeedback(report)).toBe(false);
+  });
+
+  it("ignores story-title internship noise when deciding visible employment signals on thin-input prose-heavy pages", () => {
+    const raw = [
+      "なにをやっているのか",
+      "ドコドアはアプリ開発・Web開発を通してDX支援を行っています。",
+      "どうやっているのか",
+      "・完全週休2日制",
+      "・フルリモート可能",
+      "会社の注目のストーリー",
+      "【新卒インタビュー】入社前の不安は？内定者インターンから見えたドコドアの裏側",
+      "ドコドア株式会社の他の募集"
+    ].join("\n");
+    const parsed = parseJobText(raw);
+
+    const report = evaluateParsedJobQuality(raw, parsed);
+
+    expect(parsed.companyName.value).toBe("ドコドア株式会社");
+    expect(parsed.employmentType.status).toBe("unknown");
+    expect(parsed.annualHolidays.status).toBe("unknown");
+    expect(report.failureTypes).not.toContain("too_many_unknown_critical_fields");
+    expect(shouldCreateFeedback(report)).toBe(false);
+  });
+
+  it("does not flag benefits suspicion when制度 appears only in business-domain prose", () => {
+    const raw = readFixture("phase4-en-agent-listcard-benefits-noise-022-anon.txt");
+    const parsed = parseJobText(raw);
+
+    const report = evaluateParsedJobQuality(raw, parsed);
+
+    expect(parsed.companyName.value).toBe("株式会社日立製作所");
+    expect(parsed.employmentType.value).toBe("正社員");
+    expect(parsed.benefits.status).toBe("unknown");
+    expect(report.failureTypes).not.toContain("benefits_suspected_but_not_extracted");
+    expect(report.signals.benefitsSuspected).toBe(false);
+    expect(shouldCreateFeedback(report)).toBe(false);
   });
 });

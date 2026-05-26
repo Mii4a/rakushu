@@ -6,8 +6,9 @@
 - `docs/job-analysis-completion-criteria.md`
 - `docs/evaluations/job-analysis-holdout-template.csv`
 - `docs/evaluations/job-analysis-holdout-template-summary.md`
-- `docs/evaluations/job-analysis-holdout-2026-05-22-signoff-scorecard.csv`
-- `docs/evaluations/job-analysis-holdout-2026-05-22-signoff-summary.md`
+- `docs/evaluations/job-analysis-holdout-2026-05-25-task19-bonus-secondary-alignment-summary.md`
+- `docs/evaluations/job-analysis-holdout-2026-05-29-task17-recheck-summary.md`
+- `docs/evaluations/job-analysis-holdout-2026-05-25-task16-grok-reverify-summary.md`
 
 ## 0. Preconditions
 - [x] approved holdout が 50件以上ある
@@ -30,108 +31,134 @@
 - [x] required gate pass
 - [x] recommended gate pass
 - memo: required / recommended ともに通過。shape 偏りで sign-off 自体を止める理由はない。
-- thin-input note: `company_careers` の一部、特に Green 系 search-card row は high-risk shape だが raw text が薄い。shape 集計と parser-fix 優先度は分けて扱う。
+- thin-input note: `company_careers` / `noisy_promo` / `prose_heavy` には、raw text 自体が薄い row が残る。shape 集計と parser-fix 優先度は分けて扱う。
 - thin-input rule: raw text に比較用 critical field 自体が出ていない row は thin-input として数え、parser miss backlog に直接積まない。
 - parser-miss-worthy rule: raw text に critical field が見えているのに parser が取り逃がした row だけを parser fix 候補に入れる。
+- official verdict rule: この checklist の PASS / CONDITIONAL PASS / FAIL は full-cohort を維持し、cohort split は補助 read としてだけ使う。
 
 ## 2. Product-level outcome
-- A: 6
-- B: 24
-- C: 20
-- A+B rate: 60%
-- trust-breaking C count: 5
-- comparison_usable_yes: 30
-- comparison_usable_no: 20
+- A: 25
+- B: 11
+- C: 14
+- A+B rate: 72%
+- trust-breaking C count: 0
+- comparison_usable_yes: 36
+- comparison_usable_no: 14
 
 判定:
 - [ ] product pass
 - [ ] product conditional pass
 - [x] product fail
-- memo: C が多すぎる。common shape で recurring failure が残っており、比較判断に使える水準とは言えない。
+- memo: trust-breaking wrong は消えたが、A+B 72% / C 14件のため product gate は未達。止まっている理由は recurring parser bug ではなく、thin-input row が比較利用性を押し下げていること。
 
 ## 3. Critical fields
-- 3/4+ usable rate: 62%
-- 4/4 usable rate: 34%
-- critical wrong present rate: 10%
-- companyName wrong count: 1
+- 3/4+ usable rate: 72%
+- 4/4 usable rate: 50%
+- critical wrong present rate: 0%
+- companyName wrong count: 0
 - employmentType wrong count: 0
-- salaryText wrong count: 4
+- salaryText wrong count: 0
 - annualHolidays wrong count: 0
 
 判定:
 - [ ] critical-field pass
 - [ ] critical-field conditional pass
 - [x] critical-field fail
-- memo: `salaryText` wrong と `too_many_unknown_critical_fields` の両方が重く、usable line を大きく割っている。
+- memo: wrong present は 0 まで下がった。一方で 4/4 usable が 50% に留まり、主因は `annualHolidays` total を raw text が持たない thin rows と critical field 露出自体が薄い teaser / prose cluster。
 
 ## 4. Secondary fields
-- benefits present-case hit rate: insufficient for pass; `present_but_missed` 7件
-- housingAllowance present-case hit rate: watch; `present_but_missed` 2件
-- companyHousing present-case hit rate: no recurring blocker observed
-- bonusCount present-case hit rate: watch; `present_but_missed` 4件
-- retirementAllowance present-case hit rate: blocking; `present_but_missed` 10件
-- absent-but-found rate: strong false-positive burst は観測されず。ただし critical false positive は残る
+- benefits present-case miss: 0
+- housingAllowance present-case miss: 0
+- companyHousing present-case miss: 0
+- bonusCount present-case miss: 0
+- retirementAllowance present-case miss: 0
+- absent-but-found summary: strong false-positive burst なし
 
 判定:
-- [ ] secondary-field acceptable
+- [x] secondary-field acceptable
 - [ ] secondary-field watch
-- [x] secondary-field blocking
-- memo: secondary 単体で即 fail にはしないが、retirementAllowance と benefits miss の recurring が common shape hardening 未完了を示している。
+- [ ] secondary-field blocking
+- memo: Task 19 の secondary drift 修正後、secondary recurring blocker は current rerun 上で消えている。
 
 ## 5. Failure types
-- salary_text_without_base_salary: 18
-- benefits_suspected_but_not_extracted: 7
-- too_many_unknown_critical_fields: 26
+- salary_text_without_base_salary: 0
+- negative_base_salary_detected: 0
+- company_name_suspected_platform_noise: 0
+- benefits_suspected_but_not_extracted: 0
+- too_many_unknown_critical_fields: 0
 - summary_line_only_extraction: 0
 - company_housing_unknown_with_keyword: 0
-- housing_allowance_unknown_with_keyword: 2
+- housing_allowance_unknown_with_keyword: 0
+- bonus_count_unknown_with_keyword: 0
+- retirement_allowance_unknown_with_keyword: 0
 
 Recurrence checks:
-- [ ] same failure type did not recur 3+ times in the same source shape
+- [x] same failure type did not recur 3+ times in the same source shape
+- [x] no new common failure class appeared repeatedly in this batch
 - [ ] high-priority fixture backlog is under 5
-- [ ] no new common failure class appeared repeatedly in this batch
-- memo: recurrence blocker 該当。`too_many_unknown_critical_fields` と `salary_text_without_base_salary` が複数 shape で 3回以上再発し、high-priority backlog も 28 件。
-- company_careers note: `holdout-candidate-035/036/037` は `companyName` / `salaryText` は見えている一方で `employmentType` / `annualHolidays` が raw text にない thin-input search-card 寄り。ここは parser miss と別バケットで扱う。
-- company_careers parser-miss-worthy note: raw text に missing critical field が実在する row が出た場合だけ parser hardening backlog に載せる。
+- memo: failure-type recurrence blocker は解消済み。ただし residual B/C の説明用 fixture / evidence backlog は 14件残る。
+- residual-row note: いまの残件は failure type 再発より、thin-input shape の sign-off 解釈整理に寄っている。
 
-## 6. Feedback loop
-- feedback_expected: 40
-- feedback_saved: 33
-- recall: 82% (all rows mix)
+## 6. Residual row split
+- thin-input / mixed-signal `company_careers`: `014`, `035`〜`039`
+- thin-input annual-holidays listcards: `017`〜`024`
+- teaser / noisy / prose thin cluster: `040`〜`049`
+- detail-but-no-total holiday case: `006`
+- parser-miss-worthy annual-holiday shorthand rows: `015`, `016` はすでに Task 16 で修正済み
+
+判定メモ:
+- `014` は一見リッチだが、approved raw text 上は `employmentType` 明示がなく parser miss と断定できない
+- `017`〜`024` は salary / company / title は比較できる一方、`annualHolidays` total が raw text に無い B群
+- `040`〜`049` は critical field の visible signal 自体が薄く、4/4 usable へ押し上げる余地が小さい
+- したがって current fail 主因は parser hardening backlog ではなく、thin-input rows を product / critical gate でどう扱うかの sign-off 論点
+
+## 6.5 Boundary read
+- shadow read: `comparison_grade` cohort だけを見る Conditional Pass 線は別案として記録するが、この checklist 単体では verdict を持ち上げない
+- thin annual-holidays rows: 10件（`006`, `017`〜`024`, `038`）
+- これらは全件 B / critical usable 3/4 / comparison usable yes
+- mixed-signal / low-visibility residual rows: 16件（うち B 2件 = `014`, `038`; C 14件 = `035`〜`037`, `039`〜`049`）
+- したがって thin annual-holidays B rows だけを別扱いにしても、full-cohort verdict は conditional pass へは上がらない
+- parser-accountability read としては recurring parser blocker は閉じているが、full-cohort verdict と混同しない
+
+## 7. Feedback loop
+- current rerun open rows: `feedback_expected=0` / `feedback_saved=0`
+- current rerun recall: N/A (`0/0` は fail ではなく no-open-feedback-row 扱い)
+- latest observed DB-backed check: `feedback_expected=3` / `feedback_saved=3` → recall 100% (`docs/evaluations/job-analysis-holdout-2026-05-29-task17-recheck-summary.md`)
+- current simulated public subset: `0/0`（Task 16 postfix + Grok reverify で residual 解消）
 - noisy_count: 0
-- noisy_rate: 0%
-- save_miss_count: 7
+- save_miss_count: 0
 
 判定:
 - [ ] feedback pass
-- [ ] feedback conditional pass
-- [x] feedback fail
-- memo: 全体 recall だけ見ると pass に見えるが、observed saved-job subset は 4/7 = 57% で fail。public holdout rerun の simulated 29/33 = 88% を completion verdict にそのまま使わない。
+- [x] feedback conditional pass
+- [ ] feedback fail
+- memo: current rerun では open な high-signal feedback row 自体が残っていない。よって `0/0` を機械的に 0% fail と読まない。observed DB-backed rerun では 3/3 を維持しているため、feedback loop は main blocker ではなくなった。
 
-## 7. Regression safety
-- high-signal fixtures from feedback: 9
+## 8. Regression safety
+- high-signal fixtures from feedback / holdout: 41 current anonymized fixture texts in `fixtures/jobs/`
 - focused parser tests: pass
 - full test suite: pass
-- regression notes: `npm run build` も pass したが、fixture 10件ライン未達
+- focused analysis regression: `npm test -- src/lib/analysis/parser.test.ts src/lib/analysis/quality.test.ts` → 69 passed
 
 判定:
-- [ ] regression-safe
-- [x] regression-risk remains
-- memo: parser 改善を sign-off できるだけの fixture-backed safety net がまだ足りない。
+- [x] regression-safe
+- [ ] regression-risk remains
+- memo: recurring parser-quality blocker は fixture-backed にかなり固定できている。
 
-## 8. Final decision
+## 9. Final decision
 - [ ] PASS
 - [ ] CONDITIONAL PASS
 - [x] FAIL
 
 理由:
-- Dataset readiness は十分だが product gate が未達
-- critical-field usable rate が completion line を大きく下回る
-- observed feedback recall が未達で、simulation を混ぜないと pass に見えない
-- ただし `company_careers` fail の一部は parser 未実装というより thin-input 起因で、次ラウンドでは sign-off artifact 上で別ラベル化する
-- `company_careers` で parser fix 候補に入れるのは、raw text に missing critical field が見えている parser-miss-worthy row のみ
+- Dataset readiness は十分
+- parser / secondary / feedback-rule の recurring blocker は概ね解消済み
+- ただし product gate (`A+B 72%`) と critical-field gate (`4/4 usable 50%`) が未達
+- current fail 主因は parser wrong ではなく、thin-input `company_careers` / `job_board_listcard` / `noisy_promo` / `prose_heavy` が比較利用性を押し下げていること
+- thin annual-holidays B rows を別解釈しても、`035`〜`037`, `039`〜`049` の low-visibility C rows が残るため conditional pass はまだ正当化できない
+- 次ラウンドの本丸は parser hardening 追加より、thin-input rows を sign-off / completion criteria 上でどう扱うかの整理
 
-## 9. Required next action by verdict
+## 10. Required next action by verdict
 
 ### If PASS
 - release note に「完成水準到達」を記録
@@ -143,13 +170,12 @@ Recurrence checks:
 - 同じ 50件 rubric で再評価する
 
 ### If FAIL
-- [x] common failure class を parser_fix / feedback_rule_fix / fixture_gap に切り分ける
-- [x] 最優先で C を生む failure から潰す
-- [x] holdout を追加する前に recurring miss の改善を先に行う
+- [x] common failure class を parser_fix / feedback_rule_fix / sign-off-interpretation に切り分ける
+- [x] parser wrong と thin-input を artifact 上で分離する
+- [x] holdout を追加する前に residual B/C の扱い基準を明文化する
 
 Fail batch の優先修正:
-1. `company_careers` thin-input / parser-miss 境界を script/docs に明記
-2. Green / noisy promo CTA-noise guardrail
-3. Wantedly `prose_heavy` fallback
-4. observed feedback-save 漏れの修正
-5. fixture を 10件以上へ増やす
+1. `annualHolidays` total を持たない thin rows を product / critical gate でどう扱うか、criteria / checklist / summary wording を揃える
+2. `company_careers` / `noisy_promo` / `prose_heavy` の thin-input row を sign-off artifact 上で安定して列挙する
+3. observed rerun evidence と simulated rerun evidence の見せ方を summary / checklist / runbook で固定する
+4. そのうえで必要なら parser hardening を narrow に追加する

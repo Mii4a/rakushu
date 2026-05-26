@@ -153,6 +153,56 @@ ITカンファー株式会社　採用担当
     expect(parsed.bonusPerformanceLinked.status).toBe("found");
   });
 
+  it("extracts retirement allowance from bare制度 and parenthesized variants", () => {
+    const variants = [
+      "福利厚生\n■退職金制度",
+      "福利厚生\n退職金（勤続3年以上）",
+      "福利厚生\n◇退職金制度（2年以上勤務者）",
+      "福利厚生\n◇退職金共済の加入（入社3ヶ月後）"
+    ];
+
+    for (const raw of variants) {
+      const parsed = parseJobText(raw);
+      expect(parsed.retirementAllowance.status, raw).toBe("found");
+      expect(parsed.retirementAllowance.value, raw).toBe(true);
+    }
+  });
+
+  it("extracts bonus count when 賞与 is a standalone heading followed by 年2回 in detail fixtures", () => {
+    const raw = readFixture("phase4-bonus-count-001-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.bonusCount.status).toBe("found");
+    expect(parsed.bonusCount.value).toBe(2);
+    expect(parsed.bonusCount.evidence).toContain("賞与");
+  });
+
+  it("extracts annual holidays from 年休 shorthand in en-japan listcard title lines", () => {
+    const raw015 = readFixture("phase5-en-japan-listcard-annual-holidays-015-anon.txt");
+    const raw016 = readFixture("phase4-en-japan-listcard-benefits-016-anon.txt");
+
+    const parsed015 = parseJobText(raw015);
+    const parsed016 = parseJobText(raw016);
+
+    expect(parsed015.annualHolidays.status).toBe("found");
+    expect(parsed015.annualHolidays.value).toBe(124);
+    expect(parsed015.annualHolidays.evidence).toContain("年休124日");
+    expect(parsed016.annualHolidays.status).toBe("found");
+    expect(parsed016.annualHolidays.value).toBe(125);
+    expect(parsed016.annualHolidays.evidence).toContain("年休125日");
+  });
+
+  it("extracts company name from prose-heavy title lines that mix company and role text", () => {
+    const raw = readFixture("phase5-prose-heavy-company-name-012-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.companyName.status).toBe("found");
+    expect(parsed.companyName.value).toBe("北斗株式会社");
+    expect(parsed.companyName.evidence).toContain("北斗株式会社 ITエンジニア／未経験歓迎／年休125日／残業10H");
+  });
+
   it("extracts skeptical warnings from hype-heavy sns job posts", () => {
     const raw = readFixture("sns-media-anon.txt");
 
@@ -223,6 +273,28 @@ ITカンファー株式会社　採用担当
     expect(parsed.warnings.value).toContain("基本給記載なし");
   });
 
+  it("ignores allowance-only amounts on monthly-salary lines when deriving base salary from doda detail fixtures", () => {
+    const raw = readFixture("phase4-negative-base-salary-003-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.salaryText.value).toBe("月給23万円～40万円＋各種手当＋賞与年2回");
+    expect(parsed.baseSalaryMin.value).toBe(170000);
+    expect(parsed.baseSalaryMin.evidence).toContain("月給記載: 230,000円 / 400,000円 / 200,000円 / 220,000円");
+    expect(parsed.baseSalaryMin.evidence).not.toContain("30,000円 / 7,000円");
+  });
+
+  it("ignores monthly allowance sub-lines when annual salary pages also list regional monthly pay bands", () => {
+    const raw = readFixture("phase4-negative-base-salary-011-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.salaryText.value).toBe("300～400万円");
+    expect(parsed.baseSalaryMin.value).toBe(190200);
+    expect(parsed.baseSalaryMin.evidence).toContain("月給記載: 257,420円 / 233,400円");
+    expect(parsed.baseSalaryMin.evidence).not.toContain("10,000円 / 20,000円");
+  });
+
   it("extracts company name and employment type from media summary lines without explicit labels", () => {
     const raw = readFixture("media-summary-anon.txt");
 
@@ -247,6 +319,17 @@ ITカンファー株式会社　採用担当
     expect(parsed.benefits.value).toEqual(expect.arrayContaining(["家賃補助有", "フレックス制度有"]));
     expect(parsed.benefits.source).toBe("summary_line");
     expect(parsed.benefits.confidence).toBe("medium");
+  });
+
+  it("extracts company name from corporate prose with legal-entity wording", () => {
+    const raw = readFixture("phase3-rekatsu-noisy-promo-044-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.companyName.status).toBe("found");
+    expect(parsed.companyName.value).toBe("株式会社Tech Lab（テクラボ）");
+    expect(parsed.companyName.source).toBe("global_scan");
+    expect(parsed.annualHolidays.value).toBe(131);
   });
 
   it("extracts company name from a contact line when only recruiting contact is present", () => {
@@ -543,7 +626,7 @@ ITカンファー株式会社　採用担当
     );
   });
 
-  it("extracts employment type from late wantedly prose notes without picking denied side-offers", () => {
+  it("extracts employment type and lifestyle benefits from late wantedly prose notes", () => {
     const raw = readFixture("phase3-wantedly-prose-heavy-046-anon.txt");
 
     const parsed = parseJobText(raw);
@@ -552,6 +635,102 @@ ITカンファー株式会社　採用担当
     expect(parsed.employmentType.evidence).toBe("正社員募集（フル出社）");
     expect(parsed.employmentType.source).toBe("global_scan");
     expect(parsed.employmentType.confidence).toBe("medium");
+    expect(parsed.benefits.status).toBe("found");
+    expect(parsed.benefits.source).toBe("global_scan");
+    expect(parsed.benefits.value).toEqual(
+      expect.arrayContaining([
+        "ランチのお弁当無料支給",
+        "フリードリンク",
+        "ジム無料利用可",
+        "生成AIを無制限で利用可能"
+      ])
+    );
+  });
+
+  it("extracts compressed listcard benefits from en-japan style teaser lines", () => {
+    const raw = readFixture("phase4-en-japan-listcard-benefits-016-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.companyName.value).toBe("株式会社樋口総合研究所");
+    expect(parsed.employmentType.value).toBe("正社員");
+    expect(parsed.benefits.status).toBe("found");
+    expect(parsed.benefits.source).toBe("global_scan");
+    expect(parsed.benefits.value).toEqual(
+      expect.arrayContaining([
+        "副業可能",
+        "リモート勤務可能",
+        "フレックス勤務",
+        "ネイル・服装自由"
+      ])
+    );
+  });
+
+  it("extracts annual holidays from 年休 shorthand in listcard title lines", () => {
+    const raw = readFixture("phase5-en-japan-listcard-annual-holidays-015-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.companyName.value).toBe("弁護士法人ITO総合法律事務所");
+    expect(parsed.annualHolidays.value).toBe(124);
+    expect(parsed.annualHolidays.source).toBe("summary_line");
+    expect(parsed.annualHolidays.evidence).toContain("年休124日");
+  });
+
+  it("extracts annual holidays from 年休 shorthand in teaser-heavy benefit listcards", () => {
+    const raw = readFixture("phase4-en-japan-listcard-benefits-016-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.companyName.value).toBe("株式会社樋口総合研究所");
+    expect(parsed.annualHolidays.value).toBe(125);
+    expect(parsed.annualHolidays.source).toBe("summary_line");
+    expect(parsed.annualHolidays.evidence).toContain("年休125日");
+  });
+
+  it("extracts remote-work benefit hints from noisy promo prose without inventing critical fields", () => {
+    const raw = readFixture("phase4-green-noisy-promo-benefits-042-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.companyName.status).toBe("unknown");
+    expect(parsed.employmentType.status).toBe("unknown");
+    expect(parsed.salaryText.status).toBe("unknown");
+    expect(parsed.benefits.status).toBe("found");
+    expect(parsed.benefits.value).toEqual(expect.arrayContaining(["リモート勤務可能"]));
+  });
+
+  it("extracts benefits from en-japan listcards when remote hints live in the title line", () => {
+    const raw = readFixture("phase4-en-japan-listcard-benefits-020-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.companyName.value).toBe("株式会社日立製作所");
+    expect(parsed.employmentType.value).toBe("正社員");
+    expect(parsed.benefits.status).toBe("found");
+    expect(parsed.benefits.value).toEqual(expect.arrayContaining(["リモート勤務可能"]));
+  });
+
+  it("extracts listcard lifestyle benefits from green company cards", () => {
+    const raw = readFixture("phase4-green-company-benefits-037-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.companyName.value).toBe("コマースメディア株式会社");
+    expect(parsed.salaryText.value).toBe("420万円〜840万円");
+    expect(parsed.benefits.status).toBe("found");
+    expect(parsed.benefits.value).toEqual(expect.arrayContaining(["リモート勤務可能", "フレックス勤務"]));
+  });
+
+  it("extracts remote-work benefits from wantedly prose workstyle lines", () => {
+    const raw = readFixture("phase4-wantedly-prose-benefits-048-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.companyName.value).toBe("株式会社FEEEP");
+    expect(parsed.employmentType.value).toBe("業務委託");
+    expect(parsed.benefits.status).toBe("found");
+    expect(parsed.benefits.value).toEqual(expect.arrayContaining(["リモート勤務可能"]));
   });
 
   it("keeps teaser-only noisy promo fixtures unresolved instead of hallucinating hidden critical fields", () => {
@@ -564,7 +743,7 @@ ITカンファー株式会社　採用担当
     expect(parsed043.companyName.status).toBe("unknown");
     expect(parsed043.employmentType.status).toBe("unknown");
     expect(parsed043.salaryText.status).toBe("unknown");
-    expect(parsed044.companyName.status).toBe("unknown");
+    expect(parsed044.companyName.value).toBe("株式会社Tech Lab（テクラボ）");
     expect(parsed044.employmentType.status).toBe("unknown");
     expect(parsed044.salaryText.status).toBe("unknown");
     expect(parsed044.annualHolidays.value).toBe(131);

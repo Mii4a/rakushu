@@ -27,6 +27,7 @@ import { getChecklistItems } from "@/components/jobs/JobCheckList";
 import { RakumoAvatar } from "@/components/rakumo/RakumoAvatar";
 import { SelectionProgressForm } from "@/components/selection-progress-form";
 import { RakumoEmptyState } from "@/components/rakumo/RakumoEmptyState";
+import { buildMissingItemSummary, getMissingItemLabel, type MissingItemKey, type MissingItemSummary } from "@/lib/analysis/missing-items";
 import { requireUser } from "@/lib/auth/require-user";
 import { getSession } from "@/lib/auth/session";
 import { formatCommuteRange, formatCommuteRangeDetail, getCommuteDataKindLabel, getCommuteDataKindTone, getCommuteTone } from "@/lib/commute/fields";
@@ -137,39 +138,85 @@ function buildSelectedHref(params: URLSearchParams, selectedId: string) {
   return `/jobs?${next.toString()}#saved-jobs-detail`;
 }
 
-function buildAnalysisNotes(parsed: ParsedJob | null, warnings: string[]) {
+function hasMissingItem(summary: MissingItemSummary, key: MissingItemKey) {
+  return summary.missingInRawText.includes(key);
+}
+
+function hasAmbiguousItem(summary: MissingItemSummary, key: MissingItemKey) {
+  return summary.ambiguousButVisible.includes(key);
+}
+
+function getMissingAwareText(summary: MissingItemSummary, key: MissingItemKey, fallback = "不明") {
+  if (hasMissingItem(summary, key)) return "本文未記載";
+  if (hasAmbiguousItem(summary, key)) return "要確認";
+  return fallback;
+}
+
+function buildAnalysisNotes(parsed: ParsedJob | null, warnings: string[], missingSummary?: MissingItemSummary) {
   if (!parsed) {
     return ["まだ解析結果がありません。必要になったタイミングで再解析できます。"];
   }
 
+  const summary = missingSummary ?? buildMissingItemSummary(parsed, null);
+
   const notes = [
-    parsed.annualHolidays.value != null ? `年間休日は ${parsed.annualHolidays.value} 日です。` : "年間休日は求人票から読み取れませんでした。",
-    parsed.holidayType.value ? `休日制度は「${parsed.holidayType.value}」です。` : "休日制度の明記は確認できませんでした。",
+    parsed.annualHolidays.value != null
+      ? `年間休日は ${parsed.annualHolidays.value} 日です。`
+      : hasMissingItem(summary, "annualHolidays")
+        ? "年間休日の記載が本文に見当たりませんでした。"
+        : "年間休日は要確認です。",
+    parsed.holidayType.value
+      ? `休日制度は「${parsed.holidayType.value}」です。`
+      : hasMissingItem(summary, "holidayType")
+        ? "休日制度の明記が本文に見当たりませんでした。"
+        : "休日制度は要確認です。",
     parsed.bonusCount?.status === "none"
       ? "賞与制度は見当たりませんでした。"
       : parsed.bonusCount?.value != null
         ? `賞与制度は年 ${parsed.bonusCount.value} 回${parsed.bonusPerformanceLinked?.status === "found" ? "で、業績により変動します。" : "です。"}`
-        : "賞与制度の回数は求人票から読み取れませんでした。",
+        : hasMissingItem(summary, "bonusCount")
+          ? "賞与制度の回数は本文に見当たりませんでした。"
+          : "賞与制度の回数は要確認です。",
     parsed.retirementAllowance?.status === "found"
       ? "退職金制度の記載があります。"
       : parsed.retirementAllowance?.status === "none"
         ? "退職金制度は見当たりませんでした。"
-        : "退職金制度の明記は確認できませんでした。",
+        : hasMissingItem(summary, "retirementAllowance")
+          ? "退職金制度の明記が本文に見当たりませんでした。"
+          : "退職金制度は要確認です。",
     parsed.fixedOvertimeHours.status === "none"
       ? "固定残業制度は見当たりませんでした。"
       : parsed.fixedOvertimeHours.value != null
         ? `固定残業は ${parsed.fixedOvertimeHours.value} 時間です。`
-        : "固定残業時間はあいまいです。",
+        : hasMissingItem(summary, "fixedOvertimeHours")
+          ? "固定残業時間の明記が本文に見当たりませんでした。"
+          : "固定残業時間は要確認です。",
     parsed.benefits.value && parsed.benefits.value.length > 0
       ? `福利厚生は ${parsed.benefits.value.length} 項目見つかっています。`
-      : "福利厚生は少なめ、または読み取りが難しい状態です。"
+      : hasMissingItem(summary, "benefits")
+        ? "福利厚生の記載が本文ではかなり少なめです。"
+        : "福利厚生は少なめ、または読み取りが難しい状態です。"
   ];
 
   if (warnings.length > 0) {
     notes.push(`注意点は ${warnings.length} 件あります。先に気になるポイントを見返すと判断しやすいです。`);
   }
 
+  if (summary.thinInput) {
+    notes.push("この求人は採点に必要な情報が不足しているため、未記載項目は最低点候補として扱います。");
+  }
+
   return notes;
+}
+
+function buildRankReasonLabel(summary: MissingItemSummary, warnings: string[]) {
+  if (summary.missingInRawText.length > 0) {
+    return "低評価の主因: 本文未記載項目が多い";
+  }
+  if (warnings.length >= 3) {
+    return "低評価の主因: 気になる表現が多い";
+  }
+  return "低評価の主因: 条件が弱い";
 }
 
 export default async function JobsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -258,8 +305,10 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
   const nextActionCount = jobListWithAnalyses.filter((job) => job.nextActionAt != null).length;
 
   const selectedWarnings = selectedJob?.parsed?.warnings.value ?? [];
-  const selectedChecklist = getChecklistItems(selectedJob?.parsed ?? null);
-  const selectedAnalysisNotes = buildAnalysisNotes(selectedJob?.parsed ?? null, selectedWarnings);
+  const selectedMissingSummary = selectedJob?.parsed ? buildMissingItemSummary(selectedJob.parsed, selectedJob.rawText) : null;
+  const selectedChecklist = getChecklistItems(selectedJob?.parsed ?? null, selectedJob?.rawText ?? null);
+  const selectedAnalysisNotes = buildAnalysisNotes(selectedJob?.parsed ?? null, selectedWarnings, selectedMissingSummary ?? undefined);
+  const selectedRankReasonLabel = selectedMissingSummary ? buildRankReasonLabel(selectedMissingSummary, selectedWarnings) : null;
   const selectedDetailRankItems = selectedJob
     ? [
         { label: "総合ランク", value: getDisplayRank(selectedJob.latest?.totalRank) },
@@ -595,6 +644,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
                             <p className="text-[1.55rem] font-black leading-tight text-rakumo-ink md:text-[1.85rem]">{selectedJob.parsed?.companyName.value ?? selectedJob.companyName ?? "会社名不明"}</p>
                             <p className="mt-1 text-base font-semibold text-rakumo-ink/80 md:text-lg">{selectedJob.parsed?.title.value ?? selectedJob.title ?? "職種不明"}</p>
                             <p className="mt-2 text-sm text-rakumo-ink/60">情報元: {selectedJob.sourceName ?? "未設定"} | 保存日: {formatDate(selectedJob.createdAt)}</p>
+                            {selectedRankReasonLabel ? <p className="mt-2 text-sm font-semibold text-[#c7732a]">{selectedRankReasonLabel}</p> : null}
                           </div>
                         </div>
                         <span className={`inline-flex w-fit rounded-full border px-4 py-1 text-sm font-bold ${statusPillClassName[selectedJob.selectionStatus] ?? statusPillClassName.saved}`}>
@@ -622,14 +672,19 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
                                 ? `${formatCommuteRangeDetail(selectedJob)} / ${getCommuteDataKindLabel(selectedJob.commuteDataKind)}`
                                 : formatCommuteRangeDetail(selectedJob)
                             ],
-                            ["年間休日", formatMetricValue(selectedJob.parsed?.annualHolidays.value, "日")],
+                            [
+                              "年間休日",
+                              selectedJob.parsed?.annualHolidays.value != null
+                                ? formatMetricValue(selectedJob.parsed.annualHolidays.value, "日")
+                                : getMissingAwareText(selectedMissingSummary ?? { missingInRawText: [], ambiguousButVisible: [], thinInput: false, thinInputReason: [] }, "annualHolidays")
+                            ],
                             [
                               "賞与制度",
                               selectedJob.parsed?.bonusCount?.status === "none"
                                 ? "なし"
                                 : selectedJob.parsed?.bonusCount?.value != null
                                   ? `年${selectedJob.parsed.bonusCount.value}回${selectedJob.parsed?.bonusPerformanceLinked?.status === "found" ? "（業績連動）" : ""}`
-                                  : "不明"
+                                  : getMissingAwareText(selectedMissingSummary ?? { missingInRawText: [], ambiguousButVisible: [], thinInput: false, thinInputReason: [] }, "bonusCount")
                             ],
                             [
                               "退職金制度",
@@ -637,18 +692,29 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
                                 ? "あり"
                                 : selectedJob.parsed?.retirementAllowance?.status === "none"
                                   ? "なし"
+                                  : getMissingAwareText(selectedMissingSummary ?? { missingInRawText: [], ambiguousButVisible: [], thinInput: false, thinInputReason: [] }, "retirementAllowance")
+                            ],
+                            [
+                              "福利厚生",
+                              (selectedJob.parsed?.benefits.value?.length ?? 0) > 0
+                                ? formatMetricValue(selectedJob.parsed?.benefits.value?.length ?? 0, "件")
+                                : hasMissingItem(selectedMissingSummary ?? { missingInRawText: [], ambiguousButVisible: [], thinInput: false, thinInputReason: [] }, "benefits")
+                                  ? "本文の情報が少ない"
                                   : "不明"
                             ],
-                            ["福利厚生", formatMetricValue(selectedJob.parsed?.benefits.value?.length ?? 0, "件")],
                             [
                               "固定残業の有無",
                               selectedJob.parsed?.fixedOvertimeHours.status === "none"
                                 ? "なし"
                                 : selectedJob.parsed?.fixedOvertimeHours.value != null
                                   ? `あり (${selectedJob.parsed.fixedOvertimeHours.value}h)`
-                                  : "不明"
+                                  : getMissingAwareText(selectedMissingSummary ?? { missingInRawText: [], ambiguousButVisible: [], thinInput: false, thinInputReason: [] }, "fixedOvertimeHours")
                             ],
-                            ["休日制度", selectedJob.parsed?.holidayType.value ?? "不明"]
+                            [
+                              "休日制度",
+                              selectedJob.parsed?.holidayType.value
+                                ?? getMissingAwareText(selectedMissingSummary ?? { missingInRawText: [], ambiguousButVisible: [], thinInput: false, thinInputReason: [] }, "holidayType")
+                            ]
                           ].map(([label, value]) => (
                             <div key={label} className="rounded-[18px] border border-rakumo-border bg-white p-4">
                               <p className="text-[11px] font-bold tracking-[0.12em] text-rakumo-ink/55">{label}</p>
@@ -658,6 +724,19 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
                         </div>
 
                         <div className="rounded-[18px] border border-rakumo-border bg-[#fbfdf8] p-4">
+                          {selectedMissingSummary?.thinInput ? (
+                            <div className="mb-4 rounded-[16px] border border-[#ffd6bf] bg-[#fff7f1] p-4 text-sm text-rakumo-ink">
+                              <p className="font-bold text-[#c7732a]">この求人は情報が薄めです</p>
+                              <p className="mt-2 leading-6">採点に必要な情報の一部が本文に記載されていません。未記載項目は最低点候補として扱います。</p>
+                              {selectedMissingSummary.missingInRawText.length > 0 ? (
+                                <ul className="mt-3 space-y-1 leading-6 text-rakumo-ink/80">
+                                  {selectedMissingSummary.missingInRawText.map((key) => (
+                                    <li key={key}>・{getMissingItemLabel(key)}：本文未記載</li>
+                                  ))}
+                                </ul>
+                              ) : null}
+                            </div>
+                          ) : null}
                           <p className="text-sm font-bold text-rakumo-ink">解析要点</p>
                           <ul className="mt-3 space-y-2 text-sm leading-7 text-rakumo-ink/78">
                             {selectedAnalysisNotes.map((note) => (
