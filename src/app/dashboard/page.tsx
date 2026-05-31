@@ -148,20 +148,31 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
+  const user = session.user;
+
   const [{ db }, { jobs }, { getUserPlan }, { getAnalysisCount, getMonthKey, getWeekKey }] = await Promise.all([
     import("@/lib/db/client"),
     import("@/lib/db/schema"),
     import("@/lib/subscription"),
     import("@/lib/usage/counters")
   ]);
-  const plan = await getUserPlan(session.user.id);
+
+  const plan = await getUserPlan(user.id);
   const limits = PLAN_LIMITS[plan];
 
-  const recentJobs = await db.query.jobs.findMany({
-    where: eq(jobs.userId, session.user.id),
-    orderBy: [desc(jobs.createdAt)],
-    limit: 6
-  });
+  const recentJobs = await db
+    .select({
+      id: jobs.id,
+      userId: jobs.userId,
+      companyName: jobs.companyName,
+      title: jobs.title,
+      selectionStatus: jobs.selectionStatus
+    })
+    .from(jobs)
+    .where(eq(jobs.userId, user.id))
+    .orderBy(desc(jobs.createdAt))
+    .limit(6);
+
   const latestAnalysesByJobId = await getLatestAnalysesByJobIds(recentJobs.map((job) => job.id));
   const recentJobsWithAnalyses = recentJobs.map((job) => ({
     ...job,
@@ -169,25 +180,34 @@ export default async function DashboardPage() {
   }));
 
   const latestAnalysisCount = recentJobsWithAnalyses.filter((job) => job.analyses[0]).length;
-  const jobCountResult = await db.select({ count: sql<number>`count(*)` }).from(jobs).where(eq(jobs.userId, session.user.id));
+  const jobCountResult = await db.select({ count: sql<number>`count(*)` }).from(jobs).where(eq(jobs.userId, user.id));
   const totalSavedJobs = jobCountResult[0]?.count ?? 0;
   const periodKey = limits.analysisPeriod === "week" ? getWeekKey() : getMonthKey();
-  const analysisCount = await getAnalysisCount(session.user.id, periodKey);
+  const analysisCount = await getAnalysisCount(user.id, periodKey);
   const now = new Date();
   const oneWeekLater = new Date(now);
   oneWeekLater.setUTCDate(now.getUTCDate() + 7);
-  const upcomingActions = await db.query.jobs.findMany({
-    where: and(
-      eq(jobs.userId, session.user.id),
-      sql`${jobs.nextActionAt} is not null`,
-      sql`${jobs.selectionStatus} not in ('offer', 'rejected')`,
-      sql`${jobs.nextActionAt} <= ${oneWeekLater}`
-    ),
-    orderBy: [asc(jobs.nextActionAt)],
-    limit: 6
-  });
+  const upcomingActions = await db
+    .select({
+      id: jobs.id,
+      companyName: jobs.companyName,
+      title: jobs.title,
+      selectionStatus: jobs.selectionStatus,
+      nextActionAt: jobs.nextActionAt
+    })
+    .from(jobs)
+    .where(
+      and(
+        eq(jobs.userId, user.id),
+        sql`${jobs.nextActionAt} is not null`,
+        sql`${jobs.selectionStatus} not in ('offer', 'rejected')`,
+        sql`${jobs.nextActionAt} <= ${oneWeekLater}`
+      )
+    )
+    .orderBy(asc(jobs.nextActionAt))
+    .limit(6);
   const nextStep = getNextStepCopy(totalSavedJobs, upcomingActions.length, latestAnalysisCount);
-  const displayName = getDashboardDisplayName(session.user.name);
+  const displayName = getDashboardDisplayName(user.name);
   const recentJobsForList = recentJobsWithAnalyses.slice(0, 3).map((job) => {
     const latest = job.analyses[0];
     const parsed = latest?.evidenceJson ? (JSON.parse(latest.evidenceJson) as ParsedJob) : null;
