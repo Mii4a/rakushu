@@ -4,7 +4,8 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { scoreParsedJob, type ParsedJob } from "@/lib/analysis";
+import { scoreParsedJob } from "@/lib/analysis";
+import { parseStoredParsedJob } from "@/lib/analysis/parse-stored-job";
 import { requireUser } from "@/lib/auth/require-user";
 import { db } from "@/lib/db/client";
 import { jobAnalyses, jobs, rankSettings } from "@/lib/db/schema";
@@ -119,7 +120,8 @@ export async function updateRankSettingsAction(formData: FormData) {
     for (const analysis of analyses) {
       if (!analysis.evidenceJson) continue;
 
-      const parsedJob = JSON.parse(analysis.evidenceJson) as ParsedJob;
+      const parsedJob = parseStoredParsedJob(analysis.evidenceJson, `rank-settings-action:${job.id}`);
+      if (!parsedJob) continue;
       const rescored = scoreParsedJob(parsedJob, currentSettings);
 
       await db

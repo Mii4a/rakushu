@@ -29,6 +29,7 @@ import { RakumoAvatar } from "@/components/rakumo/RakumoAvatar";
 import { SelectionProgressForm } from "@/components/selection-progress-form";
 import { RakumoEmptyState } from "@/components/rakumo/RakumoEmptyState";
 import { buildMissingItemSummary, getMissingItemLabel, type MissingItemKey, type MissingItemSummary } from "@/lib/analysis/missing-items";
+import { parseStoredParsedJob } from "@/lib/analysis/parse-stored-job";
 import { requireUser } from "@/lib/auth/require-user";
 import { getSession } from "@/lib/auth/session";
 import { formatCommuteRange, formatCommuteRangeDetail, getCommuteDataKindLabel, getCommuteDataKindTone, getCommuteTone } from "@/lib/commute/fields";
@@ -281,7 +282,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
   const jobListWithAnalyses = jobList.map((job) => ({
     ...job,
     latest: latestAnalysesByJobId.get(job.id) ?? null,
-    parsed: latestAnalysesByJobId.get(job.id)?.evidenceJson ? (JSON.parse(latestAnalysesByJobId.get(job.id)!.evidenceJson!) as ParsedJob) : null
+    parsed: parseStoredParsedJob(latestAnalysesByJobId.get(job.id)?.evidenceJson, `jobs-page:${job.id}`)
   }));
 
   const filteredList = jobListWithAnalyses.filter((job) => {

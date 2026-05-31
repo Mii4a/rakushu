@@ -19,7 +19,8 @@ import {
 } from "lucide-react";
 
 import { getSession } from "@/lib/auth/session";
-import type { ParsedJob } from "@/lib/analysis";
+import type { ParsedJob, Rank } from "@/lib/analysis";
+import { parseStoredParsedJob } from "@/lib/analysis/parse-stored-job";
 import { RakumoEmptyState } from "@/components/rakumo/RakumoEmptyState";
 import { isProductionBuildPhase } from "@/lib/env/build-phase";
 import { getLatestAnalysesByJobIds } from "@/lib/jobs/latest-analyses";
@@ -210,7 +211,7 @@ export default async function DashboardPage() {
   const displayName = getDashboardDisplayName(user.name);
   const recentJobsForList = recentJobsWithAnalyses.slice(0, 3).map((job) => {
     const latest = job.analyses[0];
-    const parsed = latest?.evidenceJson ? (JSON.parse(latest.evidenceJson) as ParsedJob) : null;
+    const parsed = parseStoredParsedJob(latest?.evidenceJson, `dashboard-page:${job.id}`);
     return {
       ...job,
       parsed,

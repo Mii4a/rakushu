@@ -1,7 +1,8 @@
 import { and, desc, eq } from "drizzle-orm";
 
 import type { FailureType } from "@/lib/analysis/quality";
-import type { ParsedJob } from "@/lib/analysis/types";
+import type { ParsedJob } from "@/lib/analysis";
+import { parseStoredParsedJob } from "@/lib/analysis/parse-stored-job";
 import { db } from "@/lib/db/client";
 import { jobAnalyses, jobAnalysisFeedback, jobs } from "@/lib/db/schema";
 
@@ -68,7 +69,7 @@ export async function getLatestAnalysisFeedback(filters: {
     .limit(filters.limit ?? 50);
 
   return rows.map((row) => {
-    const parsedSnapshot = row.evidenceJson ? (JSON.parse(row.evidenceJson) as ParsedJob) : null;
+    const parsedSnapshot = parseStoredParsedJob(row.evidenceJson, `latest-analysis-feedback:${row.jobId}`);
     const failureTypes = JSON.parse(row.failureTypesJson) as FailureType[];
 
     return {

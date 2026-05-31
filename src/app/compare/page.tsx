@@ -4,6 +4,7 @@ import { desc, eq } from "drizzle-orm";
 
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import type { ParsedJob } from "@/lib/analysis";
+import { parseStoredParsedJob } from "@/lib/analysis/parse-stored-job";
 import { requireUser } from "@/lib/auth/require-user";
 import { formatCommuteRange, formatCommuteRangeDetail, getCommuteDataKindLabel, getCommuteDataKindTone, getPrimaryCommuteMinutes } from "@/lib/commute/fields";
 import { isProductionBuildPhase } from "@/lib/env/build-phase";
@@ -60,7 +61,7 @@ export default async function ComparePage() {
   const latestAnalysesByJobId = await getLatestAnalysesByJobIds(userJobs.map((job) => job.id));
   const jobsWithData = userJobs.map((job) => {
     const latest = latestAnalysesByJobId.get(job.id);
-    const parsed = latest?.evidenceJson ? (JSON.parse(latest.evidenceJson) as ParsedJob) : null;
+    const parsed = parseStoredParsedJob(latest?.evidenceJson, `compare-page:${job.id}`);
     return {
       ...job,
       latest,
