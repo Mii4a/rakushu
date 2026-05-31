@@ -21,7 +21,8 @@
     "db:sync:gtfs": "dotenv -e .env.local -- node scripts/sync-gtfs-feeds.mjs",
     "db:studio": "dotenv -e .env.local -- drizzle-kit studio",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:prod-smoke": "playwright test -c playwright.prod-smoke.config.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.15.15",
@@ -36,6 +37,7 @@
     "zod": "^3.25.42"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@types/node": "^22.15.17",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",

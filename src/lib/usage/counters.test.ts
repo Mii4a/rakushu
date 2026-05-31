@@ -1,14 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
-  findFirstMock,
+  selectLimitMock,
+  selectWhereMock,
+  selectFromMock,
+  selectMock,
   insertValuesMock,
   updateWhereMock,
   updateSetMock,
   insertMock,
   updateMock
 } = vi.hoisted(() => {
-  const findFirst = vi.fn();
+  const selectLimit = vi.fn();
+  const selectWhere = vi.fn(() => ({ limit: selectLimit }));
+  const selectFrom = vi.fn(() => ({ where: selectWhere }));
+  const select = vi.fn(() => ({ from: selectFrom }));
   const insertValues = vi.fn();
   const updateWhere = vi.fn();
   const updateSet = vi.fn(() => ({ where: updateWhere }));
@@ -16,7 +22,10 @@ const {
   const update = vi.fn(() => ({ set: updateSet }));
 
   return {
-    findFirstMock: findFirst,
+    selectLimitMock: selectLimit,
+    selectWhereMock: selectWhere,
+    selectFromMock: selectFrom,
+    selectMock: select,
     insertValuesMock: insertValues,
     updateWhereMock: updateWhere,
     updateSetMock: updateSet,
@@ -40,11 +49,7 @@ vi.mock("@/lib/db/schema", () => ({
 
 vi.mock("@/lib/db/client", () => ({
   db: {
-    query: {
-      usageCounters: {
-        findFirst: findFirstMock
-      }
-    },
+    select: selectMock,
     insert: insertMock,
     update: updateMock
   }
@@ -71,13 +76,13 @@ describe("usage counters", () => {
   });
 
   it("returns zero analysis count when no record exists", async () => {
-    findFirstMock.mockResolvedValueOnce(undefined);
+    selectLimitMock.mockResolvedValueOnce([]);
 
     await expect(getAnalysisCount("user-1", "2026-04")).resolves.toBe(0);
   });
 
   it("creates analysis counter row when missing", async () => {
-    findFirstMock.mockResolvedValueOnce(undefined);
+    selectLimitMock.mockResolvedValueOnce([]);
 
     await incrementAnalysisCount("user-1", "2026-04");
 

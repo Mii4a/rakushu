@@ -5,6 +5,16 @@ import { usageCounters } from "@/lib/db/schema";
 import { AI_CREDIT_COSTS, PLAN_LIMITS, type AiCreditFeature } from "@/lib/plans";
 import { getUserPlan } from "@/lib/subscription";
 
+async function getUsageCounter(userId: string, periodKey: string) {
+  const rows = await db
+    .select()
+    .from(usageCounters)
+    .where(and(eq(usageCounters.userId, userId), eq(usageCounters.monthKey, periodKey)))
+    .limit(1);
+
+  return rows[0] ?? null;
+}
+
 export function getMonthKey(date = new Date()): string {
   const year = date.getUTCFullYear();
   const month = String(date.getUTCMonth() + 1).padStart(2, "0");
@@ -21,25 +31,19 @@ export function getWeekKey(date = new Date()): string {
 }
 
 export async function getAnalysisCount(userId: string, periodKey = getMonthKey()): Promise<number> {
-  const record = await db.query.usageCounters.findFirst({
-    where: and(eq(usageCounters.userId, userId), eq(usageCounters.monthKey, periodKey))
-  });
+  const record = await getUsageCounter(userId, periodKey);
 
   return record?.analysisCount ?? 0;
 }
 
 export async function getAiCreditsUsed(userId: string, monthKey = getMonthKey()): Promise<number> {
-  const record = await db.query.usageCounters.findFirst({
-    where: and(eq(usageCounters.userId, userId), eq(usageCounters.monthKey, monthKey))
-  });
+  const record = await getUsageCounter(userId, monthKey);
 
   return record?.aiCreditsUsed ?? 0;
 }
 
 export async function incrementAnalysisCount(userId: string, periodKey = getMonthKey()): Promise<void> {
-  const existing = await db.query.usageCounters.findFirst({
-    where: and(eq(usageCounters.userId, userId), eq(usageCounters.monthKey, periodKey))
-  });
+  const existing = await getUsageCounter(userId, periodKey);
 
   const now = new Date();
   if (!existing) {
@@ -69,9 +73,7 @@ export async function consumeAiCredits(userId: string, feature: AiCreditFeature,
   const plan = await getUserPlan(userId);
   const monthlyLimit = PLAN_LIMITS[plan].monthlyAiCredits;
   const cost = AI_CREDIT_COSTS[feature];
-  const existing = await db.query.usageCounters.findFirst({
-    where: and(eq(usageCounters.userId, userId), eq(usageCounters.monthKey, monthKey))
-  });
+  const existing = await getUsageCounter(userId, monthKey);
   const current = existing?.aiCreditsUsed ?? 0;
 
   if (current + cost > monthlyLimit) {
