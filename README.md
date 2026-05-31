@@ -1,7 +1,193 @@
-# らくしゅう (MVP)
+# らくしゅう
 
-就活の求人情報を保存・構造化して管理するWebアプリです。  
-現在は **Phase 5**（求人進捗管理・編集・次アクション管理）まで実装済みです。
+就活中の求人本文を保存し、条件の見落としを減らしながら比較・整理しやすくする Web アプリです。
+
+現行実装は、単なる求人メモではなく、
+- 求人本文のルールベース解析
+- ランク付け結果の保存
+- 自分/みんなの判断基準の管理
+- 選考進捗と次アクション管理
+- 通勤時間の保存・参考計算
+- Stripe 課金とプラン制御
+- 履歴書ワークスペース
+まで一通り入っています。
+
+## 現在実装されている主な機能
+
+### 1. 公開ページ / 導線
+- ランディングページ（`/`）
+- ログインページ（`/login`）
+- β参加ページ（`/beta`）
+- 料金ページ（`/pricing`）
+- 特商法 / 利用規約 / プライバシー / 返金ポリシーの法務ページ
+- `robots.txt` / `sitemap.xml` / Google Search Console 用 meta の配信
+
+### 2. 認証 / アカウント
+- Better Auth + Google OAuth ログイン
+- セッション管理
+- アカウント設定ページ（`/settings/account`）
+- 表示名の更新
+- 連携済みアカウント一覧の表示
+
+### 3. 求人の登録・保存・再解析
+- 求人登録ページ（`/jobs/new`）
+- 求人本文の貼り付け保存
+- 補足情報の入力
+  - 会社名
+  - 職種名
+  - 求人媒体名
+  - URL
+  - 勤務地
+  - 最寄り駅
+  - 手入力の通勤時間
+- 求人一覧ページ（`/jobs`）
+- 求人編集ページ（`/jobs/[id]/edit`）
+- 求人削除
+- 保存済み求人の再解析
+- 最新解析結果を求人単位で保持
+
+### 4. ルールベース解析・ランク付け
+求人解析は LLM ではなく、`src/lib/analysis` のルールベース実装です。
+
+抽出・判定している主な項目:
+- 会社名
+- 職種名
+- 雇用形態
+- 給与帯
+- 固定残業時間 / 固定残業代
+- 年間休日
+- 休日制度
+- 賞与回数
+- 業績連動賞与
+- 住宅手当
+- 社宅
+- 退職金
+- 福利厚生
+- 注意 warning
+
+あわせて、以下を実装済みです。
+- 抽出根拠 `evidence` の保存
+- 「なし」と「不明」の区別
+- 総合ランク / 個別ランクの保存
+- 旧 parser 保存形式を読む正規化レイヤー
+- 薄い求人本文に対する missing-item 判定
+- 自動 quality feedback レコード生成
+
+### 5. 求人整理・選考管理
+- ダッシュボード（`/dashboard`）
+  - 直近の保存求人
+  - 解析使用数
+  - 次に見るべきアクションの提案
+  - 1週間以内の次アクション表示
+- 求人一覧での検索 / 絞り込み / 並び替え
+  - キーワード検索
+  - 総合ランク絞り込み
+  - 年間休日の下限絞り込み
+  - 作成日 / 会社名 / ランク / 休日数で並び替え
+- 選考ステータス管理
+  - 保存中
+  - 応募済み
+  - 選考中
+  - 面接予定
+  - 内定
+  - 見送り
+- 次アクション日とメモの保存
+- ステータス変更履歴の保存
+- 求人詳細パネルでの解析サマリー表示
+
+### 6. みんなの基準 / 自分用基準
+- 基準一覧ページ（`/criteria`）
+- 公開基準の初期投入
+- 公開基準の閲覧
+- 人気順 / 新着順 / 保存数順 / 利用数順での並び替え
+- カテゴリ / タグ / キーワードでの絞り込み
+- 公開基準の保存
+- 公開基準の複製
+- 公開基準の利用記録
+- 自分用基準の作成（Plus 以上）
+- 自分用基準の編集（Plus 以上）
+  - 固定残業の閾値
+  - 年間休日の閾値
+  - 賞与回数の閾値
+  - 退職金あり/なし時のランク
+- 公開基準の view/save/clone/use 指標の蓄積
+
+### 7. 通勤プロフィール・通勤時間
+- 通勤設定ページ（`/settings/commute`）
+- 自宅住所 / 最寄り駅 / 希望最大通勤時間の保存
+- 求人ごとの通勤時間保存
+  - 手入力値
+  - GTFS ベースの参考レンジ
+- 通勤情報の一覧・詳細表示
+- 通勤データ種別の表示（手入力 / GTFS レンジ）
+- GTFS static feed の取込スクリプト
+- `provider + region` 単位の feed 再取込
+- `直通 + 1回乗換` の参考通勤時間レンジ計算
+- `特急 / 新幹線` 除外
+- `calendar.txt` / `calendar_dates.txt` を使った運行日判定
+- 既存求人の通勤データ backfill スクリプト
+- `/api/commute/estimate` API
+
+### 8. 比較ページ
+- 比較ページ（`/compare`）
+- 保存済み求人の横並び比較 UI
+- 比較項目
+  - 総合ランク
+  - 通勤時間
+  - 年間休日
+  - 固定残業
+  - 賞与
+- 最短通勤 / 休日多め / 長め通勤候補のサマリー表示
+- Pro プランでの利用制御
+
+### 9. 料金・課金・プラン制御
+- Free / Starter / Plus / Pro の 4 プラン定義
+- 解析回数上限 / 保存件数上限 / 機能開放範囲のプラン制御
+- Stripe Checkout（`/api/stripe/checkout`）
+- Stripe Customer Portal（`/api/stripe/portal`）
+- Stripe Webhook（`/api/stripe/webhook`）
+- サブスクリプション同期
+  - `stripeCustomerId`
+  - `stripeSubscriptionId`
+  - `plan`
+  - `status`
+  - `currentPeriodEnd`
+- キャンペーン用 promotion code 対応
+- 料金ページ上での現在プラン表示
+- Plus / Pro 向けランク設定編集 UI
+
+### 10. 履歴書ワークスペース
+- 履歴書ページ（`/resume`）
+- Pro プラン限定の下書き保存
+- 履歴書プロフィール保存
+  - 氏名 / ふりがな / 性別 / 生年月日
+  - 住所 / 連絡先 / 電話 / メール
+  - 学歴 / 職歴 / 資格
+  - 自己PR / 志望動機 / 希望条件
+- 面接で口頭補足するポイント付きの下書き生成
+- Excel 形式出力 API（`/api/resume/xlsx`）
+
+### 11. β運用・計測・内部向け機能
+- β参加フォーム送信
+- β応募内容の DB 保存
+- UTM / referrer / CTA variant つきのマーケイベント保存
+- LP / CTA / 解析完了などのイベント記録 API（`/api/marketing-events`）
+- 内部 parser feedback 一覧ページ（`/internal/parser-feedback`）
+  - `INTERNAL_TOOL_EMAILS` に入っているユーザーだけアクセス可能
+  - `INTERNAL_ADMIN_EMAILS` は全件閲覧可能
+  - それ以外の internal user は自分の求人に紐づく feedback のみ閲覧可能
+  - severity / status 絞り込み
+  - raw excerpt は新規保存しない
+  - parsed snapshot の quick checks 表示
+  - parser 改修候補の洗い出し
+- 本番用 Playwright smoke test
+
+## 未実装・今後の余地
+- LLM を使った高度な比較・推薦
+- 通知機能
+- 全国 GTFS feed の本格投入と地域拡大
+- parser feedback から fixture 追加までの運用自動化
+- 比較機能のさらなる深掘り（現状でも基本比較 UI はあり）
 
 ## 技術スタック
 - Next.js (App Router) / TypeScript
@@ -10,7 +196,9 @@
 - Better Auth (Google OAuth)
 - Tailwind CSS
 - Stripe
-- OpenAI API（設定基盤）
+- OpenNext / Cloudflare Workers
+- Vitest
+- Playwright
 
 ## セットアップ
 1. 依存関係をインストール
@@ -53,11 +241,13 @@
 
 ## 本番デプロイ
 
-本番投入の実行手順は [docs/production-deploy.md](/home/openclaw/rakushu/docs/production-deploy.md) を参照してください。  
+本番投入の実行手順は `docs/production-deploy.md` を参照してください。  
 重要なのは、アプリ公開前に本番 DB へ migration を先に適用することです。
 
+このリポジトリの通常の本番反映は、GitHub の `main` 更新から Cloudflare Workers への自動デプロイで行います。
+
 このアプリは App Router / 認証 / SSR を使っているため、Cloudflare Pages の静的配信ではなく Cloudflare Workers 上で動かします。  
-Cloudflare Pages は静的 export 向けで、この構成の本番配備先としては使いません。
+Pages 向けの `next export` は使いません。
 
 本番 env テンプレート:
 ```bash
@@ -128,59 +318,3 @@ stripe trigger checkout.session.completed
 stripe trigger customer.subscription.updated
 stripe trigger customer.subscription.deleted
 ```
-
-## 実装済み範囲
-- Phase 1
-  - ディレクトリ責務分離
-  - Turso接続基盤
-  - Drizzleスキーマ
-  - Better Auth + Google認証
-  - 最低限ページ（`/`, `/login`, `/dashboard`）
-- Phase 2
-  - 求人登録（`/jobs/new`）
-  - 求人一覧（`/jobs`）
-  - 求人詳細（`/jobs/[id]`）
-  - 求人編集（`/jobs/[id]/edit`）
-  - ルールベース解析（`src/lib/analysis/parser.ts`）
-  - スコアリング（`src/lib/analysis/scoring.ts`）
-  - 解析結果保存（`job_analyses`）
-- Phase 3
-  - 料金ページ（`/pricing`）
-  - Stripe Checkout（`/api/stripe/checkout`）
-  - Stripe Webhook（`/api/stripe/webhook`）
-  - 利用制限（求人保存・解析）
-- Phase 4
-  - Starter / Plus / Pro の3段階プラン
-  - 月間AIクレジット定義（Starter 30 / Plus 120 / Pro 400）
-  - キャンペーン半額表示と Stripe promotion code 許可
-  - OpenAI Responses API 互換を見据えたモデル設定（`gpt-4.1-mini` / `gpt-4.1-nano`）
-  - みんなの基準（公開基準の閲覧・保存・複製・利用統計の土台）
-  - 公開基準の人気指標（view/save/clone/use と popularity score）
-- Phase 5
-  - 選考ステータス管理（応募済み / 書類選考中 / 面接中 / 内定 / 見送り）
-  - 次アクション日とメモの管理
-  - ステータス変更履歴保存（`job_status_events`）
-  - ダッシュボードの直近アクション表示
-- 通勤時間 GTFS MVP（最小完了）
-  - `GTFS/GTFS-JP` feed の取込（ディレクトリ / zip / manifest）
-  - `provider + region` 単位の feed 再取込
-  - `直通 + 1回乗換` の参考通勤時間レンジ計算
-  - `特急 / 新幹線` 除外
-  - `calendar.txt` と `calendar_dates.txt` の保持
-  - `jobs` への通勤レンジ保存と一覧 / 詳細 / 比較表示
-  - 詳細は `docs/commute-gtfs-status.md`
-
-## 未実装
-- AI比較や推薦の高度化
-- 通知機能
-- 全国 GTFS feed の本投入と地域拡大
-- GTFS/GTFS-JP ベースの通勤時間設計は `docs/commute-gtfs-mvp-plan.md` に整理
-- GTFS 通勤機能の現在地と再開メモは `docs/commute-gtfs-status.md`
-- 実 feed 候補は `docs/commute-gtfs-feed-candidates.md`
-- ODPT token 取得待ちで止めた場合も、再開手順は `docs/commute-gtfs-status.md` に記録
-- 既存求人の通勤レンジ backfill は `npm run db:backfill:commute` で実行可能
-- GTFS feed の再取込は `node scripts/import-gtfs-static.mjs ...` が既定で `provider + region` 単位の置換、積み増したいときだけ `--append`
-- GTFS importer は展開済みディレクトリだけでなく `.zip` も直接読める
-- 複数 feed の一括取込は `npm run db:import:gtfs -- --manifest ./config/gtfs-feeds.example.json`
-- 首都圏向けの実 feed 雛形は `config/gtfs-feeds.kanto.example.json`
-- ODPT token を使った download + import 一括同期は `npm run db:sync:gtfs -- --manifest ./config/gtfs-feeds.kanto.example.json`

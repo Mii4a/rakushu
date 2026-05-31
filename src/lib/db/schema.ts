@@ -130,7 +130,7 @@ export const jobAnalysisFeedback = sqliteTable(
     severity: text("severity").notNull(),
     failureTypesJson: text("failure_types_json").notNull(),
     summaryText: text("summary_text").notNull(),
-    rawExcerpt: text("raw_excerpt").notNull(),
+    rawExcerpt: text("raw_excerpt"),
     userReasonCode: text("user_reason_code"),
     userNote: text("user_note"),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`),

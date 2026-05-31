@@ -25,7 +25,9 @@
       "STRIPE_PRICE_PRO_SECRET",
       "STRIPE_SECRET_KEY",
       "STRIPE_WEBHOOK_SECRET",
-      "OPENAI_API_KEY"
+      "OPENAI_API_KEY",
+      "INTERNAL_TOOL_EMAILS",
+      "INTERNAL_ADMIN_EMAILS"
     ]
   },
   "assets": {

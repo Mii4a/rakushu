@@ -20,7 +20,9 @@ const serverEnvSchema = z.object({
   GOOGLE_MAPS_SERVER_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MAIN_MODEL: z.string().default("gpt-4.1-mini"),
-  OPENAI_LIGHT_MODEL: z.string().default("gpt-4.1-nano")
+  OPENAI_LIGHT_MODEL: z.string().default("gpt-4.1-nano"),
+  INTERNAL_TOOL_EMAILS: z.string().default(""),
+  INTERNAL_ADMIN_EMAILS: z.string().default("")
 });
 
 const runtimeEnvInput = {

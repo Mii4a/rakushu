@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth/require-user";
+import { isInternalToolsUser } from "@/lib/auth/internal-access";
 import { getLatestAnalysisFeedback, type FeedbackSeverity, type FeedbackStatus } from "@/lib/jobs/latest-analysis-feedback";
 
 export const dynamic = "force-dynamic";
@@ -24,13 +26,23 @@ export default async function InternalParserFeedbackPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireUser();
+  const user = await requireUser();
+
+  if (!isInternalToolsUser(user.email)) {
+    redirect("/jobs");
+  }
 
   const params = (await searchParams) ?? {};
   const status = (toSingle(params.status) ?? "open") as FeedbackStatus | "";
   const severity = (toSingle(params.severity) ?? "") as FeedbackSeverity | "";
 
-  const items = await getLatestAnalysisFeedback({ status, severity, limit: 100 });
+  const items = await getLatestAnalysisFeedback({
+    status,
+    severity,
+    limit: 100,
+    requesterUserId: user.id,
+    requesterEmail: user.email
+  });
 
   return (
     <section className="mx-auto max-w-6xl space-y-6 px-6 py-10">
@@ -110,34 +122,20 @@ export default async function InternalParserFeedbackPage({
                 </div>
               </div>
 
-              <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)]">
-                <div className="space-y-3">
-                  <div>
-                    <p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">raw excerpt</p>
-                    <pre className="overflow-x-auto whitespace-pre-wrap rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700">{item.rawExcerpt}</pre>
-                  </div>
-
-                  <details className="rounded-2xl border border-slate-200 px-4 py-3">
-                    <summary className="cursor-pointer text-sm font-bold text-slate-800">parsed snapshot を見る</summary>
-                    <pre className="mt-3 overflow-x-auto whitespace-pre-wrap rounded-2xl bg-slate-50 p-4 text-xs leading-6 text-slate-700">
-                      {JSON.stringify(item.parsedSnapshot, null, 2)}
-                    </pre>
-                  </details>
+              <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">quick checks</p>
+                  <ul className="mt-3 space-y-2 text-sm text-slate-700">
+                    <li>会社名: {item.parsedSnapshot?.companyName.status ?? "unknown"}</li>
+                    <li>雇用形態: {item.parsedSnapshot?.employmentType.status ?? "unknown"}</li>
+                    <li>給与: {item.parsedSnapshot?.salaryText.status ?? "unknown"}</li>
+                    <li>休日: {item.parsedSnapshot?.annualHolidays.status ?? "unknown"}</li>
+                    <li>福利厚生件数: {item.parsedSnapshot?.benefits.value?.length ?? 0}</li>
+                    <li>warning件数: {item.parsedSnapshot?.warnings.value?.length ?? 0}</li>
+                  </ul>
                 </div>
 
-                <div className="space-y-3">
-                  <div className="rounded-2xl bg-slate-50 p-4">
-                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">quick checks</p>
-                    <ul className="mt-3 space-y-2 text-sm text-slate-700">
-                      <li>会社名: {item.parsedSnapshot?.companyName.status ?? "unknown"}</li>
-                      <li>雇用形態: {item.parsedSnapshot?.employmentType.status ?? "unknown"}</li>
-                      <li>給与: {item.parsedSnapshot?.salaryText.status ?? "unknown"}</li>
-                      <li>休日: {item.parsedSnapshot?.annualHolidays.status ?? "unknown"}</li>
-                      <li>福利厚生件数: {item.parsedSnapshot?.benefits.value?.length ?? 0}</li>
-                      <li>warning件数: {item.parsedSnapshot?.warnings.value?.length ?? 0}</li>
-                    </ul>
-                  </div>
-
+                <div className="flex items-start">
                   <Link
                     href={`/jobs/${item.jobId}`}
                     className="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-300 px-4 text-sm font-bold text-slate-700"

@@ -3,8 +3,10 @@ import { and, desc, eq } from "drizzle-orm";
 import type { FailureType } from "@/lib/analysis/quality";
 import type { ParsedJob } from "@/lib/analysis";
 import { parseStoredParsedJob } from "@/lib/analysis/parse-stored-job";
+import { parseAllowedInternalEmails } from "@/lib/auth/internal-access";
 import { db } from "@/lib/db/client";
 import { jobAnalyses, jobAnalysisFeedback, jobs } from "@/lib/db/schema";
+import { resolveFeedbackAccessScope } from "@/lib/jobs/feedback-access";
 
 export type FeedbackStatus = "open" | "reviewed" | "fixture_added" | "ignored";
 export type FeedbackSeverity = "medium" | "high";
@@ -17,7 +19,7 @@ export type ParserFeedbackRecord = {
   severity: FeedbackSeverity;
   failureTypes: FailureType[];
   summaryText: string;
-  rawExcerpt: string;
+  rawExcerpt: string | null;
   createdAt: Date;
   updatedAt: Date;
   jobId: string;
@@ -32,7 +34,9 @@ export async function getLatestAnalysisFeedback(filters: {
   status?: FeedbackStatus | "";
   severity?: FeedbackSeverity | "";
   limit?: number;
-} = {}): Promise<ParserFeedbackRecord[]> {
+  requesterUserId: string;
+  requesterEmail: string | null | undefined;
+}): Promise<ParserFeedbackRecord[]> {
   const conditions = [];
 
   if (filters.status) {
@@ -41,6 +45,16 @@ export async function getLatestAnalysisFeedback(filters: {
 
   if (filters.severity) {
     conditions.push(eq(jobAnalysisFeedback.severity, filters.severity));
+  }
+
+  const accessScope = resolveFeedbackAccessScope({
+    requesterUserId: filters.requesterUserId,
+    requesterEmail: filters.requesterEmail,
+    adminEmails: parseAllowedInternalEmails(process.env.INTERNAL_ADMIN_EMAILS)
+  });
+
+  if (accessScope.restrictToUserId) {
+    conditions.push(eq(jobs.userId, accessScope.restrictToUserId));
   }
 
   const rows = await db

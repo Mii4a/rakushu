@@ -52,6 +52,9 @@ STRIPE_CAMPAIGN_PROMOTION_CODE_ID=
 OPENAI_API_KEY=sk-...
 OPENAI_MAIN_MODEL=gpt-4.1-mini
 OPENAI_LIGHT_MODEL=gpt-4.1-nano
+
+INTERNAL_TOOL_EMAILS=owner@example.com,reviewer@example.com
+INTERNAL_ADMIN_EMAILS=owner@example.com
 GOOGLE_SEARCH_CONSOLE_SITE_VERIFICATION=
 GOOGLE_SITE_VERIFICATION=
 ```
@@ -62,6 +65,8 @@ GOOGLE_SITE_VERIFICATION=
 - `GOOGLE_MAPS_SERVER_API_KEY` は Routes API / Geocoding API など server-side 専用キーにする
 - `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_API_KEY` は Maps JavaScript API 用の browser 専用キーにする
 - `STRIPE_*` は live mode の値に切り替える
+- `INTERNAL_TOOL_EMAILS` は internal parser feedback を見てよいメールだけをカンマ区切りで入れる
+- `INTERNAL_ADMIN_EMAILS` はその中でも全件閲覧できる admin メールだけを入れる
 - `.env.production` はテンプレート用途にとどめ、秘密値は Git に載せない
 - 追跡対象のテンプレートは `.env.production.example`
 - `GOOGLE_SEARCH_CONSOLE_SITE_VERIFICATION` は Search Console の HTML tag 方式を使うときだけ設定する
@@ -82,6 +87,8 @@ npx wrangler secret put STRIPE_PRICE_PRO_SECRET
 npx wrangler secret put STRIPE_SECRET_KEY
 npx wrangler secret put STRIPE_WEBHOOK_SECRET
 npx wrangler secret put OPENAI_API_KEY
+npx wrangler secret put INTERNAL_TOOL_EMAILS
+npx wrangler secret put INTERNAL_ADMIN_EMAILS
 ```
 
 平文でよい値は `wrangler.jsonc` ではなく、Cloudflare Dashboard または `wrangler secret/bulk` と環境ごとの変数管理で扱うのが安全です。
@@ -106,6 +113,8 @@ npm run cf:secrets:prod
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
 - `OPENAI_API_KEY`
+- `INTERNAL_TOOL_EMAILS`
+- `INTERNAL_ADMIN_EMAILS`
 
 `STRIPE_CAMPAIGN_PROMOTION_CODE_ID_SECRET` は任意です。`.env.production` に値が入っている場合だけ secret として登録します。
 
@@ -220,39 +229,36 @@ npm run db:migrate:prod
 
 ## 6. Cloudflare デプロイ
 
-1. Cloudflare へログイン
-   ```bash
-   npx wrangler login
-   ```
-2. Workers 側へ本番 env / secret を登録
+このリポジトリの通常の本番反映は、GitHub の `main` 更新をトリガーにした Cloudflare Workers 自動デプロイです。  
+そのため、日常運用では `wrangler deploy` を直接叩くより、以下の順で整えてから `main` へ反映します。
+
+1. Workers 側へ本番 env / secret を登録
    ```bash
    npm run cf:secrets:prod
    ```
-3. 本番 DB に migration を適用
+2. 本番 DB に migration を適用
    ```bash
    npm run db:migrate:prod
    ```
-4. migration 状態が pending 0 件か確認
+3. migration 状態が pending 0 件か確認
    ```bash
    npm run db:migrate:prod:status
    ```
    - `pending migrations: none` になること
-   - 1件でも pending が出たら deploy に進まない
-4. Workers ランタイムで事前確認
+   - 1件でも pending が出たら `main` 更新に進まない
+4. Workers ランタイムで事前確認したい場合だけローカル preview を使う
    ```bash
    npm run preview
    ```
-5. 本番デプロイ
-   ```bash
-   npm run deploy
-   ```
+5. GitHub の `main` へ反映して Cloudflare の自動デプロイを待つ
 6. deploy 後に migration 状態を再確認
    ```bash
    npm run db:migrate:prod:status
    ```
 7. `workers.dev` URL で疎通確認する
 
-CI/CD を使う場合も、実行順は `db:migrate:prod -> db:migrate:prod:status -> npm run deploy -> db:migrate:prod:status` に固定します。
+手動 deploy を使うのは、CI/CD 経路を使えない一時対応や切り分け時だけです。  
+通常運用の実行順は `cf:secrets:prod -> db:migrate:prod -> db:migrate:prod:status -> main 更新 -> db:migrate:prod:status` に固定します。
 
 ## 7. デプロイ直後の確認
 

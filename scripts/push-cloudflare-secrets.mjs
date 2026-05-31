@@ -13,7 +13,9 @@ const REQUIRED_SECRET_KEYS = [
   { envKey: "STRIPE_PRICE_PRO", bindingKey: "STRIPE_PRICE_PRO_SECRET" },
   { envKey: "STRIPE_SECRET_KEY", bindingKey: "STRIPE_SECRET_KEY" },
   { envKey: "STRIPE_WEBHOOK_SECRET", bindingKey: "STRIPE_WEBHOOK_SECRET" },
-  { envKey: "OPENAI_API_KEY", bindingKey: "OPENAI_API_KEY" }
+  { envKey: "OPENAI_API_KEY", bindingKey: "OPENAI_API_KEY" },
+  { envKey: "INTERNAL_TOOL_EMAILS", bindingKey: "INTERNAL_TOOL_EMAILS" },
+  { envKey: "INTERNAL_ADMIN_EMAILS", bindingKey: "INTERNAL_ADMIN_EMAILS" }
 ];
 
 const OPTIONAL_SECRET_KEYS = [
@@ -51,7 +53,7 @@ async function putSecret(key, value) {
   await new Promise((resolve, reject) => {
     const child = spawn(
       "npx",
-      ["wrangler", "versions", "secret", "put", key, "--config", "wrangler.jsonc"],
+      ["wrangler", "secret", "put", key, "--config", "wrangler.jsonc"],
       {
         stdio: ["pipe", "inherit", "inherit"]
       }

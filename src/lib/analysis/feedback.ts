@@ -27,7 +27,7 @@ export function buildJobAnalysisFeedbackInsert(params: {
     severity: report.severity,
     failureTypesJson: JSON.stringify(report.failureTypes),
     summaryText: report.summaryText,
-    rawExcerpt: report.excerpt,
+    rawExcerpt: null,
     createdAt: params.now,
     updatedAt: params.now
   };
