@@ -246,10 +246,30 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
   const [analysisCount, jobCountResult, jobList] = await Promise.all([
     getAnalysisCount(user.id, periodKey),
     db.select({ count: sql<number>`count(*)` }).from(jobs).where(eq(jobs.userId, user.id)),
-    db.query.jobs.findMany({
-      where: eq(jobs.userId, user.id),
-      orderBy: (table, { desc }) => [desc(table.createdAt)]
-    })
+    db
+      .select({
+        id: jobs.id,
+        userId: jobs.userId,
+        companyName: jobs.companyName,
+        title: jobs.title,
+        sourceName: jobs.sourceName,
+        sourceUrl: jobs.sourceUrl,
+        workAddress: jobs.workAddress,
+        nearestStation: jobs.nearestStation,
+        commuteMinutes: jobs.commuteMinutes,
+        commuteMinutesMin: jobs.commuteMinutesMin,
+        commuteMinutesMax: jobs.commuteMinutesMax,
+        commuteMinutesTypical: jobs.commuteMinutesTypical,
+        commuteDataKind: jobs.commuteDataKind,
+        selectionStatus: jobs.selectionStatus,
+        nextActionAt: jobs.nextActionAt,
+        selectionMemo: jobs.selectionMemo,
+        createdAt: jobs.createdAt,
+        updatedAt: jobs.updatedAt
+      })
+      .from(jobs)
+      .where(eq(jobs.userId, user.id))
+      .orderBy(sql`${jobs.createdAt} desc`)
   ]);
 
   const latestAnalysesByJobId = await getLatestAnalysesByJobIds(jobList.map((job) => job.id));
@@ -298,7 +318,19 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
     }
   });
 
-  const selectedJob = sortedList.find((job) => job.id === selectedParam) ?? sortedList[0] ?? null;
+  const selectedJobBase = sortedList.find((job) => job.id === selectedParam) ?? sortedList[0] ?? null;
+  const selectedJobDetailRows = selectedJobBase
+    ? await db
+        .select({
+          id: jobs.id,
+          rawText: jobs.rawText
+        })
+        .from(jobs)
+        .where(eq(jobs.id, selectedJobBase.id))
+        .limit(1)
+    : [];
+  const selectedJobRawText = selectedJobDetailRows[0]?.rawText ?? null;
+  const selectedJob = selectedJobBase ? { ...selectedJobBase, rawText: selectedJobRawText } : null;
   const selectedParams = createParamsObject(params);
 
   const aRankCount = jobListWithAnalyses.filter((job) => job.latest?.totalRank === "A").length;

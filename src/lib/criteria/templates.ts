@@ -1,8 +1,19 @@
-import { and, desc, eq, like, or, sql } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, like, or, sql } from "drizzle-orm";
 
 import { DEFAULT_RANK_SETTINGS, normalizeConfigurableRank, type RankSettings } from "@/lib/analysis";
 import { db } from "@/lib/db/client";
-import { criteriaTemplates } from "@/lib/db/schema";
+import { criteriaTemplates, user } from "@/lib/db/schema";
+
+const criteriaTemplateColumns = getTableColumns(criteriaTemplates);
+
+function attachTemplateUser<T extends typeof criteriaTemplates.$inferSelect & { userName?: string | null }>(rows: T[]) {
+  return rows.map(({ userName, ...template }) => ({
+    ...template,
+    user: {
+      name: userName ?? "不明"
+    }
+  }));
+}
 
 export const CRITERIA_CATEGORIES = ["balanced", "work-life", "salary", "growth", "stability"] as const;
 
@@ -84,9 +95,14 @@ export function defaultCriteriaValues() {
 const DEFAULT_PUBLIC_CRITERIA_SOURCE_ID = "system-default-public-criteria-v1";
 
 export async function ensureDefaultPublicCriteria(ownerUserId: string) {
-  const existingDefault = await db.query.criteriaTemplates.findFirst({
-    where: eq(criteriaTemplates.sourceTemplateId, DEFAULT_PUBLIC_CRITERIA_SOURCE_ID)
-  });
+  const existingDefaultRows = await db
+    .select({
+      ...criteriaTemplateColumns
+    })
+    .from(criteriaTemplates)
+    .where(eq(criteriaTemplates.sourceTemplateId, DEFAULT_PUBLIC_CRITERIA_SOURCE_ID))
+    .limit(1);
+  const existingDefault = existingDefaultRows[0] ?? null;
 
   if (existingDefault) {
     return existingDefault;
@@ -142,9 +158,14 @@ export async function ensureDefaultPublicCriteria(ownerUserId: string) {
     updatedAt: now
   });
 
-  return db.query.criteriaTemplates.findFirst({
-    where: eq(criteriaTemplates.sourceTemplateId, DEFAULT_PUBLIC_CRITERIA_SOURCE_ID)
-  });
+  const createdRows = await db
+    .select({
+      ...criteriaTemplateColumns
+    })
+    .from(criteriaTemplates)
+    .where(eq(criteriaTemplates.sourceTemplateId, DEFAULT_PUBLIC_CRITERIA_SOURCE_ID))
+    .limit(1);
+  return createdRows[0] ?? null;
 }
 
 export async function listPublicCriteria(filters: PublicCriteriaFilters = {}) {
@@ -170,22 +191,31 @@ export async function listPublicCriteria(filters: PublicCriteriaFilters = {}) {
           ? desc(criteriaTemplates.useCount)
           : desc(criteriaTemplates.popularityScore);
 
-  return db.query.criteriaTemplates.findMany({
-    where: and(...where),
-    orderBy: [orderBy, desc(criteriaTemplates.createdAt)],
-    with: {
-      user: true
-    }
-  });
+  const rows = await db
+    .select({
+      ...criteriaTemplateColumns,
+      userName: user.name
+    })
+    .from(criteriaTemplates)
+    .leftJoin(user, eq(criteriaTemplates.userId, user.id))
+    .where(and(...where))
+    .orderBy(orderBy, desc(criteriaTemplates.createdAt));
+
+  return attachTemplateUser(rows);
 }
 
 export async function getPublicCriteria(id: string) {
-  return db.query.criteriaTemplates.findFirst({
-    where: and(eq(criteriaTemplates.id, id), eq(criteriaTemplates.visibility, "public")),
-    with: {
-      user: true
-    }
-  });
+  const rows = await db
+    .select({
+      ...criteriaTemplateColumns,
+      userName: user.name
+    })
+    .from(criteriaTemplates)
+    .leftJoin(user, eq(criteriaTemplates.userId, user.id))
+    .where(and(eq(criteriaTemplates.id, id), eq(criteriaTemplates.visibility, "public")))
+    .limit(1);
+
+  return attachTemplateUser(rows)[0] ?? null;
 }
 
 export async function countOwnedCriteria(userId: string) {

@@ -1,9 +1,11 @@
-import { eq } from "drizzle-orm";
+import { eq, getTableColumns } from "drizzle-orm";
 
 import { DEFAULT_RANK_SETTINGS, normalizeConfigurableRank, type RankSettings } from "@/lib/analysis";
 import { db } from "@/lib/db/client";
 import { rankSettings } from "@/lib/db/schema";
 import { getUserPlan } from "@/lib/subscription";
+
+const rankSettingsColumns = getTableColumns(rankSettings);
 
 export async function getUserRankSettings(userId: string): Promise<RankSettings> {
   const plan = await getUserPlan(userId);
@@ -11,9 +13,14 @@ export async function getUserRankSettings(userId: string): Promise<RankSettings>
     return DEFAULT_RANK_SETTINGS;
   }
 
-  const record = await db.query.rankSettings.findFirst({
-    where: eq(rankSettings.userId, userId)
-  });
+  const recordRows = await db
+    .select({
+      ...rankSettingsColumns
+    })
+    .from(rankSettings)
+    .where(eq(rankSettings.userId, userId))
+    .limit(1);
+  const record = recordRows[0] ?? null;
 
   if (!record) {
     return DEFAULT_RANK_SETTINGS;

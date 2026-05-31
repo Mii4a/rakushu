@@ -1,14 +1,22 @@
-import { eq } from "drizzle-orm";
+import { eq, getTableColumns } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { userCommuteProfiles } from "@/lib/db/schema";
 import { buildManualCommuteFields } from "@/lib/commute/fields";
 import { getGtfsCommuteRangeByStationNames } from "@/lib/commute/gtfs-range-db";
 
+const userCommuteProfileColumns = getTableColumns(userCommuteProfiles);
+
 export async function getUserCommuteProfile(userId: string) {
-  return db.query.userCommuteProfiles.findFirst({
-    where: eq(userCommuteProfiles.userId, userId)
-  });
+  const rows = await db
+    .select({
+      ...userCommuteProfileColumns
+    })
+    .from(userCommuteProfiles)
+    .where(eq(userCommuteProfiles.userId, userId))
+    .limit(1);
+
+  return rows[0] ?? null;
 }
 
 export async function resolveCommuteFields(params: {

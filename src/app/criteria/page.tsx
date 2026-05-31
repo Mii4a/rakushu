@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, sql } from "drizzle-orm";
 import {
   ArrowRight,
   Bookmark,
@@ -67,6 +67,8 @@ const categoryAccent: Record<string, string> = {
   growth: "bg-[#eef4ff] text-[#4c7ae7]",
   stability: "bg-[#f3eefc] text-[#8b63d9]"
 };
+
+const criteriaTemplateColumns = getTableColumns(criteriaTemplates);
 
 function getSingle(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -143,17 +145,26 @@ export default async function CriteriaPage({
     : [];
 
   const [savedRows, usageRows, publicCountRows, ownedTemplates] = await Promise.all([
-    db.query.savedCriteriaTemplates.findMany({
-      where: eq(savedCriteriaTemplates.userId, user.id)
-    }),
-    db.query.criteriaUsageEvents.findMany({
-      where: and(eq(criteriaUsageEvents.userId, user.id), eq(criteriaUsageEvents.eventType, "use"))
-    }),
+    db
+      .select({
+        templateId: savedCriteriaTemplates.templateId
+      })
+      .from(savedCriteriaTemplates)
+      .where(eq(savedCriteriaTemplates.userId, user.id)),
+    db
+      .select({
+        templateId: criteriaUsageEvents.templateId
+      })
+      .from(criteriaUsageEvents)
+      .where(and(eq(criteriaUsageEvents.userId, user.id), eq(criteriaUsageEvents.eventType, "use"))),
     db.select({ count: sql<number>`count(*)` }).from(criteriaTemplates).where(eq(criteriaTemplates.visibility, "public")),
-    db.query.criteriaTemplates.findMany({
-      where: and(eq(criteriaTemplates.userId, user.id), eq(criteriaTemplates.visibility, "private")),
-      orderBy: (table, { desc }) => [desc(table.updatedAt)]
-    })
+    db
+      .select({
+        ...criteriaTemplateColumns
+      })
+      .from(criteriaTemplates)
+      .where(and(eq(criteriaTemplates.userId, user.id), eq(criteriaTemplates.visibility, "private")))
+      .orderBy(desc(criteriaTemplates.updatedAt))
   ]);
 
   const savedIds = new Set(savedRows.map((row) => row.templateId));
