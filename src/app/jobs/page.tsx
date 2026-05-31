@@ -92,19 +92,27 @@ function toSingle(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function formatDate(date: Date | null | undefined) {
-  if (!date) return "未設定";
-  const year = date.getUTCFullYear();
-  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(date.getUTCDate()).padStart(2, "0");
+function coerceDate(value: Date | number | string | null | undefined) {
+  if (value == null) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatDate(date: Date | number | string | null | undefined) {
+  const normalized = coerceDate(date);
+  if (!normalized) return "未設定";
+  const year = normalized.getUTCFullYear();
+  const month = String(normalized.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(normalized.getUTCDate()).padStart(2, "0");
   return `${year}/${month}/${day}`;
 }
 
-function formatDateInputValue(value: Date | null | undefined): string {
-  if (!value) return "";
-  const year = value.getUTCFullYear();
-  const month = String(value.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(value.getUTCDate()).padStart(2, "0");
+function formatDateInputValue(value: Date | number | string | null | undefined): string {
+  const normalized = coerceDate(value);
+  if (!normalized) return "";
+  const year = normalized.getUTCFullYear();
+  const month = String(normalized.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(normalized.getUTCDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 
@@ -304,7 +312,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
 
     switch (sort) {
       case "created_asc":
-        return a.createdAt.getTime() - b.createdAt.getTime();
+        return (coerceDate(a.createdAt)?.getTime() ?? 0) - (coerceDate(b.createdAt)?.getTime() ?? 0);
       case "company_asc":
         return aName.localeCompare(bName, "ja");
       case "company_desc":
@@ -315,7 +323,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
         return (b.parsed?.annualHolidays.value ?? -1) - (a.parsed?.annualHolidays.value ?? -1);
       case "created_desc":
       default:
-        return b.createdAt.getTime() - a.createdAt.getTime();
+        return (coerceDate(b.createdAt)?.getTime() ?? 0) - (coerceDate(a.createdAt)?.getTime() ?? 0);
     }
   });
 
