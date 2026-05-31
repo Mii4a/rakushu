@@ -107,9 +107,7 @@ export async function generateResumeDraftAction(
   }
 
   const data = parsed.data;
-  const existing = await db.query.resumeProfiles.findFirst({
-    where: eq(resumeProfiles.userId, user.id)
-  });
+  const existing = (await db.select().from(resumeProfiles).where(eq(resumeProfiles.userId, user.id)).limit(1))[0];
   const now = new Date();
   const profilePayload = {
     templateName: data.templateName,

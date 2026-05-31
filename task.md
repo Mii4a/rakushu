@@ -23,4 +23,6 @@
 - 初回実行では対象 7 ルートがすべて 500 `Application error` で失敗
 - failure digest は route ごとに異なったが、失敗した route 群が共通して `getUserPlan` / `getAnalysisCount` を通っており、Cloudflare Workers 上で `db.query.*.findFirst()` を踏むコード経路が残っていた
 - `src/lib/subscription.ts` と `src/lib/usage/counters.ts` の `db.query.*.findFirst()` を `db.select().from(...).where(...).limit(1)` へ置き換えて edge 互換化した
-- ローカルでは `npm test` と `npm run build` が通過したので、このあと main へ反映して本番 smoke を再実行する
+- さらに `src` 配下に残っていた `db.query` を全廃し、actions / API routes / edit page / webhook helper も同じ方針で明示 `select` に統一した
+- 追加 hardening 後も `npm test` と `npm run build` は通過した
+- あとは main へ反映済みの追加修正が本番に載った状態で、Playwright smoke を再実行して確認する

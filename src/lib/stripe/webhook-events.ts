@@ -4,9 +4,7 @@ import { db } from "@/lib/db/client";
 import { stripeWebhookEvents } from "@/lib/db/schema";
 
 export async function hasProcessedStripeEvent(stripeEventId: string): Promise<boolean> {
-  const record = await db.query.stripeWebhookEvents.findFirst({
-    where: eq(stripeWebhookEvents.stripeEventId, stripeEventId)
-  });
+  const record = (await db.select().from(stripeWebhookEvents).where(eq(stripeWebhookEvents.stripeEventId, stripeEventId)).limit(1))[0];
 
   return Boolean(record);
 }

@@ -35,9 +35,7 @@ export async function POST(request: Request) {
 
     const stripe = getStripeServerClient();
 
-    const sub = await db.query.subscriptions.findFirst({
-      where: eq(subscriptions.userId, user.id)
-    });
+    const sub = (await db.select().from(subscriptions).where(eq(subscriptions.userId, user.id)).limit(1))[0];
 
     const campaignPromotionCode = serverEnv.STRIPE_CAMPAIGN_PROMOTION_CODE_ID;
 

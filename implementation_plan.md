@@ -14,4 +14,6 @@
 - `src/lib/subscription.ts` と `src/lib/usage/counters.ts` に残っていた `db.query.*.findFirst()` を、Cloudflare Workers でも安定する単純な `select().from().where().limit(1)` に置換した
 - 関連ユニットテスト mock も `db.select()` チェーンに合わせて更新した
 - `npm test` と `npm run build` は修正後に通過
+- その後、`src` 配下で残っていた `db.query` 利用を再探索し、actions / API routes / `jobs/[id]/edit` / Stripe webhook helper まで明示 `select` へ寄せた
+- 追加 hardening 後も `npm test` と `npm run build` は通過し、`src` 配下の `db.query` 残存は 0 件になった
 - teardown により一時 session / storageState は cleanup する構成にした

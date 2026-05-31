@@ -15,9 +15,7 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const subscription = await db.query.subscriptions.findFirst({
-      where: eq(subscriptions.userId, user.id)
-    });
+    const subscription = (await db.select().from(subscriptions).where(eq(subscriptions.userId, user.id)).limit(1))[0];
 
     if (!subscription?.stripeCustomerId) {
       return NextResponse.json({ error: "Stripe顧客情報が見つかりません" }, { status: 400 });

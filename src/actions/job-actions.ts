@@ -289,15 +289,7 @@ export async function rerunAnalysisAction(jobId: string, _: JobActionState | und
     };
   }
 
-  const target = await db.query.jobs.findFirst({
-    where: and(eq(jobs.id, jobId), eq(jobs.userId, user.id)),
-    with: {
-      analyses: {
-        orderBy: [desc(jobAnalyses.createdAt)],
-        limit: 1
-      }
-    }
-  });
+  const target = (await db.select().from(jobs).where(and(eq(jobs.id, jobId), eq(jobs.userId, user.id))).limit(1))[0];
 
   if (!target) {
     return {
@@ -362,9 +354,7 @@ export async function updateJobAction(formData: FormData) {
   }
 
   const { jobId, companyName, title, sourceName, sourceUrl, workAddress, nearestStation, commuteMinutes, rawText } = parsedForm.data;
-  const target = await db.query.jobs.findFirst({
-    where: and(eq(jobs.id, jobId), eq(jobs.userId, user.id))
-  });
+  const target = (await db.select().from(jobs).where(and(eq(jobs.id, jobId), eq(jobs.userId, user.id))).limit(1))[0];
 
   if (!target) {
     throw new Error("編集対象の求人が見つかりません");
@@ -424,9 +414,7 @@ export async function deleteJobAction(formData: FormData) {
     throw new Error("求人IDが指定されていません");
   }
 
-  const target = await db.query.jobs.findFirst({
-    where: and(eq(jobs.id, jobId), eq(jobs.userId, user.id))
-  });
+  const target = (await db.select().from(jobs).where(and(eq(jobs.id, jobId), eq(jobs.userId, user.id))).limit(1))[0];
 
   if (!target) {
     throw new Error("削除対象の求人が見つかりません");
@@ -461,9 +449,7 @@ export async function updateSelectionProgressAction(_: ActionState, formData: Fo
     return { error: "次アクション日の形式が不正です" };
   }
 
-  const target = await db.query.jobs.findFirst({
-    where: and(eq(jobs.id, jobId), eq(jobs.userId, user.id))
-  });
+  const target = (await db.select().from(jobs).where(and(eq(jobs.id, jobId), eq(jobs.userId, user.id))).limit(1))[0];
 
   if (!target) {
     return { error: "更新対象の求人が見つかりません" };

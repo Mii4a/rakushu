@@ -30,12 +30,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "jobId が必要です。" }, { status: 400 });
     }
 
-    const [profile, job] = await Promise.all([
+    const [profile, jobRows] = await Promise.all([
       getUserCommuteProfile(user.id),
-      db.query.jobs.findFirst({
-        where: and(eq(jobs.id, jobId), eq(jobs.userId, user.id))
-      })
+      db.select().from(jobs).where(and(eq(jobs.id, jobId), eq(jobs.userId, user.id))).limit(1)
     ]);
+    const job = jobRows[0];
 
     if (!profile) {
       return NextResponse.json({ error: "先に通勤プロフィールを登録してください。" }, { status: 400 });

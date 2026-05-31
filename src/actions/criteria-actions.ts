@@ -78,9 +78,11 @@ export async function savePublicCriteriaAction(templateId: string) {
   }
 
   const template = await requirePublicTemplate(templateId);
-  const existing = await db.query.savedCriteriaTemplates.findFirst({
-    where: and(eq(savedCriteriaTemplates.userId, user.id), eq(savedCriteriaTemplates.templateId, template.id))
-  });
+  const existing = (await db
+    .select()
+    .from(savedCriteriaTemplates)
+    .where(and(eq(savedCriteriaTemplates.userId, user.id), eq(savedCriteriaTemplates.templateId, template.id)))
+    .limit(1))[0];
 
   if (!existing) {
     await db.insert(savedCriteriaTemplates).values({
@@ -236,9 +238,11 @@ export async function updateOwnedCriteriaAction(formData: FormData) {
     throw new Error(parsed.error.issues[0]?.message ?? "自分用基準の入力値が不正です。");
   }
 
-  const existing = await db.query.criteriaTemplates.findFirst({
-    where: and(eq(criteriaTemplates.id, parsed.data.templateId), eq(criteriaTemplates.userId, user.id), eq(criteriaTemplates.visibility, "private"))
-  });
+  const existing = (await db
+    .select()
+    .from(criteriaTemplates)
+    .where(and(eq(criteriaTemplates.id, parsed.data.templateId), eq(criteriaTemplates.userId, user.id), eq(criteriaTemplates.visibility, "private")))
+    .limit(1))[0];
 
   if (!existing) {
     throw new Error("編集対象の自分用基準が見つかりません。");

@@ -85,9 +85,7 @@ export async function updateRankSettingsAction(formData: FormData) {
   }
 
   const now = new Date();
-  const existing = await db.query.rankSettings.findFirst({
-    where: eq(rankSettings.userId, user.id)
-  });
+  const existing = (await db.select().from(rankSettings).where(eq(rankSettings.userId, user.id)).limit(1))[0];
 
   if (!existing) {
     await db.insert(rankSettings).values({
@@ -108,15 +106,17 @@ export async function updateRankSettingsAction(formData: FormData) {
   }
 
   const currentSettings = await getUserRankSettings(user.id);
-  const userJobs = await db.query.jobs.findMany({
-    where: eq(jobs.userId, user.id),
-    with: {
-      analyses: true
-    }
-  });
+  const userJobs = await db.select().from(jobs).where(eq(jobs.userId, user.id));
+  const analysesByJobId = new Map<string, typeof jobAnalyses.$inferSelect[]>();
 
   for (const job of userJobs) {
-    for (const analysis of job.analyses) {
+    const analyses = await db.select().from(jobAnalyses).where(eq(jobAnalyses.jobId, job.id));
+    analysesByJobId.set(job.id, analyses);
+  }
+
+  for (const job of userJobs) {
+    const analyses = analysesByJobId.get(job.id) ?? [];
+    for (const analysis of analyses) {
       if (!analysis.evidenceJson) continue;
 
       const parsedJob = JSON.parse(analysis.evidenceJson) as ParsedJob;

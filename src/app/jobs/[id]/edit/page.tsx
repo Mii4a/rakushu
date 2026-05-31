@@ -25,9 +25,7 @@ export default async function EditJobPage({ params }: { params: Promise<{ id: st
     notFound();
   }
 
-  const job = await db.query.jobs.findFirst({
-    where: and(eq(jobs.id, id), eq(jobs.userId, user.id))
-  });
+  const job = (await db.select().from(jobs).where(and(eq(jobs.id, id), eq(jobs.userId, user.id))).limit(1))[0];
 
   if (!job) {
     notFound();

@@ -41,9 +41,7 @@ export async function saveCommuteProfileAction(
     };
   }
 
-  const existing = await db.query.userCommuteProfiles.findFirst({
-    where: eq(userCommuteProfiles.userId, user.id)
-  });
+  const existing = (await db.select().from(userCommuteProfiles).where(eq(userCommuteProfiles.userId, user.id)).limit(1))[0];
   const now = new Date();
   const payload = {
     homeAddress: parsed.data.homeAddress || null,
