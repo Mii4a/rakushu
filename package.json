@@ -16,6 +16,8 @@
     "db:generate": "dotenv -e .env.local -- drizzle-kit generate",
     "db:migrate": "dotenv -e .env.local -- node scripts/migrate-turso.mjs",
     "db:migrate:prod": "dotenv -e .env.production -- node scripts/migrate-turso.mjs",
+    "db:migrate:status": "dotenv -e .env.local -- node scripts/check-turso-migration-status.mjs",
+    "db:migrate:prod:status": "dotenv -e .env.production -- node scripts/check-turso-migration-status.mjs",
     "db:backfill:commute": "dotenv -e .env.local -- node --import tsx scripts/backfill-gtfs-commute-ranges.ts",
     "db:import:gtfs": "dotenv -e .env.local -- node scripts/import-gtfs-manifest.mjs",
     "db:sync:gtfs": "dotenv -e .env.local -- node scripts/sync-gtfs-feeds.mjs",

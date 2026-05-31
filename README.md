@@ -69,6 +69,13 @@ cp .env.production.example .env.production
 npm run db:migrate:prod
 ```
 
+本番 DB migration 状態の確認:
+```bash
+npm run db:migrate:prod:status
+```
+
+期待結果は `pending migrations: none` です。deploy 前後の両方で確認します。
+
 Cloudflare Workers ランタイムでの事前確認:
 ```bash
 npm run preview
@@ -82,6 +89,15 @@ npm run cf:secrets:prod
 Cloudflare Workers へのデプロイ:
 ```bash
 npm run deploy
+```
+
+推奨順序:
+```bash
+npm run db:migrate:prod
+npm run db:migrate:prod:status
+npm run deploy
+npm run db:migrate:prod:status
+npm run test:prod-smoke
 ```
 
 現在の本番公開 URL は `https://rakushu.mii4a.workers.dev` です。

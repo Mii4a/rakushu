@@ -232,6 +232,12 @@ npm run db:migrate:prod
    ```bash
    npm run db:migrate:prod
    ```
+4. migration 状態が pending 0 件か確認
+   ```bash
+   npm run db:migrate:prod:status
+   ```
+   - `pending migrations: none` になること
+   - 1件でも pending が出たら deploy に進まない
 4. Workers ランタイムで事前確認
    ```bash
    npm run preview
@@ -240,9 +246,13 @@ npm run db:migrate:prod
    ```bash
    npm run deploy
    ```
-6. `workers.dev` URL で疎通確認する
+6. deploy 後に migration 状態を再確認
+   ```bash
+   npm run db:migrate:prod:status
+   ```
+7. `workers.dev` URL で疎通確認する
 
-CI/CD を使う場合も、実行順は `db:migrate:prod -> npm run deploy` に固定します。
+CI/CD を使う場合も、実行順は `db:migrate:prod -> db:migrate:prod:status -> npm run deploy -> db:migrate:prod:status` に固定します。
 
 ## 7. デプロイ直後の確認
 
@@ -298,8 +308,10 @@ Cloudflare 側でも確認します。
 - [ ] Google OAuth の redirect URI が本番 URL になっている
 - [ ] Stripe の webhook endpoint が本番 URL になっている
 - [ ] 本番 DB に migration を適用済み
+- [ ] `npm run db:migrate:prod:status` が `pending migrations: none` を返した
 - [ ] `npm run preview` で Workers ランタイム確認済み
 - [ ] `npm run deploy` を実行済み
+- [ ] deploy 後にも `npm run db:migrate:prod:status` を再実行して pending 0 件を確認済み
 - [ ] `/dashboard` `/jobs` `/pricing` を目視確認済み
 - [ ] Stripe の購読同期を確認済み
 
