@@ -40,11 +40,23 @@ export default async function ComparePage() {
   const user = await requireUser();
   const plan = await getUserPlan(user.id);
   const compareEnabled = PLAN_LIMITS[plan].commute.canCompare;
-  const userJobs = await db.query.jobs.findMany({
-    where: eq(jobs.userId, user.id),
-    orderBy: [desc(jobs.updatedAt)],
-    limit: 6
-  });
+  const userJobs = await db
+    .select({
+      id: jobs.id,
+      userId: jobs.userId,
+      companyName: jobs.companyName,
+      title: jobs.title,
+      commuteMinutes: jobs.commuteMinutes,
+      commuteMinutesMin: jobs.commuteMinutesMin,
+      commuteMinutesMax: jobs.commuteMinutesMax,
+      commuteMinutesTypical: jobs.commuteMinutesTypical,
+      commuteDataKind: jobs.commuteDataKind,
+      updatedAt: jobs.updatedAt
+    })
+    .from(jobs)
+    .where(eq(jobs.userId, user.id))
+    .orderBy(desc(jobs.updatedAt))
+    .limit(6);
   const latestAnalysesByJobId = await getLatestAnalysesByJobIds(userJobs.map((job) => job.id));
   const jobsWithData = userJobs.map((job) => {
     const latest = latestAnalysesByJobId.get(job.id);
