@@ -3,15 +3,8 @@ import { describe, expect, it } from "vitest";
 import { buildJobAnalysisFeedbackInsert } from "./feedback";
 import type { ExtractedValue, JobWarnings, ParsedJob } from "./types";
 
-function extracted<T>(overrides: Partial<ExtractedValue<T>> = {}): ExtractedValue<T> {
-  return {
-    status: "unknown",
-    value: null,
-    evidence: null,
-    source: "validation",
-    confidence: "low",
-    ...overrides
-  };
+function extracted<T>(value: ExtractedValue<T>): ExtractedValue<T> {
+  return value;
 }
 
 function buildParsedJob(overrides: Partial<ParsedJob> = {}): ParsedJob {
@@ -25,7 +18,7 @@ function buildParsedJob(overrides: Partial<ParsedJob> = {}): ParsedJob {
     baseSalaryMax: extracted<number>({ status: "unknown", value: null, evidence: null, source: "validation", confidence: "low" }),
     fixedOvertimeHours: extracted<number>({ status: "none", value: null, evidence: "固定残業代なし", source: "global_scan", confidence: "high" }),
     fixedOvertimePay: extracted<number>({ status: "none", value: null, evidence: "固定残業代なし", source: "global_scan", confidence: "high" }),
-    annualHolidays: extracted({ status: "unknown", value: null, evidence: null, source: "validation", confidence: "low" }),
+    annualHolidays: extracted<number>({ status: "unknown", value: null, evidence: null, source: "validation", confidence: "low" }),
     holidayType: extracted({ status: "found", value: "完全週休2日制", evidence: "完全週休2日制", source: "section", confidence: "high" }),
     bonusCount: extracted({ status: "found", value: 2, evidence: "賞与年2回", source: "global_scan", confidence: "high" }),
     bonusPerformanceLinked: extracted<boolean>({ status: "unknown", value: null, evidence: null, source: "validation", confidence: "low" }),
