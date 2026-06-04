@@ -1,31 +1,27 @@
 # Task
 
-本番 URL `https://rakushu.mii4a.workers.dev` に対して、Google ログイン済み状態を Playwright で再現し、以下ルートの最小スモークテストを追加・実行する。
+らくしゅうの repo-side CI を実用レベルまで一段進め、変更を安全に push できる状態にする。
 
-対象ルート:
-- /jobs
-- /criteria
-- /compare
-- /resume
-- /pricing
-- /settings/account
-- /settings/commute
+今回の目的:
+- すでに追加した最小 CI を、lint まで含む形に拡張する
+- `next lint` の対話的セットアップ依存を外し、ESLint flat config へ移行する
+- 今回の CI + ESLint 変更だけを意図的に commit / push する
 
-要件:
-- Playwright で実行可能であること
-- 本番の認証済み状態で各ページへ到達できること
-- server-side application error / application error / login へのリダイレクト再発を検知できること
-- テスト実行で作った一時セッションは可能なら cleanup すること
+今回このターンでやること:
+- ESLint flat config を追加する
+- `npm run lint` を CI で使える非対話コマンドへ置き換える
+- GitHub Actions workflow に lint を追加する
+- lint / typecheck / test / build をローカルで再検証する
+- 今回の関連変更だけを stage / commit / push する
 
-結果メモ:
-- Playwright で本番認証状態を再現して smoke 実行できた
-- `/api/auth/get-session` は 200 で、認証 cookie 注入は成立
-- 初回実行では対象 7 ルートがすべて 500 `Application error` で失敗
-- 失敗 route 群の共通経路を辿ると、Cloudflare Workers 上で `db.query.*.findFirst()` を踏む read path が残っていた
-- `src/lib/subscription.ts` と `src/lib/usage/counters.ts` の `db.query.*.findFirst()` を `db.select().from(...).where(...).limit(1)` へ置換し、さらに repo 内の残存 `db.query` read を全廃した
-- その後 6/7 route は復旧したが、`/jobs` だけは引き続き 500 だった
-- 残る `/jobs` は DB schema 問題ではなく、旧 parser 形式の `evidenceJson` を現行 `ParsedJob` 前提で読んでいたことが原因だった
-- `src/lib/analysis/parse-stored-job.ts` を追加し、旧保存データに欠けている field を `unknown` / 空配列で補完する正規化レイヤーを入れた
-- あわせて `/jobs` の日時処理を `Date | number | string` の shape 差に耐えるよう hardening した
-- 本番 Turso には migration 0008〜0018 が未適用だったため、`npm run db:migrate:prod` を本番向けに実行して schema を追いつかせた
-- 最終的に `npm test` / `npm run build` / `npm run test:prod-smoke` がすべて通過し、対象 7 ルートは 7/7 で本番 smoke pass した
+今回の判断方針:
+- Cloudflare deploy や本番 DB 操作は引き続き CI に入れない
+- 既存 repo の unrelated な変更は巻き込まず、今回の変更ファイルだけを commit する
+- flat config は Next.js / TypeScript に素直に乗る最小構成を採る
+
+完了条件:
+- `eslint.config.mjs` が追加される
+- `npm run lint` が非対話で成功する
+- `.github/workflows/ci.yml` に lint が追加される
+- lint / typecheck / test / build がローカルで通る
+- 今回の変更だけが commit / push される

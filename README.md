@@ -1,6 +1,6 @@
 # らくしゅう
 
-就活中の求人本文を保存し、条件の見落としを減らしながら比較・整理しやすくする Web アプリです。
+就活中の求人本文を貼り付けて解析し、条件の見落としを減らしながら比較・整理しやすくする Web アプリです。
 
 現行実装は、単なる求人メモではなく、
 - 求人本文のルールベース解析
@@ -31,7 +31,7 @@
 
 ### 3. 求人の登録・保存・再解析
 - 求人登録ページ（`/jobs/new`）
-- 求人本文の貼り付け保存
+- 求人本文の貼り付け入力
 - 補足情報の入力
   - 会社名
   - 職種名
@@ -43,7 +43,7 @@
 - 求人一覧ページ（`/jobs`）
 - 求人編集ページ（`/jobs/[id]/edit`）
 - 求人削除
-- 保存済み求人の再解析
+- 保存済み求人の再解析（本文は必要時に貼り直し）
 - 最新解析結果を求人単位で保持
 
 ### 4. ルールベース解析・ランク付け
@@ -66,7 +66,10 @@
 - 注意 warning
 
 あわせて、以下を実装済みです。
-- 抽出根拠 `evidence` の保存
+- 抽出根拠 `evidence` は runtime 判定に使う
+- 永続保存する parsed snapshot からは evidence 文字列を除去する
+- 求人本文の永続保存は最小化し、既存 `jobs.raw_text` も third-party コンテンツ複製リスクを避けるため backfill で削除する
+- missing 判定は派生 summary を保存して再利用する
 - 「なし」と「不明」の区別
 - 総合ランク / 個別ランクの保存
 - 旧 parser 保存形式を読む正規化レイヤー
@@ -177,9 +180,10 @@
   - `INTERNAL_ADMIN_EMAILS` は全件閲覧可能
   - それ以外の internal user は自分の求人に紐づく feedback のみ閲覧可能
   - severity / status 絞り込み
-  - raw excerpt は新規保存しない
-  - parsed snapshot の quick checks 表示
+  - raw excerpt は新規保存せず、画面にも出さない
+  - parsed snapshot は JSON dump を出さず quick checks だけ表示
   - parser 改修候補の洗い出し
+  - 運用手順: `docs/internal-parser-feedback-ops.md`
 - 本番用 Playwright smoke test
 
 ## 未実装・今後の余地
@@ -234,13 +238,35 @@
    npm run db:generate
    npm run db:migrate
    ```
-5. 開発サーバー起動
+5. 既存 `jobs.raw_text` を削除
+   ```bash
+   npm run db:backfill:raw-text-null
+   ```
+6. 開発サーバー起動
    ```bash
    npm run dev
    ```
 
-## 本番デプロイ
+## CI / CD
 
+この repo の自動化の役割分担は次のとおりです。
+
+### CI
+GitHub Actions で以下を自動実行します。
+- `npm run lint`
+- `npm test`
+- `npm run typecheck`
+- `npm run build`
+
+trigger:
+- pull request
+- `main` への push
+
+目的は、Cloudflare 側の自動 deploy に入る前に、最低限の破綻を repo 側で止めることです。
+
+lint は ESLint flat config (`eslint.config.mjs`) に移行し、`eslint src tests scripts next.config.ts tailwind.config.ts vitest.config.ts playwright.prod-smoke.config.ts open-next.config.ts eslint.config.mjs` を実行する形にしています。
+
+### CD
 本番投入の実行手順は `docs/production-deploy.md` を参照してください。  
 重要なのは、アプリ公開前に本番 DB へ migration を先に適用することです。
 
@@ -248,6 +274,20 @@
 
 このアプリは App Router / 認証 / SSR を使っているため、Cloudflare Pages の静的配信ではなく Cloudflare Workers 上で動かします。  
 Pages 向けの `next export` は使いません。
+
+### 手動で残している運用
+- Cloudflare secret 登録
+- 本番 DB migration
+- `jobs.raw_text` backfill
+- production smoke test
+
+つまり今の運用は、
+- CI: lint / test / typecheck / build を自動化
+- CD: main 更新で Cloudflare 自動 deploy
+- release 前後の本番操作: 手動チェックポイントあり
+という整理です。
+
+## 本番デプロイ
 
 本番 env テンプレート:
 ```bash
