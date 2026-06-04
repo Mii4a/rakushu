@@ -63,9 +63,9 @@ Project facts:
 - App name: らくしゅう
 - Stack: Next.js App Router, TypeScript, Turso/libSQL, Drizzle, Better Auth, Stripe, Tailwind CSS
 - Analysis must stay rule-based. Do not introduce LLM extraction into src/lib/analysis.
-- rawText must always be preserved.
+- rawText may be used at parse time, but persisted storage should be minimized.
 - "なし" and "不明" must remain distinct.
-- Analysis results must keep evidence strings.
+- Runtime analysis can use evidence strings, but persisted snapshots must strip them.
 
 Operating rules:
 1. Before dispatching, list the files/directories likely to change.
@@ -117,9 +117,8 @@ Focus areas:
 
 Hard constraints:
 - Do not introduce LLM-based extraction into the analysis pipeline.
-- Preserve rawText behavior.
 - Preserve the distinction between "なし" and "不明".
-- Preserve or improve evidence capture.
+- If you touch persistence, keep rawText/evidence storage minimized and prefer derived summaries.
 - Do not drift into UI refactors unless explicitly asked and the file ownership is assigned to you.
 - Do not change schema/auth/stripe unless explicitly reassigned as single owner.
 
@@ -309,9 +308,9 @@ SCOPE:
 
 CONSTRAINTS:
 - rule-based analysis only
-- preserve rawText
+- keep rawText/evidence persistence minimized
 - preserve "なし" vs "不明"
-- preserve evidence handling
+- preserve runtime evidence handling while stripping persisted evidence strings
 
 DONE WHEN:
 - behavior implemented

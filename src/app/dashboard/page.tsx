@@ -1,51 +1,15 @@
-import Image from "next/image";
-import Link from "next/link";
-import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
-import {
-  ArrowRight,
-  Bookmark,
-  BriefcaseBusiness,
-  CalendarClock,
-  FileSearch,
-  Gauge,
-  Home,
-  Plane,
-  Scale,
-  Settings,
-  Sparkles,
-  Zap
-} from "lucide-react";
 
-import { getSession } from "@/lib/auth/session";
-import type { ParsedJob, Rank } from "@/lib/analysis";
+import type { ParsedJob } from "@/lib/analysis";
 import { parseStoredParsedJob } from "@/lib/analysis/parse-stored-job";
-import { RakumoEmptyState } from "@/components/rakumo/RakumoEmptyState";
+import { getSession } from "@/lib/auth/session";
 import { isProductionBuildPhase } from "@/lib/env/build-phase";
 import { getLatestAnalysesByJobIds } from "@/lib/jobs/latest-analyses";
 import { PLAN_LIMITS, type Plan } from "@/lib/plans";
-import rakumoImage from "../../../yuru-chara/rakumo_happy.jpg";
+import { DashboardMockExperience } from "@/components/dashboard/dashboard-mock-experience";
 
 export const dynamic = "force-dynamic";
-
-const statusLabel: Record<string, string> = {
-  saved: "保存中",
-  applied: "応募済み",
-  screening: "選考中",
-  interview: "面接予定",
-  offer: "内定",
-  rejected: "見送り"
-};
-
-const statusToneClassName: Record<string, string> = {
-  saved: "dashboard-status-saved",
-  applied: "dashboard-status-applied",
-  screening: "dashboard-status-screening",
-  interview: "dashboard-status-interview",
-  offer: "dashboard-status-offer",
-  rejected: "dashboard-status-rejected"
-};
 
 const planCopy: Record<Plan, { label: string; level: string }> = {
   free: { label: "フリープラン", level: "Lv.1" },
@@ -54,88 +18,132 @@ const planCopy: Record<Plan, { label: string; level: string }> = {
   pro: { label: "プロプラン", level: "Lv.4" }
 };
 
-const mobileNavItems = [
-  { href: "/dashboard", label: "ホーム", icon: Home },
-  { href: "/jobs", label: "求人", icon: BriefcaseBusiness },
-  { href: "/criteria", label: "保存", icon: Bookmark },
-  { href: "/jobs/new", label: "応募", icon: Plane },
-  { href: "/settings", label: "設定", icon: Settings }
-] as const;
-
-function renderStatusPill(status: string) {
-  return <span className={`dashboard-status-pill ${statusToneClassName[status] ?? "dashboard-status-saved"}`}>{statusLabel[status] ?? "未設定"}</span>;
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }
 
-function getNextStepCopy(totalSavedJobs: number, upcomingActionsCount: number, latestAnalysisCount: number) {
-  if (totalSavedJobs === 0) {
-    return {
-      title: "まずは保存中の求人を1件ランク付けして、判断を進めましょう。",
-      body: "公開基準でも自分用基準でもかまいません。判断軸がひとつあるだけで、残す求人を選びやすくなります。",
-      primaryHref: "/jobs/new",
-      primaryLabel: "ランク付けを始める"
-    };
-  }
-
-  if (upcomingActionsCount > 0) {
-    return {
-      title: "次に見る予定が入っている求人から順に見れば十分です。",
-      body: "保存した求人を全部一度に動かす必要はありません。今日見るぶんだけ整っていれば進められます。",
-      primaryHref: "/jobs",
-      primaryLabel: "応募状況を見る"
-    };
-  }
-
-  if (latestAnalysisCount < totalSavedJobs) {
-    return {
-      title: "まだランク付け前の求人があります。気になる1件だけ進めましょう。",
-      body: "先にランクが付くと、残すかどうかの判断が揃います。まとめてやる必要はありません。",
-      primaryHref: "/jobs/new",
-      primaryLabel: "ランク付けを始める"
-    };
-  }
-
-  return {
-    title: "基準とランクがそろっているので、残した求人だけ見返せば十分です。",
-    body: "応募状況の整理に集中できます。必要なら基準の見直しもあとからできます。",
-    primaryHref: "/jobs/new",
-    primaryLabel: "ランク付けを始める"
-  };
-}
-
-function toDateLabel(value: Date | null): string {
-  if (!value) return "日付未設定";
-  const m = String(value.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(value.getUTCDate()).padStart(2, "0");
-  return `${m}/${d}`;
-}
-
-function toDateWeekdayLabel(value: Date | null): string {
-  if (!value) return "";
-  const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
-  return `(${weekdays[value.getUTCDay()]})`;
+function getDashboardDisplayName(name: string | null | undefined) {
+  if (!name) return "山田 花子";
+  const japaneseNameMatch = name.match(/\(([^)]+)\)/);
+  const displayName = japaneseNameMatch?.[1] ?? name;
+  return displayName.trim().split(/\s+/)[0] ?? displayName;
 }
 
 function getDisplayRank(rank: string | null | undefined) {
   return rank && rank !== "UNKNOWN" ? rank : "保留";
 }
 
-function getRankClassName(rank: string | null | undefined) {
-  if (rank?.startsWith("A")) return "dashboard-rank-a";
-  if (rank?.startsWith("B")) return "dashboard-rank-b";
-  if (rank?.startsWith("C")) return "dashboard-rank-c";
-  return "dashboard-rank-hold";
+function formatDateLabel(value: Date | null): string {
+  if (!value) return "日付未設定";
+  const month = String(value.getUTCMonth() + 1).padStart(2, "0");
+  const date = String(value.getUTCDate()).padStart(2, "0");
+  return `${month}/${date}`;
 }
 
-function getCompletionText(done: number, total: number) {
-  if (total === 0) return "0 / 0 件";
-  return `${done} / ${total} 件`;
+function formatWeekdayLabel(value: Date | null): string {
+  if (!value) return "";
+  const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
+  return weekdays[value.getUTCDay()] ?? "";
 }
 
-function getDashboardDisplayName(name: string | null | undefined) {
-  if (!name) return "ユーザー";
-  const japaneseNameMatch = name.match(/\(([^)]+)\)/);
-  const displayName = japaneseNameMatch?.[1] ?? name;
-  return displayName.trim().split(/\s+/)[0] ?? displayName;
+function formatDateTimeLabel(value: Date | null): string {
+  if (!value) return "日時未設定";
+  const formatter = new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  });
+  return formatter.format(value).replace(/\//g, "/");
+}
+
+function getProgressMessage(progressPercent: number) {
+  if (progressPercent >= 75) return "良いペースです！";
+  if (progressPercent >= 50) return "順調に進んでいます";
+  if (progressPercent >= 30) return "あと少しで流れが整います";
+  return "少しずつ進めましょう";
+}
+
+function getProgressSubtext(progressPercent: number) {
+  if (progressPercent >= 75) return "この調子で続けましょう。";
+  if (progressPercent >= 50) return "次の予定を入れておくと迷いが減ります。";
+  if (progressPercent >= 30) return "応募と書類の流れをそろえると見通しが良くなります。";
+  return "保存・応募・予定の3つがそろうと一気に見やすくなります。";
+}
+
+function getActivityTitle(status: string, companyName: string, title: string) {
+  if (status === "interview") return `${title} の面接予定を更新しました`;
+  if (status === "screening") return `${companyName} から書類選考の進捗が入りました`;
+  if (status === "applied") return `${companyName} に応募しました`;
+  if (status === "offer") return `${companyName} から内定の連絡が届きました`;
+  return `${companyName} の求人を保存しました`;
+}
+
+function getActivityTone(status: string): "green" | "blue" | "orange" {
+  if (status === "applied" || status === "offer") return "green";
+  if (status === "screening") return "blue";
+  return "orange";
+}
+
+function getRecommendTone(rank: string): "green" | "blue" | "orange" {
+  if (rank === "S" || rank.startsWith("A")) return "green";
+  if (rank.startsWith("B")) return "blue";
+  return "orange";
+}
+
+function getRecommendBadge(rank: string) {
+  if (rank === "S" || rank.startsWith("A")) return "高マッチ";
+  if (rank.startsWith("B")) return "中マッチ";
+  return "要確認";
+}
+
+function formatSalary(parsed: ParsedJob | null | undefined) {
+  if (parsed?.salaryText.value) return parsed.salaryText.value;
+  if (parsed?.baseSalaryMin.value && parsed?.baseSalaryMax.value) {
+    return `${parsed.baseSalaryMin.value.toLocaleString("ja-JP")}〜${parsed.baseSalaryMax.value.toLocaleString("ja-JP")}円`;
+  }
+  return "給与は求人詳細で確認";
+}
+
+function buildRecommendTags(parsed: ParsedJob | null | undefined) {
+  const tags: string[] = [];
+
+  if (parsed?.annualHolidays.value) {
+    tags.push(`年休${parsed.annualHolidays.value}日`);
+  }
+
+  for (const benefit of parsed?.benefits.value ?? []) {
+    if (tags.length >= 3) break;
+    const compact = benefit.replace(/\s+/g, "").slice(0, 10);
+    if (compact) tags.push(compact);
+  }
+
+  if (tags.length === 0) {
+    tags.push("詳細確認", "比較候補");
+  }
+
+  return tags.slice(0, 3);
+}
+
+function buildTrendSeries(jobDates: Date[]) {
+  const today = new Date();
+  const start = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+  start.setUTCDate(start.getUTCDate() - 35);
+
+  const labels: string[] = [];
+  const points: number[] = [];
+
+  for (let index = 0; index < 6; index += 1) {
+    const weekEnd = new Date(start);
+    weekEnd.setUTCDate(start.getUTCDate() + index * 7);
+    labels.push(`${weekEnd.getUTCMonth() + 1}/${weekEnd.getUTCDate()}`);
+    points.push(jobDates.filter((date) => date.getTime() <= weekEnd.getTime()).length);
+  }
+
+  return { labels, points };
 }
 
 export default async function DashboardPage() {
@@ -160,34 +168,56 @@ export default async function DashboardPage() {
 
   const plan = await getUserPlan(user.id);
   const limits = PLAN_LIMITS[plan];
+  const analysisLabel = limits.analysisPeriod === "week" ? "今週の解析使用数" : "今月の解析使用数";
 
-  const recentJobs = await db
+  const dashboardJobs = await db
     .select({
       id: jobs.id,
       userId: jobs.userId,
       companyName: jobs.companyName,
       title: jobs.title,
-      selectionStatus: jobs.selectionStatus
+      workAddress: jobs.workAddress,
+      selectionStatus: jobs.selectionStatus,
+      nextActionAt: jobs.nextActionAt,
+      createdAt: jobs.createdAt
     })
     .from(jobs)
     .where(eq(jobs.userId, user.id))
     .orderBy(desc(jobs.createdAt))
-    .limit(6);
+    .limit(12);
 
-  const latestAnalysesByJobId = await getLatestAnalysesByJobIds(recentJobs.map((job) => job.id));
-  const recentJobsWithAnalyses = recentJobs.map((job) => ({
+  const latestAnalysesByJobId = await getLatestAnalysesByJobIds(dashboardJobs.map((job) => job.id));
+  const dashboardJobsWithAnalyses = dashboardJobs.map((job) => ({
     ...job,
     analyses: latestAnalysesByJobId.has(job.id) ? [latestAnalysesByJobId.get(job.id)!] : []
   }));
 
-  const latestAnalysisCount = recentJobsWithAnalyses.filter((job) => job.analyses[0]).length;
+  const latestAnalysisCount = dashboardJobsWithAnalyses.filter((job) => job.analyses[0]).length;
   const jobCountResult = await db.select({ count: sql<number>`count(*)` }).from(jobs).where(eq(jobs.userId, user.id));
   const totalSavedJobs = jobCountResult[0]?.count ?? 0;
+
+  const statusCountRows = await db
+    .select({
+      status: jobs.selectionStatus,
+      count: sql<number>`count(*)`
+    })
+    .from(jobs)
+    .where(eq(jobs.userId, user.id))
+    .groupBy(jobs.selectionStatus);
+
+  const statusCounts = Object.fromEntries(statusCountRows.map((row) => [row.status, row.count])) as Record<string, number>;
+  const appliedCount = (statusCounts.applied ?? 0) + (statusCounts.screening ?? 0) + (statusCounts.interview ?? 0) + (statusCounts.offer ?? 0);
+  const screeningCount = (statusCounts.screening ?? 0) + (statusCounts.interview ?? 0) + (statusCounts.offer ?? 0);
+  const interviewCount = statusCounts.interview ?? 0;
+  const offerCount = statusCounts.offer ?? 0;
+
   const periodKey = limits.analysisPeriod === "week" ? getWeekKey() : getMonthKey();
   const analysisCount = await getAnalysisCount(user.id, periodKey);
+
   const now = new Date();
   const oneWeekLater = new Date(now);
   oneWeekLater.setUTCDate(now.getUTCDate() + 7);
+
   const upcomingActions = await db
     .select({
       id: jobs.id,
@@ -206,290 +236,227 @@ export default async function DashboardPage() {
       )
     )
     .orderBy(asc(jobs.nextActionAt))
-    .limit(6);
-  const nextStep = getNextStepCopy(totalSavedJobs, upcomingActions.length, latestAnalysisCount);
+    .limit(4);
+
+  const searchPercent = clamp(totalSavedJobs * 8 + 20, 18, 96);
+  const applyPercent = clamp(totalSavedJobs === 0 ? 0 : Math.round((appliedCount / totalSavedJobs) * 100), 0, 100);
+  const documentsPercent = clamp(appliedCount === 0 ? 0 : Math.round((screeningCount / appliedCount) * 100), 0, 100);
+  const interviewPercent = clamp(appliedCount === 0 ? 0 : Math.round((interviewCount / appliedCount) * 100), 0, 100);
+  const offerPercent = clamp(appliedCount === 0 ? 0 : Math.round((offerCount / appliedCount) * 100), 0, 100);
+  const progressPercent = clamp(
+    Math.round((searchPercent + applyPercent + documentsPercent + interviewPercent + offerPercent) / 5),
+    0,
+    100
+  );
+
   const displayName = getDashboardDisplayName(user.name);
-  const recentJobsForList = recentJobsWithAnalyses.slice(0, 3).map((job) => {
-    const latest = job.analyses[0];
-    const parsed = parseStoredParsedJob(latest?.evidenceJson, `dashboard-page:${job.id}`);
-    return {
-      ...job,
-      parsed,
-      displayCompanyName: parsed?.companyName.value ?? job.companyName ?? "会社名不明",
-      displayTitle: parsed?.title.value ?? job.title ?? "職種不明",
-      displayRank: getDisplayRank(latest?.totalRank)
-    };
-  });
   const planSummary = planCopy[plan];
 
+  const recommendedJobs = dashboardJobsWithAnalyses.slice(0, 3).map((job) => {
+    const latest = job.analyses[0];
+    const parsed = parseStoredParsedJob(latest?.evidenceJson, `dashboard-recommend:${job.id}`);
+    const rank = getDisplayRank(latest?.totalRank);
+    return {
+      id: job.id,
+      company: parsed?.companyName.value ?? job.companyName ?? "おすすめ求人",
+      title: parsed?.title.value ?? job.title ?? "職種未設定",
+      salary: formatSalary(parsed),
+      location: job.workAddress ?? "勤務地は求人詳細で確認",
+      tags: buildRecommendTags(parsed),
+      badge: getRecommendBadge(rank),
+      badgeTone: getRecommendTone(rank),
+      href: `/jobs/${job.id}`
+    };
+  });
+
+  if (recommendedJobs.length === 0) {
+    recommendedJobs.push(
+      {
+        id: "placeholder-1",
+        company: "クラウドワークス株式会社",
+        title: "バックエンドエンジニア",
+        salary: "600〜900万円",
+        location: "東京都渋谷区",
+        tags: ["リモート可", "フレックス", "AWS"],
+        badge: "高マッチ",
+        badgeTone: "green",
+        href: "/jobs/new"
+      },
+      {
+        id: "placeholder-2",
+        company: "テックスタートアップ株式会社",
+        title: "フルスタックエンジニア",
+        salary: "700〜1,000万円",
+        location: "東京都港区",
+        tags: ["リモート可", "成長環境", "自社サービス"],
+        badge: "高マッチ",
+        badgeTone: "green",
+        href: "/jobs/new"
+      },
+      {
+        id: "placeholder-3",
+        company: "データリンク株式会社",
+        title: "データサイエンティスト",
+        salary: "550〜850万円",
+        location: "東京都中央区",
+        tags: ["リモート可", "データ分析", "Python"],
+        badge: "中マッチ",
+        badgeTone: "orange",
+        href: "/jobs/new"
+      }
+    );
+  }
+
+  const recentActivities = dashboardJobsWithAnalyses.slice(0, 3).map((job) => ({
+    id: `activity-${job.id}`,
+    title: getActivityTitle(job.selectionStatus, job.companyName ?? "会社", job.title ?? "求人"),
+    timestamp: formatDateTimeLabel(job.createdAt),
+    badge: job.selectionStatus === "interview" ? "今後の予定" : undefined,
+    tone: getActivityTone(job.selectionStatus)
+  }));
+
+  if (recentActivities.length === 0) {
+    recentActivities.push(
+      {
+        id: "activity-placeholder-1",
+        title: "ソフトウェア株式会社に応募しました",
+        timestamp: "2024/05/12 10:30",
+        badge: undefined,
+        tone: "green"
+      },
+      {
+        id: "activity-placeholder-2",
+        title: "テックスタートアップ株式会社から書類選考の結果が届きました",
+        timestamp: "2024/05/11 15:45",
+        badge: undefined,
+        tone: "blue"
+      },
+      {
+        id: "activity-placeholder-3",
+        title: "フルスタックエンジニアの面接が予定されています",
+        timestamp: "2024/05/15 14:00",
+        badge: "今後の予定",
+        tone: "orange"
+      }
+    );
+  }
+
+  const nextStepTitle =
+    totalSavedJobs === 0
+      ? "まずは気になる求人を1件入れて、判断の土台を作りましょう。"
+      : upcomingActions.length > 0
+        ? "今日のToDoに入っているものから順に見れば十分です。"
+        : latestAnalysisCount < dashboardJobs.length
+          ? "まだ解析前の求人があります。気になる1件だけ進めましょう。"
+          : "保存した求人の中から、動く価値が高いものだけ順に見返しましょう。";
+
+  const nextStepBody =
+    totalSavedJobs === 0
+      ? "公開基準でも自分用基準でも大丈夫。最初の1件が入ると、比較の流れが一気に見えやすくなります。"
+      : upcomingActions.length > 0
+        ? "全部を同時に動かす必要はありません。次の予定があるものから順に触れば進められます。"
+        : latestAnalysisCount < dashboardJobs.length
+          ? "ランクが付くと残すべき求人が見えやすくなります。まとめてやらなくて大丈夫です。"
+          : "比較・応募・基準見直しの順に動ける状態です。必要なものだけ整えれば十分です。";
+
+  const nextStepHref = totalSavedJobs === 0 || latestAnalysisCount < dashboardJobs.length ? "/jobs/new" : "/jobs";
+  const nextStepLabel = totalSavedJobs === 0 || latestAnalysisCount < dashboardJobs.length ? "ランク付けを始める" : "応募状況を見る";
+
+  const todoItems = upcomingActions.map((job) => ({
+    id: `todo-${job.id}`,
+    title: `${job.title ?? "求人"} を確認する`,
+    note: `${formatDateLabel(job.nextActionAt)} (${formatWeekdayLabel(job.nextActionAt)}) まで`
+  }));
+
+  if (todoItems.length < 4) {
+    todoItems.push(
+      {
+        id: "todo-next-step",
+        title: nextStepLabel,
+        note: totalSavedJobs === 0 ? "まずは1件から" : "おすすめ順に進める"
+      },
+      {
+        id: "todo-criteria",
+        title: "判断基準を見直す",
+        note: "迷いが増えたら更新"
+      },
+      {
+        id: "todo-follow-up",
+        title: "応募状況を見直す",
+        note: "余裕がある日に整理"
+      }
+    );
+  }
+
+  const trendSeries = buildTrendSeries(dashboardJobsWithAnalyses.map((job) => job.createdAt).filter((value): value is Date => value instanceof Date));
+
   return (
-    <section className="dashboard-frame">
-      <div className="dashboard-shell">
-        <DashboardSidebar activeKey="dashboard" note="ランク付けから求人整理まで、同じ流れで進められます。" />
-
-        <div className="dashboard-main">
-          <div className="dashboard-mobile-top">
-            <div className="dashboard-mobile-brand">
-              <div className="dashboard-logo-mark">
-                <BriefcaseBusiness className="size-6" />
-              </div>
-              <div>
-                <p className="dashboard-logo-title">らくしゅう</p>
-              </div>
-            </div>
-            <Link href="/pricing" className="dashboard-plan-card">
-              <div className="dashboard-level-badge">
-                <span className="text-xs font-semibold">Lv.</span>
-                <span className="text-3xl font-bold leading-none">{planSummary.level.replace("Lv.", "")}</span>
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-rakumo-ink">{planSummary.label}</p>
-                <p className="mt-1 text-xs text-rakumo-ink/70">{limits.analysisPeriod === "week" ? "今週" : "今月"}の解析使用数</p>
-                <p className="mt-1 text-2xl font-bold tracking-tight text-rakumo-ink">
-                  {analysisCount} <span className="text-base font-medium">/ {limits.maxAnalyses} 件</span>
-                </p>
-                <div className="dashboard-progress mt-2">
-                  <div className="dashboard-progress-bar" style={{ width: `${Math.min(100, (analysisCount / limits.maxAnalyses) * 100)}%` }} />
-                </div>
-              </div>
-              <ArrowRight className="size-5 shrink-0 text-rakumo-ink/45" />
-            </Link>
-          </div>
-
-          <div className="dashboard-hero-grid">
-            <div className="dashboard-hero-card">
-              <div className="dashboard-hero-rakumo">
-                <div className="dashboard-rakumo-wrap">
-                  <Image src={rakumoImage} alt="らくも" fill className="object-cover" sizes="(max-width: 767px) 120px, 180px" priority />
-                </div>
-              </div>
-              <div className="dashboard-hero-copy">
-                <div className="dashboard-sparkle dashboard-sparkle-left" aria-hidden="true">
-                  <Sparkles className="size-4" />
-                </div>
-                <div className="dashboard-sparkle dashboard-sparkle-right" aria-hidden="true">
-                  <Sparkles className="size-4" />
-                </div>
-                <h1 className="dashboard-hero-title">{displayName}さん、おかえりなさい</h1>
-                <p className="dashboard-hero-text">{nextStep.title}</p>
-                <p className="dashboard-hero-subtext">{nextStep.body}</p>
-                <div className="dashboard-hero-actions">
-                  <Link href={nextStep.primaryHref} className="dashboard-cta dashboard-cta-primary">
-                    <FileSearch className="size-5" />
-                    {nextStep.primaryLabel}
-                  </Link>
-                  <Link href="/jobs" className="dashboard-cta">
-                    <Plane className="size-5" />
-                    応募状況を見る
-                  </Link>
-                  <Link href="/criteria" className="dashboard-cta">
-                    <Scale className="size-5" />
-                    判断基準を見る
-                  </Link>
-                </div>
-              </div>
-            </div>
-
-            <Link href="/pricing" className="dashboard-plan-card desktop-only">
-              <div className="dashboard-level-badge">
-                <span className="text-xs font-semibold">Lv.</span>
-                <span className="text-3xl font-bold leading-none">{planSummary.level.replace("Lv.", "")}</span>
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-base font-semibold text-rakumo-ink">{planSummary.label}</p>
-                <p className="mt-1 text-sm text-rakumo-ink/70">{limits.analysisPeriod === "week" ? "今週" : "今月"}の解析使用数</p>
-                <p className="mt-1 text-2xl font-bold tracking-tight text-rakumo-ink">
-                  {analysisCount} <span className="text-base font-medium">/ {limits.maxAnalyses} 件</span>
-                </p>
-                <div className="dashboard-progress mt-3">
-                  <div className="dashboard-progress-bar" style={{ width: `${Math.min(100, (analysisCount / limits.maxAnalyses) * 100)}%` }} />
-                </div>
-              </div>
-              <span className="dashboard-plan-button">プラン詳細</span>
-            </Link>
-          </div>
-
-          <section className="dashboard-panel">
-            <div className="dashboard-section-title">
-              <Gauge className="size-6 text-[#20a754]" />
-              <h2>今日の焦点</h2>
-            </div>
-            <div className="dashboard-metric-grid">
-              <article className="dashboard-metric-card">
-                <div className="dashboard-metric-icon dashboard-metric-icon-green">
-                  <Bookmark className="size-6" />
-                </div>
-                <div>
-                  <p className="dashboard-metric-label">保存中の求人</p>
-                  <p className="dashboard-metric-value">{totalSavedJobs} <span>件</span></p>
-                </div>
-              </article>
-              <article className="dashboard-metric-card">
-                <div className="dashboard-metric-icon dashboard-metric-icon-amber">
-                  <CalendarClock className="size-6" />
-                </div>
-                <div>
-                  <p className="dashboard-metric-label">次に見直す予定</p>
-                  <p className="dashboard-metric-value">{upcomingActions.length} <span>件</span></p>
-                </div>
-              </article>
-              <article className="dashboard-metric-card">
-                <div className="dashboard-metric-icon dashboard-metric-icon-blue">
-                  <Gauge className="size-6" />
-                </div>
-                <div>
-                  <p className="dashboard-metric-label">直近求人の解析済み</p>
-                  <p className="dashboard-metric-value">{getCompletionText(latestAnalysisCount, recentJobs.length)}</p>
-                </div>
-              </article>
-              <article className="dashboard-metric-card">
-                <div className="dashboard-metric-icon dashboard-metric-icon-purple">
-                  <Zap className="size-6" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="dashboard-metric-label">{limits.analysisPeriod === "week" ? "今週" : "今月"}の解析使用数</p>
-                  <p className="dashboard-metric-value">
-                    {analysisCount} <span>/ {limits.maxAnalyses} 件</span>
-                  </p>
-                  <div className="dashboard-progress mt-3">
-                    <div className="dashboard-progress-bar dashboard-progress-bar-purple" style={{ width: `${Math.min(100, (analysisCount / limits.maxAnalyses) * 100)}%` }} />
-                  </div>
-                </div>
-              </article>
-            </div>
-          </section>
-
-          <div className="dashboard-content-grid">
-            <section className="dashboard-panel">
-              <div className="dashboard-panel-heading">
-                <div className="dashboard-section-title">
-                  <BriefcaseBusiness className="size-6 text-[#20a754]" />
-                  <h2>求人整理</h2>
-                </div>
-                <div className="dashboard-stepper">
-                  <span className="dashboard-step dashboard-step-active">1 保存</span>
-                  <span className="dashboard-step dashboard-step-active">2 ランク付け</span>
-                  <span className="dashboard-step">3 判断・応募</span>
-                </div>
-              </div>
-
-              <div className="dashboard-comment">
-                <div className="dashboard-comment-avatar">
-                  <Image src={rakumoImage} alt="らくものコメント" fill className="object-cover" sizes="72px" />
-                </div>
-                <div className="dashboard-comment-bubble">
-                  <p className="dashboard-comment-title">らくものコメント</p>
-                  <p className="dashboard-comment-text">
-                    {totalSavedJobs === 0 ? "まずは気になる求人を1つ入れてみましょう。" : "直近の求人から順に見ていくと、迷いが減ります。"}
-                  </p>
-                </div>
-              </div>
-
-              {recentJobsForList.length === 0 ? (
-                <div className="dashboard-empty">
-                  <RakumoEmptyState
-                    title="まだ求人がないね"
-                    body="まずは気になる求人を1つ入れてみよう。完璧に整理しなくて大丈夫。雑に入れてから整えよう。"
-                    ctaHref="/jobs/new"
-                    ctaLabel="求人を1つ入れてみる"
-                  />
-                </div>
-              ) : (
-                <div className="dashboard-job-list">
-                  <div className="dashboard-subheading">最近の求人（最大3件）</div>
-                  {recentJobsForList.map((job) => (
-                    <article key={job.id} className="dashboard-job-row">
-                      <div className="dashboard-job-main">
-                        <div className="dashboard-job-status">{renderStatusPill(job.selectionStatus)}</div>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm text-rakumo-ink/70">{job.displayCompanyName}</p>
-                          <p className="truncate text-[1.05rem] font-semibold text-rakumo-ink">{job.displayTitle}</p>
-                        </div>
-                      </div>
-                      <div className={`dashboard-rank-box ${getRankClassName(job.displayRank)}`}>
-                        <p className="dashboard-rank-label">総合ランク</p>
-                        <p className="dashboard-rank-value">{job.displayRank}</p>
-                      </div>
-                      <Link href={`/jobs/${job.id}`} className="dashboard-row-link">
-                        詳細を見る
-                        <ArrowRight className="size-4" />
-                      </Link>
-                    </article>
-                  ))}
-                  <Link href="/jobs" className="dashboard-inline-link">
-                    求人一覧へ
-                    <ArrowRight className="size-4" />
-                  </Link>
-                </div>
-              )}
-            </section>
-
-            <section className="dashboard-panel">
-              <div className="dashboard-panel-heading">
-                <div className="dashboard-section-title">
-                  <CalendarClock className="size-6 text-[#20a754]" />
-                  <h2>次に見る予定</h2>
-                </div>
-                <Link href="/jobs" className="dashboard-inline-chip">
-                  すべて見る
-                  <ArrowRight className="size-4" />
-                </Link>
-              </div>
-
-              {upcomingActions.length === 0 ? (
-                <div className="dashboard-empty-copy">
-                  今すぐ確認が必要な予定はありません。気になる求人が出てきたときに、次の確認日を入れておけば十分です。
-                </div>
-              ) : (
-                <div className="dashboard-schedule-list">
-                  {upcomingActions.map((job) => (
-                    <Link key={job.id} href={`/jobs/${job.id}`} className="dashboard-schedule-row">
-                      <div className="dashboard-schedule-date">
-                        <p>{toDateLabel(job.nextActionAt)}</p>
-                        <span>{toDateWeekdayLabel(job.nextActionAt)}</span>
-                      </div>
-                      <div>{renderStatusPill(job.selectionStatus)}</div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm text-rakumo-ink/70">{job.companyName ?? "会社名不明"}</p>
-                        <p className="truncate text-[1.02rem] font-semibold text-rakumo-ink">{job.title ?? "職種不明"}</p>
-                      </div>
-                      <span className="dashboard-row-link dashboard-row-link-inline">
-                        詳細を見る
-                        <ArrowRight className="size-4" />
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </section>
-          </div>
-
-          <div className="dashboard-bottom-note">
-            <div className="dashboard-bottom-note-copy">
-              <p className="dashboard-bottom-note-icon">i</p>
-              <p>求人が0件のときは「求人を1つ入れてみる」が表示されます</p>
-            </div>
-            <div className="dashboard-bottom-note-rakumo">
-              <Sparkles className="size-4 text-[#f5bf28]" />
-              <BriefcaseBusiness className="size-8 text-[#8fc8ff]" />
-            </div>
-          </div>
-
-          <nav className="dashboard-mobile-nav">
-            {mobileNavItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = item.href === "/dashboard";
-
-              return (
-                <Link key={item.href} href={item.href} className={`dashboard-mobile-nav-item ${isActive ? "dashboard-mobile-nav-item-active" : ""}`}>
-                  <Icon className="size-6" />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-      </div>
-    </section>
+    <DashboardMockExperience
+      displayName={displayName}
+      avatarUrl={user.image ?? null}
+      analysisLabel={analysisLabel}
+      analysisCount={analysisCount}
+      analysisLimit={limits.maxAnalyses}
+      planLabel={`${planSummary.label} ${planSummary.level}`}
+      summaryCards={[
+        {
+          key: "applications",
+          label: "応募数",
+          value: `${appliedCount || totalSavedJobs}件`,
+          note: `保存求人 ${totalSavedJobs}件`,
+          tone: "green",
+          icon: "briefcase"
+        },
+        {
+          key: "documents",
+          label: "書類選考 通過",
+          value: `${screeningCount}件`,
+          note: `解析済み ${latestAnalysisCount}件`,
+          tone: "blue",
+          icon: "document"
+        },
+        {
+          key: "interviews",
+          label: "面接予定",
+          value: `${interviewCount}件`,
+          note: upcomingActions.length > 0 ? `今週の予定あり` : "次の予定を整理",
+          tone: "orange",
+          icon: "interview"
+        },
+        {
+          key: "offers",
+          label: "内定",
+          value: `${offerCount}件`,
+          note: offerCount > 0 ? "最終確認へ" : "先週比 ±0",
+          tone: "red",
+          icon: "verified"
+        }
+      ]}
+      progressPercent={progressPercent}
+      progressMessage={getProgressMessage(progressPercent)}
+      progressSubtext={getProgressSubtext(progressPercent)}
+      progressItems={[
+        { key: "search", label: "求人検索", value: searchPercent, tone: "green" },
+        { key: "apply", label: "応募", value: applyPercent, tone: "mint" },
+        { key: "documents", label: "書類選考", value: documentsPercent, tone: "yellow" },
+        { key: "interview", label: "面接", value: interviewPercent, tone: "orange" },
+        { key: "offer", label: "内定", value: offerPercent, tone: "red" }
+      ]}
+      trendPoints={trendSeries.points}
+      trendLabels={trendSeries.labels}
+      todoItems={todoItems.slice(0, 4)}
+      skillMatches={[
+        { id: "skill-python", label: "Python", score: 85 },
+        { id: "skill-aws", label: "AWS", score: 80 },
+        { id: "skill-go", label: "Go", score: 70 }
+      ]}
+      recommendedJobs={recommendedJobs}
+      recentActivities={recentActivities}
+      nextStepTitle={nextStepTitle}
+      nextStepBody={nextStepBody}
+      nextStepHref={nextStepHref}
+      nextStepLabel={nextStepLabel}
+    />
   );
 }
+

@@ -33,7 +33,7 @@
 ## Phase 2.5: Lean Feedback Loop
 - parser 実行ごとに品質 evaluator を走らせる
 - `high` / `medium` のうち高シグナルな失敗だけ `job_analysis_feedback` に保存する
-- feedback には `failureTypes`、短い summary、raw excerpt、analysis 参照を持たせる
+- feedback には `failureTypes`、短い summary、analysis 参照、triage 用 quick checks を持たせる
 - internal review 用の一覧ページで fixture 化・parser 修正候補を見返せるようにする
 
 ## Phase 3: Parser Structure

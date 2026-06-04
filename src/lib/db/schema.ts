@@ -79,7 +79,7 @@ export const jobs = sqliteTable(
     selectionStatus: text("selection_status").notNull().default("saved"),
     nextActionAt: integer("next_action_at", { mode: "timestamp_ms" }),
     selectionMemo: text("selection_memo"),
-    rawText: text("raw_text").notNull(),
+    rawText: text("raw_text"),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
   },
@@ -114,6 +114,7 @@ export const jobAnalyses = sqliteTable(
     benefitRank: text("benefit_rank"),
     totalRank: text("total_rank"),
     evidenceJson: text("evidence_json"),
+    missingItemSummaryJson: text("missing_item_summary_json"),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
   },

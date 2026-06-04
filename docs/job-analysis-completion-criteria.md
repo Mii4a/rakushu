@@ -213,8 +213,8 @@ feedback loop は「失敗を保存できるか」ではなく、「改善価値
 - 同一 analysis に対して feedback が重複しない
 - internal feedback 一覧だけで fixture 化候補を判断できる
   - `summaryText` が failure shape を説明している
-  - `rawExcerpt` が短すぎず長すぎない
-  - `parsedSnapshot` で原因切り分けに入れる
+  - `failureTypes` と quick checks で triage に入れる
+  - 必要なら保存済み analysis / scorecard へ辿れる
 
 ### Expected-feedback denominator rule
 - `feedback_expected=yes` に数えるのは、「current save rule でも保存すべき」と判断できる row に限る

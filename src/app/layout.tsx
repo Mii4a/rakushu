@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Inter, Noto_Sans_JP } from "next/font/google";
 import { BriefcaseBusiness, Sparkles } from "lucide-react";
 
 import { AccountMenu } from "@/components/account-menu";
@@ -14,6 +15,19 @@ const defaultDescription = "求人票の条件差や危険信号を整理し、�
 const defaultGoogleSiteVerification = "NcOgsMkKevVP1gYlcxCOIaynqmoCEKKHvokL0cdT1-U";
 const googleSiteVerification =
   process.env.GOOGLE_SEARCH_CONSOLE_SITE_VERIFICATION ?? process.env.GOOGLE_SITE_VERIFICATION ?? defaultGoogleSiteVerification;
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter"
+});
+
+const notoSansJp = Noto_Sans_JP({
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500", "600", "700", "800", "900"],
+  variable: "--font-noto-sans-jp"
+});
 
 export const metadata: Metadata = {
   metadataBase: getSiteOrigin(),
@@ -49,7 +63,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="ja">
-      <body>
+      <body className={`${inter.variable} ${notoSansJp.variable}`}>
         <header className="sticky top-0 z-40 border-b border-rakumo-border/80 bg-white/95 backdrop-blur-xl">
           <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 md:px-6">
             <div className="flex items-center justify-between gap-4">

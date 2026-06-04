@@ -63,7 +63,7 @@ async function loadCandidates(args: ParsedArgs): Promise<BackfillCandidate[]> {
     .orderBy(desc(jobAnalyses.createdAt))
     .limit(args.limit);
 
-  const rows = await base;
+  const rows = (await base).filter((row): row is typeof base extends Promise<(infer R)[]> ? R & { rawText: string } : never => typeof row.rawText === "string");
   if (!args.analysisId) {
     return rows;
   }

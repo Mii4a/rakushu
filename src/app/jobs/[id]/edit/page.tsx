@@ -109,11 +109,18 @@ export default async function EditJobPage({ params }: { params: Promise<{ id: st
         </label>
 
         <label className="block space-y-1 text-sm">
-          <span className="text-rakumo-ink/85">求人本文（必須）</span>
-          <textarea name="rawText" required minLength={20} rows={12} defaultValue={job.rawText} className="field-textarea min-h-0" />
+          <span className="text-rakumo-ink/85">求人本文（再解析したいときだけ貼り直す）</span>
+          <textarea
+            name="rawText"
+            minLength={20}
+            rows={12}
+            defaultValue=""
+            placeholder="本文は保存していません。再解析したい場合のみ、ここへもう一度貼り付けてください。"
+            className="field-textarea min-h-0"
+          />
         </label>
 
-        <p className="text-xs text-rakumo-ink/65">編集後に「再解析」を実行すると、新しい本文をもとに解析結果を更新できます。</p>
+        <p className="text-xs text-rakumo-ink/65">会社名や URL だけ直す場合は空欄のままで更新できます。本文を貼り直したときだけ再解析します。</p>
 
         <button type="submit" className="button-primary">
           更新する

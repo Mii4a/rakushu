@@ -2,8 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth/require-user";
-import { isInternalToolsUser } from "@/lib/auth/internal-access";
+import { parseAllowedInternalEmails } from "@/lib/auth/internal-access";
 import { getLatestAnalysisFeedback, type FeedbackSeverity, type FeedbackStatus } from "@/lib/jobs/latest-analysis-feedback";
+import { resolveParserFeedbackPageAccess } from "@/lib/jobs/parser-feedback-page-access";
 
 export const dynamic = "force-dynamic";
 
@@ -27,9 +28,15 @@ export default async function InternalParserFeedbackPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const user = await requireUser();
+  const access = resolveParserFeedbackPageAccess({
+    requesterUserId: user.id,
+    requesterEmail: user.email,
+    allowedEmails: parseAllowedInternalEmails(process.env.INTERNAL_TOOL_EMAILS),
+    adminEmails: parseAllowedInternalEmails(process.env.INTERNAL_ADMIN_EMAILS)
+  });
 
-  if (!isInternalToolsUser(user.email)) {
-    redirect("/jobs");
+  if (!access.allowed) {
+    redirect(access.redirectTo);
   }
 
   const params = (await searchParams) ?? {};

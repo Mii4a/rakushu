@@ -22,13 +22,13 @@ import {
 
 import type { ParsedJob } from "@/lib/analysis";
 import { JobDeleteForm } from "@/components/job-delete-form";
-import { RerunAnalysisButton } from "@/components/rerun-analysis-button";
 import { getChecklistItems } from "@/components/jobs/JobCheckList";
 import { MissingItemStatusExplainer } from "@/components/missing-item-status-explainer";
 import { RakumoAvatar } from "@/components/rakumo/RakumoAvatar";
 import { SelectionProgressForm } from "@/components/selection-progress-form";
 import { RakumoEmptyState } from "@/components/rakumo/RakumoEmptyState";
 import { buildMissingItemSummary, getMissingItemLabel, type MissingItemKey, type MissingItemSummary } from "@/lib/analysis/missing-items";
+import { parseStoredMissingItemSummary } from "@/lib/analysis/storage";
 import { parseStoredParsedJob } from "@/lib/analysis/parse-stored-job";
 import { requireUser } from "@/lib/auth/require-user";
 import { getSession } from "@/lib/auth/session";
@@ -328,18 +328,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
   });
 
   const selectedJobBase = sortedList.find((job) => job.id === selectedParam) ?? sortedList[0] ?? null;
-  const selectedJobDetailRows = selectedJobBase
-    ? await db
-        .select({
-          id: jobs.id,
-          rawText: jobs.rawText
-        })
-        .from(jobs)
-        .where(eq(jobs.id, selectedJobBase.id))
-        .limit(1)
-    : [];
-  const selectedJobRawText = selectedJobDetailRows[0]?.rawText ?? null;
-  const selectedJob = selectedJobBase ? { ...selectedJobBase, rawText: selectedJobRawText } : null;
+  const selectedJob = selectedJobBase;
   const selectedParams = createParamsObject(params);
 
   const aRankCount = jobListWithAnalyses.filter((job) => job.latest?.totalRank === "A").length;
@@ -347,8 +336,10 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
   const nextActionCount = jobListWithAnalyses.filter((job) => job.nextActionAt != null).length;
 
   const selectedWarnings = selectedJob?.parsed?.warnings.value ?? [];
-  const selectedMissingSummary = selectedJob?.parsed ? buildMissingItemSummary(selectedJob.parsed, selectedJob.rawText) : null;
-  const selectedChecklist = getChecklistItems(selectedJob?.parsed ?? null, selectedJob?.rawText ?? null);
+  const selectedMissingSummary =
+    parseStoredMissingItemSummary(selectedJob?.latest?.missingItemSummaryJson) ??
+    (selectedJob?.parsed ? buildMissingItemSummary(selectedJob.parsed, null) : null);
+  const selectedChecklist = getChecklistItems(selectedJob?.parsed ?? null, selectedMissingSummary);
   const selectedAnalysisNotes = buildAnalysisNotes(selectedJob?.parsed ?? null, selectedWarnings, selectedMissingSummary ?? undefined);
   const selectedRankReasonLabel = selectedMissingSummary ? buildRankReasonLabel(selectedMissingSummary, selectedWarnings) : null;
   const selectedDetailRankItems = selectedJob
@@ -852,27 +843,35 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
                         </div>
                       </div>
 
-                      <div className="grid gap-3 md:grid-cols-3">
-                        <div className="md:col-span-1">
-                          <RerunAnalysisButton
-                            jobId={selectedJob.id}
-                            buttonClassName="inline-flex h-[56px] w-full items-center justify-center rounded-[18px] border border-[#1ca354] bg-white px-5 text-lg font-bold text-[#1ca354]"
-                          />
+                      <div className="space-y-3">
+                        <div className="rounded-[18px] border border-dashed border-rakumo-border bg-[#f7fbf8] px-4 py-4 text-sm leading-6 text-rakumo-ink/75">
+                          <p className="font-bold text-rakumo-ink">再解析したいときは、編集画面で本文を貼り直してください。</p>
+                          <p className="mt-1">求人本文は保存していないため、この画面からそのまま再解析はできません。会社名や URL だけ直したい場合も、編集画面から同じ場所で更新できます。</p>
                         </div>
-                        <EstimateCommuteButton jobId={selectedJob.id} />
-                        <Link href={`/jobs/${selectedJob.id}/edit`} className="inline-flex h-[56px] items-center justify-center rounded-[18px] border border-[#1ca354] bg-white px-5 text-lg font-bold text-[#1ca354]">
-                          <Pencil className="mr-2 size-5" />
-                          編集画面へ
-                        </Link>
-                        <JobDeleteForm
-                          action={deleteJobAction}
-                          jobId={selectedJob.id}
-                          buttonClassName="inline-flex h-[56px] w-full items-center justify-center rounded-[18px] border border-[#ff5a5a] bg-white px-5 text-lg font-bold text-[#ff4a4a]"
-                          confirmMessage={`「${selectedJob.parsed?.companyName.value ?? selectedJob.companyName ?? "この求人"}」を削除しますか？この操作は元に戻せません。`}
-                        >
-                          <Trash2 className="mr-2 size-5" />
-                          削除
-                        </JobDeleteForm>
+
+                        <div className="grid gap-3 md:grid-cols-3">
+                          <Link
+                            href={`/jobs/${selectedJob.id}/edit`}
+                            className="inline-flex h-[56px] items-center justify-center rounded-[18px] border border-[#1ca354] bg-[#1ca354] px-5 text-lg font-bold text-white"
+                          >
+                            <Pencil className="mr-2 size-5" />
+                            本文を貼り直して再解析
+                          </Link>
+                          <EstimateCommuteButton jobId={selectedJob.id} />
+                          <Link href={`/jobs/${selectedJob.id}/edit`} className="inline-flex h-[56px] items-center justify-center rounded-[18px] border border-[#1ca354] bg-white px-5 text-lg font-bold text-[#1ca354]">
+                            <Pencil className="mr-2 size-5" />
+                            編集画面へ
+                          </Link>
+                          <JobDeleteForm
+                            action={deleteJobAction}
+                            jobId={selectedJob.id}
+                            buttonClassName="inline-flex h-[56px] w-full items-center justify-center rounded-[18px] border border-[#ff5a5a] bg-white px-5 text-lg font-bold text-[#ff4a4a]"
+                            confirmMessage={`「${selectedJob.parsed?.companyName.value ?? selectedJob.companyName ?? "この求人"}」を削除しますか？この操作は元に戻せません。`}
+                          >
+                            <Trash2 className="mr-2 size-5" />
+                            削除
+                          </JobDeleteForm>
+                        </div>
                       </div>
                     </>
                   ) : (

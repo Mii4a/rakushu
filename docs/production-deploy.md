@@ -67,6 +67,7 @@ GOOGLE_SITE_VERIFICATION=
 - `STRIPE_*` は live mode の値に切り替える
 - `INTERNAL_TOOL_EMAILS` は internal parser feedback を見てよいメールだけをカンマ区切りで入れる
 - `INTERNAL_ADMIN_EMAILS` はその中でも全件閲覧できる admin メールだけを入れる
+- internal parser feedback の詳細な閲覧ポリシーと更新手順は `docs/internal-parser-feedback-ops.md` を参照
 - `.env.production` はテンプレート用途にとどめ、秘密値は Git に載せない
 - 追跡対象のテンプレートは `.env.production.example`
 - `GOOGLE_SEARCH_CONSOLE_SITE_VERIFICATION` は Search Console の HTML tag 方式を使うときだけ設定する
@@ -240,7 +241,12 @@ npm run db:migrate:prod
    ```bash
    npm run db:migrate:prod
    ```
-3. migration 状態が pending 0 件か確認
+3. 既存 `jobs.raw_text` を削除
+   ```bash
+   npm run db:backfill:raw-text-null:prod
+   ```
+   - third-party 求人本文の複製保持を避けるため、既存 row に残っている `raw_text` も null 化する
+4. migration 状態が pending 0 件か確認
    ```bash
    npm run db:migrate:prod:status
    ```
@@ -258,7 +264,7 @@ npm run db:migrate:prod
 7. `workers.dev` URL で疎通確認する
 
 手動 deploy を使うのは、CI/CD 経路を使えない一時対応や切り分け時だけです。  
-通常運用の実行順は `cf:secrets:prod -> db:migrate:prod -> db:migrate:prod:status -> main 更新 -> db:migrate:prod:status` に固定します。
+通常運用の実行順は `cf:secrets:prod -> db:migrate:prod -> db:backfill:raw-text-null:prod -> db:migrate:prod:status -> main 更新 -> db:migrate:prod:status` に固定します。
 
 ## 7. デプロイ直後の確認
 

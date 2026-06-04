@@ -1,5 +1,5 @@
 import type { ParsedJob } from "@/lib/analysis";
-import { buildMissingItemSummary } from "@/lib/analysis/missing-items";
+import { buildMissingItemSummary, type MissingItemSummary } from "@/lib/analysis/missing-items";
 
 type CheckTone = "good" | "neutral" | "caution" | "concern";
 
@@ -16,15 +16,15 @@ const toneStyles: Record<CheckTone, string> = {
   concern: "border-rakumo-peach/90 bg-[#FFF3EA] text-rakumo-ink"
 };
 
-function hasMissing(summary: ReturnType<typeof buildMissingItemSummary>, key: Parameters<typeof buildMissingItemSummary>[0] extends never ? never : string) {
+function hasMissing(summary: MissingItemSummary, key: string) {
   return summary.missingInRawText.includes(key as never);
 }
 
-function hasAmbiguous(summary: ReturnType<typeof buildMissingItemSummary>, key: Parameters<typeof buildMissingItemSummary>[0] extends never ? never : string) {
+function hasAmbiguous(summary: MissingItemSummary, key: string) {
   return summary.ambiguousButVisible.includes(key as never);
 }
 
-export function getChecklistItems(parsed: ParsedJob | null, rawText?: string | null): Item[] {
+export function getChecklistItems(parsed: ParsedJob | null, missingSummary?: MissingItemSummary | null): Item[] {
   if (!parsed) {
     return [
       { label: "求人情報", value: "まだランク付け前", tone: "neutral" },
@@ -34,7 +34,7 @@ export function getChecklistItems(parsed: ParsedJob | null, rawText?: string | n
 
   const benefitsCount = parsed.benefits.value?.length ?? 0;
   const warnings = parsed.warnings.value ?? [];
-  const missingSummary = buildMissingItemSummary(parsed, rawText);
+  const summary = missingSummary ?? buildMissingItemSummary(parsed, null);
 
   return [
     {
@@ -44,12 +44,12 @@ export function getChecklistItems(parsed: ParsedJob | null, rawText?: string | n
           ? "固定残業なし"
           : parsed.fixedOvertimeHours.value != null
             ? `${parsed.fixedOvertimeHours.value}時間`
-            : hasMissing(missingSummary, "fixedOvertimeHours")
+            : hasMissing(summary, "fixedOvertimeHours")
               ? "本文未記載"
               : "要確認",
       tone:
         parsed.fixedOvertimeHours.value == null && parsed.fixedOvertimeHours.status !== "none"
-          ? hasMissing(missingSummary, "fixedOvertimeHours")
+          ? hasMissing(summary, "fixedOvertimeHours")
             ? "concern"
             : "caution"
           : "good"
@@ -59,16 +59,16 @@ export function getChecklistItems(parsed: ParsedJob | null, rawText?: string | n
       value:
         parsed.annualHolidays.value != null
           ? `${parsed.annualHolidays.value}日`
-          : hasMissing(missingSummary, "annualHolidays")
+          : hasMissing(summary, "annualHolidays")
             ? "本文未記載"
-            : hasAmbiguous(missingSummary, "annualHolidays")
+            : hasAmbiguous(summary, "annualHolidays")
               ? "要確認"
               : "不明",
       tone:
         parsed.annualHolidays.value != null && parsed.annualHolidays.value >= 120
           ? "good"
           : parsed.annualHolidays.value == null
-            ? hasMissing(missingSummary, "annualHolidays")
+            ? hasMissing(summary, "annualHolidays")
               ? "concern"
               : "neutral"
             : "caution"
@@ -78,9 +78,9 @@ export function getChecklistItems(parsed: ParsedJob | null, rawText?: string | n
       value:
         parsed.holidayType.value
           ? parsed.holidayType.value
-          : hasMissing(missingSummary, "holidayType")
+          : hasMissing(summary, "holidayType")
             ? "本文未記載"
-            : hasAmbiguous(missingSummary, "holidayType")
+            : hasAmbiguous(summary, "holidayType")
               ? "要確認"
               : "不明",
       tone:
@@ -88,7 +88,7 @@ export function getChecklistItems(parsed: ParsedJob | null, rawText?: string | n
           ? "good"
           : parsed.holidayType.value === "週休2日制"
             ? "neutral"
-            : hasMissing(missingSummary, "holidayType")
+            : hasMissing(summary, "holidayType")
               ? "concern"
               : "caution"
     },
@@ -99,9 +99,9 @@ export function getChecklistItems(parsed: ParsedJob | null, rawText?: string | n
           ? "なし"
           : parsed.bonusCount?.value != null
             ? `年${parsed.bonusCount.value}回${parsed.bonusPerformanceLinked?.status === "found" ? "（業績連動）" : ""}`
-            : hasMissing(missingSummary, "bonusCount")
+            : hasMissing(summary, "bonusCount")
               ? "本文未記載"
-              : hasAmbiguous(missingSummary, "bonusCount")
+              : hasAmbiguous(summary, "bonusCount")
                 ? "要確認"
                 : "不明",
       tone:
@@ -109,7 +109,7 @@ export function getChecklistItems(parsed: ParsedJob | null, rawText?: string | n
           ? "good"
           : parsed.bonusCount?.status === "none"
             ? "caution"
-            : hasMissing(missingSummary, "bonusCount")
+            : hasMissing(summary, "bonusCount")
               ? "concern"
               : "neutral"
     },
@@ -120,9 +120,9 @@ export function getChecklistItems(parsed: ParsedJob | null, rawText?: string | n
           ? "あり"
           : parsed.retirementAllowance?.status === "none"
             ? "なし"
-            : hasMissing(missingSummary, "retirementAllowance")
+            : hasMissing(summary, "retirementAllowance")
               ? "本文未記載"
-              : hasAmbiguous(missingSummary, "retirementAllowance")
+              : hasAmbiguous(summary, "retirementAllowance")
                 ? "要確認"
                 : "不明",
       tone:
@@ -130,7 +130,7 @@ export function getChecklistItems(parsed: ParsedJob | null, rawText?: string | n
           ? "good"
           : parsed.retirementAllowance?.status === "none"
             ? "caution"
-            : hasMissing(missingSummary, "retirementAllowance")
+            : hasMissing(summary, "retirementAllowance")
               ? "concern"
               : "neutral"
     },
@@ -139,9 +139,9 @@ export function getChecklistItems(parsed: ParsedJob | null, rawText?: string | n
       value:
         benefitsCount > 0
           ? `${benefitsCount}項目`
-          : hasMissing(missingSummary, "benefits")
+          : hasMissing(summary, "benefits")
             ? "本文の情報が少ない"
-            : hasAmbiguous(missingSummary, "benefits")
+            : hasAmbiguous(summary, "benefits")
               ? "要確認"
               : "不明",
       tone:
@@ -149,7 +149,7 @@ export function getChecklistItems(parsed: ParsedJob | null, rawText?: string | n
           ? "good"
           : benefitsCount >= 1
             ? "neutral"
-            : hasMissing(missingSummary, "benefits")
+            : hasMissing(summary, "benefits")
               ? "caution"
               : "caution"
     },
@@ -158,15 +158,15 @@ export function getChecklistItems(parsed: ParsedJob | null, rawText?: string | n
       value:
         parsed.employmentType.value
           ? parsed.employmentType.value
-          : hasMissing(missingSummary, "employmentType")
+          : hasMissing(summary, "employmentType")
             ? "本文未記載"
-            : hasAmbiguous(missingSummary, "employmentType")
+            : hasAmbiguous(summary, "employmentType")
               ? "要確認"
               : "不明",
       tone:
         parsed.employmentType.value
           ? "neutral"
-          : hasMissing(missingSummary, "employmentType")
+          : hasMissing(summary, "employmentType")
             ? "concern"
             : "caution"
     },
@@ -180,12 +180,12 @@ export function getChecklistItems(parsed: ParsedJob | null, rawText?: string | n
 
 type Props = {
   parsed: ParsedJob | null;
-  rawText?: string | null;
+  missingSummary?: MissingItemSummary | null;
   className?: string;
 };
 
-export function JobCheckList({ parsed, rawText, className }: Props) {
-  const items = getChecklistItems(parsed, rawText);
+export function JobCheckList({ parsed, missingSummary, className }: Props) {
+  const items = getChecklistItems(parsed, missingSummary);
 
   return (
     <div className={`grid gap-3 sm:grid-cols-2 ${className ?? ""}`}>

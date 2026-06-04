@@ -14,7 +14,7 @@
 - `docs/job-analysis-evaluation-scorecard.md`
 - `docs/job-analysis-holdout-collection-rules.md`
 - holdout 求人本文 50件以上
-- internal parser feedback 一覧へのアクセス
+- internal parser feedback 一覧へのアクセス（存在すれば）
 - parser の実際の出力を確認できる UI または保存結果
 
 ## Output artifacts
@@ -73,6 +73,7 @@ holdout 50件以上に対して、少なくとも次の shape を混ぜる。
 - parser UI 上の抽出結果
 - 可能なら evidence / source / confidence
 - internal feedback に保存されているかどうか
+- internal feedback ページを使う場合は quick checks と summaryText を見て、必要なら保存済み analysis 側で詳細を確認する
 
 ### Step 3: Judge product usability first
 
@@ -189,7 +190,7 @@ holdout 50件以上に対して、少なくとも次の shape を混ぜる。
 判断の目安:
 
 - `feedback_expected=yes`: 見逃すと今後も壊れやすい failure shape
-- `feedback_quality=high_signal`: summary / excerpt / parsed snapshot を見てすぐ次アクションが決まる
+- `feedback_quality=high_signal`: summaryText / failureTypes / quick checks / analysis 参照だけで次アクションが決まる
 - `feedback_quality=noisy`: 見ても修正方針が出ない、または低価値
 - thin-input `company_careers` は追加ルールを使う
 - final verdict では full-cohort を official denominator に残し、`comparison_grade` cohort は shadow read として summary に併記する

@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { parseJobText, scoreParsedJob } from "@/lib/analysis";
 import { buildJobAnalysisFeedbackInsert } from "@/lib/analysis/feedback";
+import { serializeStoredMissingItemSummary, serializeStoredParsedJobSnapshot } from "@/lib/analysis/storage";
 import type { ExtractedValue, ParsedJob, ScoredJob } from "@/lib/analysis/types";
 import { requireUser } from "@/lib/auth/require-user";
 import { resolveCommuteFields } from "@/lib/commute";
@@ -58,7 +59,7 @@ const updateJobSchema = z.object({
   workAddress: z.string().trim().max(240).optional(),
   nearestStation: z.string().trim().max(120).optional(),
   commuteMinutes: z.union([z.literal(""), z.coerce.number().int().min(1).max(240)]).optional(),
-  rawText: z.string().trim().min(20, "求人本文は20文字以上入力してください")
+  rawText: z.union([z.literal(""), z.string().trim().min(20, "求人本文は20文字以上入力してください")]).optional()
 });
 
 const selectionStatuses = ["saved", "applied", "screening", "interview", "offer", "rejected"] as const;
@@ -88,11 +89,12 @@ function toBooleanColumnValue(field: ExtractedValue<boolean>) {
 function buildJobAnalysisValues(params: {
   analysisId: string;
   jobId: string;
+  rawText: string;
   parsed: ParsedJob;
   scored: ScoredJob;
   now: Date;
 }) {
-  const { analysisId, jobId, parsed, scored, now } = params;
+  const { analysisId, jobId, rawText, parsed, scored, now } = params;
 
   return {
     id: analysisId,
@@ -119,7 +121,8 @@ function buildJobAnalysisValues(params: {
     retirementAllowanceRank: scored.retirementAllowanceRank,
     benefitRank: scored.benefitRank,
     totalRank: scored.totalRank,
-    evidenceJson: JSON.stringify(parsed),
+    evidenceJson: serializeStoredParsedJobSnapshot(parsed),
+    missingItemSummaryJson: serializeStoredMissingItemSummary(rawText, parsed),
     createdAt: now,
     updatedAt: now
   };
@@ -255,12 +258,12 @@ export async function createJobAction(_: JobActionState | undefined, formData: F
     workAddress: parsedForm.data.workAddress || null,
     nearestStation: parsedForm.data.nearestStation || null,
     ...commuteFields,
-    rawText: parsedForm.data.rawText,
+    rawText: null,
     createdAt: now,
     updatedAt: now
   });
 
-  await db.insert(jobAnalyses).values(buildJobAnalysisValues({ analysisId, jobId, parsed, scored, now }));
+  await db.insert(jobAnalyses).values(buildJobAnalysisValues({ analysisId, jobId, rawText: parsedForm.data.rawText, parsed, scored, now }));
   await insertAutoAnalysisFeedback({ analysisId, rawText: parsedForm.data.rawText, parsed, now });
 
   const plan = await getUserPlan(user.id);
@@ -299,8 +302,17 @@ export async function rerunAnalysisAction(jobId: string, _: JobActionState | und
     };
   }
 
+  if (!target.rawText) {
+    return {
+      status: "error",
+      code: "generic",
+      message: "本文は保存していないため、そのまま再解析はできません。編集画面で本文を貼り直してください。"
+    };
+  }
+
+  const rawText = target.rawText;
   const now = new Date();
-  const parsed = parseJobText(target.rawText);
+  const parsed = parseJobText(rawText);
   const rankSettings = await getUserRankSettings(user.id);
   const scored = scoreParsedJob(parsed, rankSettings);
   const commuteFields = await resolveCommuteFields({
@@ -321,8 +333,8 @@ export async function rerunAnalysisAction(jobId: string, _: JobActionState | und
 
   const analysisId = crypto.randomUUID();
 
-  await db.insert(jobAnalyses).values(buildJobAnalysisValues({ analysisId, jobId, parsed, scored, now }));
-  await insertAutoAnalysisFeedback({ analysisId, rawText: target.rawText, parsed, now });
+  await db.insert(jobAnalyses).values(buildJobAnalysisValues({ analysisId, jobId, rawText, parsed, scored, now }));
+  await insertAutoAnalysisFeedback({ analysisId, rawText, parsed, now });
 
   const plan = await getUserPlan(user.id);
   await incrementAnalysisCount(user.id, PLAN_LIMITS[plan].analysisPeriod === "week" ? getWeekKey() : getMonthKey());
@@ -360,8 +372,9 @@ export async function updateJobAction(formData: FormData) {
     throw new Error("編集対象の求人が見つかりません");
   }
 
-  const rawTextChanged = rawText !== target.rawText;
-  if (rawTextChanged) {
+  const normalizedRawText = rawText ?? "";
+  const rerunRequested = normalizedRawText.length >= 20;
+  if (rerunRequested) {
     await enforceAnalysisLimit(user.id);
   }
 
@@ -382,19 +395,19 @@ export async function updateJobAction(formData: FormData) {
       workAddress: workAddress || null,
       nearestStation: nearestStation || null,
       ...commuteFields,
-      rawText,
+      rawText: null,
       updatedAt: now
     })
     .where(and(eq(jobs.id, jobId), eq(jobs.userId, user.id)));
 
-  if (rawTextChanged) {
-    const parsed = parseJobText(rawText);
+  if (rerunRequested) {
+    const parsed = parseJobText(normalizedRawText);
     const rankSettings = await getUserRankSettings(user.id);
     const scored = scoreParsedJob(parsed, rankSettings);
     const analysisId = crypto.randomUUID();
 
-    await db.insert(jobAnalyses).values(buildJobAnalysisValues({ analysisId, jobId, parsed, scored, now }));
-    await insertAutoAnalysisFeedback({ analysisId, rawText, parsed, now });
+    await db.insert(jobAnalyses).values(buildJobAnalysisValues({ analysisId, jobId, rawText: normalizedRawText, parsed, scored, now }));
+    await insertAutoAnalysisFeedback({ analysisId, rawText: normalizedRawText, parsed, now });
 
     const plan = await getUserPlan(user.id);
     await incrementAnalysisCount(user.id, PLAN_LIMITS[plan].analysisPeriod === "week" ? getWeekKey() : getMonthKey());
