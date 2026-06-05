@@ -1,6 +1,12 @@
-import { describe, expect, it } from "vitest";
+import fs from "node:fs";
+
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildResumeWorkbookFromTemplate } from "./xlsx-template.server";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("buildResumeWorkbookFromTemplate", () => {
   it("reuses the template workbook layout and injects current values", () => {
@@ -68,5 +74,33 @@ describe("buildResumeWorkbookFromTemplate", () => {
     expect(text).toContain('<c r="M21" s="53" t="inlineStr"><is><t xml:space="preserve">日商簿記検定試験 2級 合格</t></is></c>');
     expect(text).toContain('<c r="K34" s="67" t="inlineStr"><is><t xml:space="preserve">志望動機のサンプルです。');
     expect(text).toContain('<c r="K48" s="62" t="inlineStr"><is><t xml:space="preserve">貴社の規定に従います。</t></is></c>');
+  });
+
+  it("throws a clear error when no resume template workbook exists", () => {
+    vi.spyOn(fs, "existsSync").mockReturnValue(false);
+
+    expect(() =>
+      buildResumeWorkbookFromTemplate({
+        templateName: "厚労省様式",
+        asOfDate: "2026年5月19日",
+        fullName: "山田 太郎",
+        furigana: "ヤマダ タロウ",
+        gender: "男",
+        birthDate: "1998年4月12日",
+        ageText: "（満 28 歳）",
+        postalCode: "160-0004",
+        currentAddress: "東京都新宿区四谷1-6-1 コモレ四谷ビル5階",
+        contactAddress: "",
+        phone: "090-1234-5678",
+        email: "yamada@example.com",
+        educationRows: [],
+        licenseRows: [],
+        motivation: "志望動機のサンプルです。",
+        selfPr: "自己PRのサンプルです。",
+        desiredConditions: "貴社の規定に従います。",
+      }),
+    ).toThrowError(
+      /Resume template workbook not found\. Checked: .*UI-mock\/resume\/resume_template\.xlsx, .*UI_samples\/resume\/resume_template\.xlsx/,
+    );
   });
 });

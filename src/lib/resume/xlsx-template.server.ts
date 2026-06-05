@@ -11,7 +11,21 @@ type ZipEntry = {
 
 const encoder = new TextEncoder();
 
-const TEMPLATE_PATH = path.join(process.cwd(), "UI_samples", "resume", "resume_template.xlsx");
+const TEMPLATE_PATH_CANDIDATES = [
+  path.join(process.cwd(), "UI-mock", "resume", "resume_template.xlsx"),
+  path.join(process.cwd(), "UI_samples", "resume", "resume_template.xlsx"),
+] as const;
+
+function resolveTemplatePath() {
+  const matchedPath = TEMPLATE_PATH_CANDIDATES.find((candidate) => fs.existsSync(candidate));
+  if (matchedPath) {
+    return matchedPath;
+  }
+
+  throw new Error(
+    `Resume template workbook not found. Checked: ${TEMPLATE_PATH_CANDIDATES.join(", ")}`,
+  );
+}
 
 function uint16(value: number) {
   const bytes = new Uint8Array(2);
@@ -348,7 +362,7 @@ function buildDesiredSummary(data: ResumeWorkbookData) {
 }
 
 export function buildResumeWorkbookFromTemplate(data: ResumeWorkbookData) {
-  const templateBuffer = fs.readFileSync(TEMPLATE_PATH);
+  const templateBuffer = fs.readFileSync(resolveTemplatePath());
   const entries = parseZipEntries(templateBuffer).map((entry) => {
     if (entry.name === "xl/worksheets/sheet1.xml") {
       let sheetXml = Buffer.from(entry.data).toString("utf8");
