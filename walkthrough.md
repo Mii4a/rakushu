@@ -1,27 +1,25 @@
 # walkthrough
 
 ## Manual review target
-- Code path: `buildResumeWorkbookFromTemplate`
-- Fixture: `/home/openclaw/rakushu/UI-mock/resume/resume_template.xlsx`
+- `/contact`
+- `/about`
+- `/#how-to`
 
-## What changed
-- resume template の参照先を固定 1 パスから resolver 方式に変更
-- 現行の `UI-mock` 配置を優先参照
-- 旧 `UI_samples` 配置は互換フォールバックとして維持
-- 両方無い場合に調査しやすいエラーメッセージを返す
-- 再発防止の unit test を追加
+## What to change
+- `/contact` を marketing surface 上で成立させる
+- `BetaIntakeForm` をそのまま使い、周辺の hero / cards で問い合わせページ化する
+- `/about` の support CTA は `/contact` に向ける
+- 「使い方を見る」はトップの `#how-to` へ着地させる
+- home nav の hash link も絶対パス化して他ページからの往復でブレないようにする
 
-## Validation checkpoints
-- 現行 fixture で workbook 生成 test が通る
-- TypeScript typecheck が通る
-- lint は error なしで通る
-- template 欠落時のエラーが checked paths を含む
+## Visual checkpoints
+- `/contact` は hero 左説明 + 右キャラクター + 右フォームの3要素が破綻していない
+- headset icon と thumbs-up character が不自然なく収まっている
+- `/about` の CTA が視覚的にそのままでリンク先だけ正しく切り替わっている
+- `/#how-to` に飛んだとき、保存した求人セクションが viewport 内に見える
 
 ## Validation commands
-- `npm test -- --run src/lib/resume/xlsx-template.server.test.ts`
 - `npm run typecheck`
 - `npm run lint`
-
-## Notes
-- 今回の本質は fixture 欠落ではなく、コードの参照先 drift
-- repo 上の tracked fixture は `UI-mock/resume/resume_template.xlsx`
+- `npm run build`
+- visual pass on `/contact`, `/about`, `/#how-to`

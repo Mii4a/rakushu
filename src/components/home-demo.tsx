@@ -1,31 +1,31 @@
 "use client";
 
-import Image from "next/image";
+import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  ArrowRight,
-  BookOpen,
+  Bell,
+  Bookmark,
   Check,
-  CheckCircle2,
-  CircleAlert,
-  ClipboardList,
-  CreditCard,
-  FileSearch,
+  ChevronDown,
   Lock,
-  Menu,
-  Scale,
+  Plus,
   Search,
-  Sparkles
+  Sparkles,
+  Star
 } from "lucide-react";
 
-import { DEFAULT_RANK_SETTINGS, parseJobText, scoreParsedJob } from "@/lib/analysis";
-import { buildTrackedHref, getTextLengthBucket, getUtmParams, sendMarketingEvent, sendMarketingEventBeacon } from "@/lib/marketing/client";
+import { parseJobText, scoreParsedJob } from "@/lib/analysis";
+import { getTextLengthBucket, getUtmParams, sendMarketingEvent } from "@/lib/marketing/client";
 import { MarketingEventTracker } from "@/components/marketing-event-tracker";
-import type { Rank } from "@/lib/analysis/types";
-import rakumoHappy from "../../yuru-chara/rakumo_happy.jpg";
-import rakumoNeutral from "../../yuru-chara/rakumo_neutral.jpg";
+import walletCoinsIcon from "../../UI-mock/home-demo/icons/wallet-coins.png";
+import clockIcon from "../../UI-mock/home-demo/icons/clock.png";
+import calendarIcon from "../../UI-mock/home-demo/icons/calender.png";
+import giftIcon from "../../UI-mock/home-demo/icons/gift.png";
+import shieldCheckIcon from "../../UI-mock/home-demo/icons/shield-check-red.png";
+import shieldLockIcon from "../../UI-mock/home-demo/icons/shield-lock-blue.png";
+import rakumoPointingGuide from "../../UI-mock/home-demo/character/rakumo-pointing-guide.png";
 
 const initialText = "";
 const demoSampleTexts: readonly string[] = [`株式会社サンプルテック
@@ -74,6 +74,55 @@ const demoSampleTexts: readonly string[] = [`株式会社サンプルテック
 有給休暇、夏季休暇、年末年始休暇
 社会保険完備、交通費支給、書籍購入補助、資格取得支援制度、リモートワーク可`] as const;
 
+const fallbackParsed = parseJobText(demoSampleTexts[0]);
+const fallbackScored = scoreParsedJob(fallbackParsed);
+
+const navItems = [
+  { href: "/#how-to", label: "使い方" },
+  { href: "/#features", label: "機能" },
+  { href: "/pricing", label: "料金" },
+  { href: "/#faq", label: "よくある質問" }
+] as const;
+
+const savedJobCards = [
+  {
+    badge: "マッチ度 78%",
+    badgeTone: "bg-[#e9f8ed] text-[#2c9b4f]",
+    company: "らくしゅう株式会社",
+    role: "Webエンジニア（自社プロダクト）",
+    salary: "450〜700万円",
+    location: "東京都渋谷区",
+    type: "正社員",
+    status: "選考中",
+    statusTone: "bg-[#eef6ff] text-[#2d6bcc]",
+    updated: "最終更新 2日前"
+  },
+  {
+    badge: "マッチ度 65%",
+    badgeTone: "bg-[#fff5e8] text-[#f08b20]",
+    company: "ソフトウェーブ株式会社",
+    role: "バックエンドエンジニア",
+    salary: "500〜800万円",
+    location: "東京都千代田区",
+    type: "正社員",
+    status: "書類選考",
+    statusTone: "bg-[#fff4df] text-[#d27d14]",
+    updated: "最終更新 5日前"
+  },
+  {
+    badge: "マッチ度 40%",
+    badgeTone: "bg-[#fff0f0] text-[#e15b67]",
+    company: "テックスタートアップ株式会社",
+    role: "フルスタックエンジニア",
+    salary: "600〜900万円",
+    location: "フルリモート",
+    type: "業務委託",
+    status: "保存済み",
+    statusTone: "bg-[#f4f6f8] text-[#64748b]",
+    updated: "最終更新 1週間前"
+  }
+] as const;
+
 function pickRandomSampleText(currentText: string) {
   if (demoSampleTexts.length === 0) return initialText;
   if (demoSampleTexts.length === 1) return demoSampleTexts[0];
@@ -83,181 +132,85 @@ function pickRandomSampleText(currentText: string) {
   return pool[Math.floor(Math.random() * pool.length)] ?? demoSampleTexts[0];
 }
 
-const navItems = [
-  { href: "#features", label: "機能" },
-  { href: "#criteria", label: "判断基準" },
-  { href: "/pricing", label: "料金プラン" },
-  { href: "#faq", label: "よくある質問" }
-];
-
-const stepItems = [
-  {
-    number: "1",
-    title: "求人をランク付け",
-    copy: "求人票を入力すると、自動で解析して5つの観点からランクを付けます。",
-    icon: FileSearch
-  },
-  {
-    number: "2",
-    title: "基準を作る・借りる",
-    copy: "自分の基準を作ったり、公開されている基準を借りて使うことができます。",
-    icon: Scale
-  },
-  {
-    number: "3",
-    title: "良い求人だけ保存",
-    copy: "気になる求人だけを保存して、就活の整理と管理を進められます。",
-    icon: ClipboardList
-  }
-] as const;
-
-const benefitItems = [
-  {
-    title: "総合ランク",
-    value: "A",
-    copy: "働きやすさを客観的に可視化",
-    tone: "text-[#15a6a0]"
-  },
-  {
-    title: "検出警告",
-    value: "4件",
-    copy: "見落としがちなリスクに気づける",
-    tone: "text-[#f29e32]"
-  },
-  {
-    title: "チェック項目を自動評価",
-    value: "",
-    copy: "5つの観点から総合的に判定",
-    tone: "text-[#15a6a0]"
-  }
-] as const;
-
-const savedValueItems = [
-  {
-    title: "良い求人だけ保存して管理",
-    copy: "気になる求人を厳選してストック。後から見返しやすくなります。",
-    icon: ClipboardList
-  },
-  {
-    title: "気になる求人だけ残す",
-    copy: "比較して、納得できる求人に集中。迷いを減らします。",
-    icon: Search
-  },
-  {
-    title: "応募状況を記録する",
-    copy: "ステータスやメモで進捗を見える化。やるべきことが明確に。",
-    icon: CheckCircle2
-  },
-  {
-    title: "次の確認日を置いておく",
-    copy: "リマインド設定で、やるべきことを忘れない。就活を計画的に進められます。",
-    icon: CircleAlert
-  }
-] as const;
-
-const faqItems = [
-  {
-    question: "無料でどこまで使えますか？",
-    answer: "トップのデモ確認とログイン開始までは無料です。保存や管理、プラン機能はログイン後に利用できます。"
-  },
-  {
-    question: "判断基準は自分用に変えられますか？",
-    answer: "ログイン後はプランに応じて固定残業や年間休日などの基準を自分用に調整できます。"
-  },
-  {
-    question: "良い求人だけを残せますか？",
-    answer: "はい。ランク付け後に残したい求人だけ保存し、応募状況まで一貫して管理できます。"
-  }
-] as const;
-
-function formatYen(value: number | null) {
-  if (value == null) return "不明";
-  return `${value.toLocaleString("ja-JP")}円`;
+function formatCurrencyForHero(value: number | null) {
+  if (value == null) return "450万円";
+  const annual = Math.round((value * 16) / 10000);
+  return `${annual}万円`;
 }
 
-function formatHours(value: number | null, status: "found" | "none" | "unknown") {
-  if (status === "none") return "なし";
-  if (value == null) return "不明";
-  return `${Math.trunc(value)}時間`;
+function formatOvertimeForHero(hours: number | null) {
+  if (hours == null) return "月 20 時間";
+  return `月 ${Math.trunc(hours)} 時間`;
 }
 
-function formatDays(value: number | null) {
-  if (value == null) return "不明";
-  return `${value}日`;
+function formatHolidayForHero(days: number | null) {
+  if (days == null) return "年間 125 日";
+  return `年間 ${days} 日`;
 }
 
-function getTotalRankNote(rank: Rank) {
+function totalRankToScore(rank: string) {
   switch (rank) {
     case "S":
-      return "かなり働きやすい";
+      return 94;
     case "A":
-      return "働きやすさ高め";
+      return 86;
     case "B":
-      return "バランス良好";
+      return 78;
     case "C":
-      return "一部確認したい";
+      return 68;
     case "D":
-      return "注意点あり";
+      return 58;
     case "E":
-      return "慎重に確認";
-    case "UNKNOWN":
-      return "判定保留";
+      return 44;
+    default:
+      return 72;
   }
 }
 
-function getRankNote(rank: Rank) {
-  switch (rank) {
-    case "S":
-      return "かなり良好";
-    case "A":
-      return "良好";
-    case "B":
-      return "標準的";
-    case "C":
-      return "要確認";
-    case "D":
-      return "やや注意";
-    case "E":
-      return "注意";
-    case "UNKNOWN":
-      return "保留";
-  }
+function buildMatchBars(score: number) {
+  const annual = Math.max(48, Math.min(92, score + 2));
+  const workStyle = Math.max(42, Math.min(95, score + 12));
+  const holidays = Math.max(36, Math.min(88, score - 8));
+  const benefits = Math.max(34, Math.min(86, score - 8));
+  const growth = Math.max(28, Math.min(82, score - 18));
+
+  return [
+    { label: "年収", value: annual, tone: "bg-[#4caf50]" },
+    { label: "働き方", value: workStyle, tone: "bg-[#51b75b]" },
+    { label: "休日・休暇", value: holidays, tone: "bg-[#f5b12f]" },
+    { label: "福利厚生", value: benefits, tone: "bg-[#f3b039]" },
+    { label: "成長環境", value: growth, tone: "bg-[#ff922e]" }
+  ] as const;
 }
 
-function InfoRow({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
-  return (
-    <div className="grid grid-cols-[8rem_minmax(0,1fr)] border-b border-[#dce7ee] text-sm last:border-b-0">
-      <div className="bg-[#f9fcfd] px-4 py-3 font-semibold text-[#17355b]">{label}</div>
-      <div className={`px-4 py-3 ${highlight ? "font-semibold text-[#ef5a39]" : "text-[#35546f]"}`}>{value}</div>
-    </div>
-  );
-}
+const mockMatchBars = [
+  { label: "年収", value: 80, tone: "bg-[#4caf50]" },
+  { label: "働き方", value: 90, tone: "bg-[#51b75b]" },
+  { label: "休日・休暇", value: 70, tone: "bg-[#f5b12f]" },
+  { label: "福利厚生", value: 70, tone: "bg-[#f3b039]" },
+  { label: "成長環境", value: 60, tone: "bg-[#ff922e]" }
+] as const;
 
-function CriteriaPanel({
+function AutoOrganizeCard({
   icon,
   title,
-  lines
+  value,
+  note
 }: {
-  icon: React.ComponentType<{ className?: string }>;
+  icon: StaticImageData;
   title: string;
-  lines: readonly string[];
+  value: string;
+  note: string;
 }) {
-  const Icon = icon;
-
   return (
-    <div className="rounded-[24px] border border-[#dce7ee] bg-white px-5 py-5 shadow-[0_12px_24px_-26px_rgba(22,53,91,0.35)]">
-      <div className="flex items-start gap-4">
-        <div className="flex size-14 shrink-0 items-center justify-center rounded-full bg-[#f4fbfb] text-[#6d90af]">
-          <Icon className="size-7" />
-        </div>
-        <div className="space-y-1">
-          <p className="text-[1.45rem] font-black leading-tight text-[#17355b]">{title}</p>
-          {lines.map((line) => (
-            <p key={line} className="text-sm leading-7 text-[#35546f]">
-              {line}
-            </p>
-          ))}
-        </div>
+    <div className="rounded-[24px] border border-[#ebedf0] bg-white px-4 py-3 shadow-[0_18px_45px_-36px_rgba(15,23,42,0.18)] xl:px-4 xl:py-3.5">
+      <div className="relative mx-auto flex h-[74px] w-[74px] items-center justify-center xl:h-[78px] xl:w-[78px]">
+        <Image src={icon} alt="" width={80} height={80} className="h-auto w-auto object-contain" />
+      </div>
+      <div className="mt-2.5 text-center">
+        <p className="text-[0.96rem] font-bold text-[#283241] xl:text-[0.98rem]">{title}</p>
+        <p className="mt-1.5 text-[1.18rem] font-extrabold leading-[1.2] tracking-[-0.03em] text-[#1e293b] xl:text-[1.26rem]">{value}</p>
+        <p className="mt-1.5 text-[0.88rem] leading-6 text-[#677487]">{note}</p>
       </div>
     </div>
   );
@@ -265,14 +218,11 @@ function CriteriaPanel({
 
 export function HomeDemo() {
   const [rawText, setRawText] = useState(initialText);
-  const [showExtracted, setShowExtracted] = useState(false);
-  const deferredText = useDeferredValue(rawText);
+  const [sourceUrl, setSourceUrl] = useState("");
   const searchParams = useSearchParams();
-  const hasInput = deferredText.trim().length > 0;
-  const parsed = parseJobText(deferredText);
-  const scored = scoreParsedJob(parsed);
-  const totalRankNote = hasInput ? getTotalRankNote(scored.totalRank) : null;
-  const trackedBetaHref = useMemo(() => buildTrackedHref("/beta", searchParams, { cta_variant: "a" }), [searchParams]);
+  const hasInput = rawText.trim().length > 0;
+  const parsed = hasInput ? parseJobText(rawText) : fallbackParsed;
+  const scored = hasInput ? scoreParsedJob(parsed) : fallbackScored;
   const utmParams = useMemo(() => getUtmParams(searchParams), [searchParams]);
   const demoStartedRef = useRef(false);
   const jobPastedRef = useRef(false);
@@ -291,7 +241,7 @@ export function HomeDemo() {
   }, [hasInput, utmParams]);
 
   useEffect(() => {
-    const trimmedLength = deferredText.trim().length;
+    const trimmedLength = rawText.trim().length;
     if (trimmedLength === 0 || jobPastedRef.current) return;
     jobPastedRef.current = true;
 
@@ -302,7 +252,7 @@ export function HomeDemo() {
       textLengthBucket: getTextLengthBucket(trimmedLength),
       ...utmParams
     });
-  }, [deferredText, utmParams]);
+  }, [rawText, utmParams]);
 
   useEffect(() => {
     if (!hasInput || analysisCompletedRef.current) return;
@@ -317,487 +267,334 @@ export function HomeDemo() {
     });
   }, [hasInput, scored.totalRank, utmParams]);
 
-  const rankItems = [
-    { label: "固定残業", rank: scored.fixedOvertimeRank },
-    { label: "年間休日", rank: scored.holidayRank },
-    { label: "休日制度", rank: scored.holidayTypeRank },
-    { label: "賞与制度", rank: scored.bonusRank },
-    { label: "退職金制度", rank: scored.retirementAllowanceRank },
-    { label: "福利厚生", rank: scored.benefitRank }
-  ];
+  const organizeCards = useMemo(() => {
+    const benefitsLabel = hasInput ? parsed.benefits.value?.slice(0, 2).join("、") || "住宅手当、退職金" : "住宅手当、退職金";
+    const warningLabel = hasInput ? parsed.warnings.value?.slice(0, 2).join("、") || "成果主義、若手活躍中" : "成果主義、若手活躍中";
 
-  const criteriaItems = [
-    {
-      title: "固定残業の閾値",
-      icon: CircleAlert,
-      lines: [
-        `A：〜${DEFAULT_RANK_SETTINGS.fixedOvertime.aMaxHours}時間`,
-        `B：〜${DEFAULT_RANK_SETTINGS.fixedOvertime.bMaxHours}時間`,
-        `C：〜${DEFAULT_RANK_SETTINGS.fixedOvertime.cMaxHours}時間`,
-        `D：${DEFAULT_RANK_SETTINGS.fixedOvertime.dMaxHours}時間超`
-      ]
-    },
-    {
-      title: "年間休日の閾値",
-      icon: ClipboardList,
-      lines: [
-        `S：${DEFAULT_RANK_SETTINGS.annualHolidays.sMinDays}日以上`,
-        `A：${DEFAULT_RANK_SETTINGS.annualHolidays.aMinDays}日以上`,
-        `B：${DEFAULT_RANK_SETTINGS.annualHolidays.bMinDays}日以上`,
-        `D：${DEFAULT_RANK_SETTINGS.annualHolidays.dMinDays}日未満`
-      ]
-    },
-    {
-      title: "休日制度の判定",
-      icon: Sparkles,
-      lines: [
-        "完全週休2日制や土日祝休み、",
-        "長期休暇制度の有無などを",
-        "総合的に評価します。"
-      ]
-    },
-    {
-      title: "福利厚生の判定",
-      icon: CheckCircle2,
-      lines: [
-        "手当・補助・制度の充実度を、",
-        "項目ごとに評価し、総合して",
-        "ランクを付けます。"
-      ]
-    },
-    {
-      title: "賞与制度の判定",
-      icon: Sparkles,
-      lines: ["年3回以上はS、年2回はA、", "年1回はC、制度なしはD、", "不明な場合は保留で扱います。"]
-    },
-    {
-      title: "退職金制度の判定",
-      icon: CheckCircle2,
-      lines: ["退職金制度ありはA、", "制度なしはD、", "明記なしは保留で扱います。"]
-    }
-  ] as const;
+    return [
+      {
+        icon: walletCoinsIcon,
+        title: "年収・給与",
+        value: hasInput ? formatCurrencyForHero(parsed.baseSalaryMin.value) : "450万円",
+        note: "想定年収"
+      },
+      {
+        icon: clockIcon,
+        title: "残業時間",
+        value: hasInput ? formatOvertimeForHero(parsed.fixedOvertimeHours.value) : "月 20 時間",
+        note: hasInput ? (parsed.fixedOvertimeHours.status === "none" ? "固定残業なし" : "平均残業") : "平均残業"
+      },
+      {
+        icon: calendarIcon,
+        title: "休日・休暇",
+        value: formatHolidayForHero(parsed.annualHolidays.value),
+        note: parsed.holidayType.value ?? "完全週休2日制"
+      },
+      {
+        icon: giftIcon,
+        title: "福利厚生",
+        value: benefitsLabel,
+        note: "資格支援 など"
+      },
+      {
+        icon: shieldCheckIcon,
+        title: "注意したい表現",
+        value: warningLabel,
+        note: "アットホーム など"
+      }
+    ] as const;
+  }, [hasInput, parsed]);
+
+  const matchScore = hasInput ? totalRankToScore(scored.totalRank) : 78;
+  const matchBars = useMemo(() => (hasInput ? buildMatchBars(matchScore) : mockMatchBars), [hasInput, matchScore]);
+  const circleLength = 2 * Math.PI * 78;
+  const circleOffset = circleLength * (1 - matchScore / 100);
+
+  const handleLoadFromUrl = () => {
+    setRawText((current) => current || pickRandomSampleText(current));
+  };
+
+  const handleAnalyze = () => {
+    if (rawText.trim()) return;
+    setRawText(pickRandomSampleText(rawText));
+  };
 
   return (
-    <section className="home-demo-shell bg-[linear-gradient(180deg,#fffdfa_0%,#fdfefe_100%)] text-[#17355b]">
+    <section className="home-demo-shell min-h-screen bg-[radial-gradient(circle_at_top,#fff8ef_0%,#ffffff_20%,#ffffff_100%)] text-[#1f2937]">
       <MarketingEventTracker eventType="lp_view" />
-      <div className="mx-auto w-full max-w-[1560px] px-4 pb-8 pt-4 lg:px-8">
-        <header className="rounded-[28px] border border-[#dce7ee] bg-white/95 px-5 py-4 shadow-[0_18px_36px_-30px_rgba(22,53,91,0.32)]">
-          <div className="flex items-center justify-between gap-4">
-            <Link href="/" className="flex items-center gap-3">
-              <div className="relative size-14 overflow-hidden rounded-full border border-[#ffe4c6] bg-[#fff9f0]">
-                <Image src={rakumoNeutral} alt="らくしゅうのマスコット" fill className="object-cover" sizes="56px" />
-              </div>
-              <div>
-                <p className="text-[2rem] font-black leading-none text-[#25b0a9]">らくしゅう</p>
-                <p className="mt-1 text-sm font-semibold text-[#35546f]">求人を見極めて、就活を整える</p>
-              </div>
-            </Link>
+      <div className="mx-auto w-full max-w-[1480px] px-6 pb-10 pt-5 xl:px-10">
+        <header className="grid items-center gap-5 border-b border-[#ececec] pb-5 lg:grid-cols-[280px_minmax(0,1fr)_280px]">
+          <Link href="/" className="whitespace-nowrap text-[3.8rem] font-black tracking-[-0.06em] text-[#19a34a]">
+            らくしゅう
+          </Link>
 
-            <div className="flex items-center gap-3">
-              <nav className="hidden items-center gap-10 lg:flex">
-                {navItems.map((item) => (
-                  <Link key={item.label} href={item.href} className="text-base font-bold text-[#17355b] hover:text-[#25b0a9]">
-                    {item.label}
-                  </Link>
-                ))}
-              </nav>
-              <Link
-                href="/login"
-                className="inline-flex items-center justify-center rounded-xl bg-[linear-gradient(135deg,#23b4ae_0%,#189c97_100%)] px-6 py-3 text-base font-black text-white shadow-[0_18px_30px_-24px_rgba(24,156,151,0.8)]"
-              >
-                ログイン
+          <nav className="flex flex-wrap items-center justify-center gap-8 text-[1.05rem] font-semibold text-[#2f3747] lg:gap-12">
+            {navItems.map((item) => (
+              <Link key={item.label} href={item.href} className="transition hover:text-[#17a34a]">
+                {item.label}
               </Link>
-              <button
-                type="button"
-                aria-label="ナビゲーションメニュー"
-                className="inline-flex size-12 items-center justify-center rounded-xl border border-[#dce7ee] text-[#0f6e78] lg:hidden"
-              >
-                <Menu className="size-7" />
-              </button>
-            </div>
+            ))}
+          </nav>
+
+          <div className="flex items-center justify-end gap-4">
+            <button
+              type="button"
+              aria-label="通知"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#e9eaee] bg-white text-[#1f2937] shadow-[0_10px_30px_-24px_rgba(15,23,42,0.3)]"
+            >
+              <Bell className="h-5 w-5" />
+            </button>
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-3 rounded-full border border-[#e8eaef] bg-white px-3 py-2 shadow-[0_14px_34px_-30px_rgba(15,23,42,0.35)]"
+            >
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[linear-gradient(135deg,#f5d7c2_0%,#f0b388_100%)] text-sm font-bold text-[#673b2d]">
+                山
+              </div>
+              <span className="text-base font-semibold text-[#374151]">山田 花子</span>
+              <ChevronDown className="h-4 w-4 text-[#6b7280]" />
+            </Link>
           </div>
         </header>
 
-        <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1.3fr)_360px]">
-          <section className="rounded-[30px] border border-[#dce7ee] bg-white px-6 py-7 shadow-[0_20px_40px_-30px_rgba(22,53,91,0.28)] md:px-8">
-            <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_270px] xl:items-center">
-              <div>
-                <p className="inline-flex items-center gap-2 rounded-full bg-[#ebfbfb] px-4 py-2 text-sm font-bold text-[#1ea9a4]">
-                  求人をランクで見極める就活ワークスペース
-                </p>
-                <h1 className="mt-5 text-[2.6rem] font-black leading-[1.18] tracking-tight text-[#15345b] md:text-[4rem]">
-                  求人をランク付けして、
-                  <br />
-                  そのまま就活の整理まで進める
-                </h1>
-                <p className="mt-5 max-w-[760px] text-lg leading-9 text-[#35546f]">
-                  求人票を入力するだけで、休日・福利厚生・固定残業などを自動で解析。
-                  客観的なランクで見極めて、気になる求人だけを保存・管理できます。
-                </p>
-
-                <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                  <Link
-                    href="/login"
-                    className="inline-flex min-h-[74px] items-center justify-center gap-3 rounded-2xl bg-[linear-gradient(135deg,#24b4ae_0%,#129995_100%)] px-7 py-4 text-lg font-black text-white shadow-[0_20px_34px_-24px_rgba(18,153,149,0.92)]"
-                  >
-                    <ClipboardList className="size-5" />
-                    <span>
-                      ランク付けを試す（無料）
-                      <span className="mt-1 block text-sm font-semibold text-white/90">ログインして使い始める →</span>
-                    </span>
-                  </Link>
-                  <Link
-                    href={trackedBetaHref}
-                    onClick={() =>
-                      sendMarketingEventBeacon({
-                        eventType: "cta_beta_click",
-                        page: "/",
-                        referrer: typeof document !== "undefined" ? document.referrer || undefined : undefined,
-                        ctaVariant: "a",
-                        ...utmParams
-                      })
-                    }
-                    className="inline-flex min-h-[74px] items-center justify-center gap-3 rounded-2xl border border-[#bdd1de] bg-white px-7 py-4 text-lg font-black text-[#17355b] shadow-[0_18px_28px_-26px_rgba(22,53,91,0.35)]"
-                  >
-                    <BookOpen className="size-5 text-[#2d577a]" />
-                    <span>
-                      β参加はこちら
-                      <span className="mt-1 block text-sm font-semibold text-[#35546f]">先行βの案内を受け取る →</span>
-                    </span>
-                  </Link>
-                </div>
-
-                <p className="mt-4 text-sm font-semibold text-[#506b82]">求人票の見極めに不安がある人向け。15秒で内容確認、気になればβ登録。</p>
-
-                <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-[#506b82]">
-                  <Lock className="size-4" />
-                  保存・応募状況の管理にはログインが必要です
-                </p>
-              </div>
-
-              <div className="relative mx-auto w-full max-w-[280px]">
-                <div className="pointer-events-none absolute -left-5 top-12 text-[#ffd58c]">
-                  <Sparkles className="size-6" />
-                </div>
-                <div className="pointer-events-none absolute -right-4 top-6 text-[#ffd58c]">
-                  <Sparkles className="size-5" />
-                </div>
-                <div className="pointer-events-none absolute -left-2 bottom-16 text-[#ffd58c]">
-                  <Sparkles className="size-4" />
-                </div>
-                <div className="relative aspect-square overflow-hidden rounded-[30px] bg-[radial-gradient(circle_at_50%_35%,#fff8ef_0%,#fffdfa_70%)]">
-                  <Image src={rakumoHappy} alt="虫眼鏡を持つらくしゅうのマスコット" fill className="object-contain p-2" sizes="280px" priority />
-                </div>
-              </div>
+        <section className="grid gap-8 pt-10 lg:grid-cols-[minmax(380px,0.8fr)_minmax(640px,1.25fr)_290px] lg:items-start xl:grid-cols-[minmax(390px,0.82fr)_minmax(650px,1.28fr)_300px] xl:gap-9">
+          <div className="pt-2">
+            <div className="inline-flex items-center gap-2 rounded-full bg-[#f1fbf1] px-4 py-2 text-sm font-bold text-[#3b934f] shadow-[0_12px_30px_-28px_rgba(34,197,94,0.45)]">
+              <Check className="h-4 w-4" />
+              AIで求人チェック、転職をもっとスマートに
             </div>
-          </section>
-
-          <aside id="features" className="space-y-4">
-            <h2 className="px-2 text-[2rem] font-black text-[#17355b]">らくしゅうで得られること</h2>
-            {benefitItems.map((item) => (
-              <div key={item.title} className="rounded-[24px] border border-[#e1edf2] bg-[linear-gradient(180deg,#ffffff_0%,#fbfefe_100%)] px-5 py-5 shadow-[0_16px_28px_-28px_rgba(22,53,91,0.3)]">
-                <div className="flex items-start gap-4">
-                  <div className={`flex size-16 shrink-0 items-center justify-center rounded-full border border-current/20 bg-white text-[2rem] font-black ${item.tone}`}>
-                    {item.value || <Check className="size-8" />}
-                  </div>
-                  <div>
-                    <p className="text-[1.6rem] font-black leading-tight text-[#17355b]">
-                      {item.title} {item.value ? <span className={item.tone}>{item.value}</span> : null}
-                    </p>
-                    <p className="mt-2 text-base leading-7 text-[#4f6a80]">{item.copy}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </aside>
-        </div>
-
-        <section className="mt-8">
-          <div className="flex items-center justify-center gap-4 text-center">
-            <span className="text-[#25b0a9]">⌁</span>
-            <h2 className="text-[2rem] font-black text-[#17355b]">使い方はカンタン、3ステップ</h2>
-            <span className="text-[#25b0a9]">⌁</span>
+            <h1 className="mt-8 max-w-[450px] text-[3.42rem] font-black leading-[0.97] tracking-[-0.072em] text-[#111827] xl:max-w-[480px] xl:text-[4.05rem]">
+              求人選びを、
+              <br />
+              もっと<span className="text-[#43b649]">ラク</span>に。
+            </h1>
+            <p className="mt-6 max-w-[470px] text-[1.08rem] font-semibold leading-[1.88] text-[#313a49] xl:max-w-[500px] xl:text-[1.16rem]">
+              求人票を貼り付けるだけで、AI が条件・待遇・注意点を自動で整理。
+              <br />
+              あなたの希望に合うか、ひと目でわかります。
+            </p>
           </div>
 
-          <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_42px_minmax(0,1fr)_42px_minmax(0,1fr)] xl:items-center">
-            {stepItems.map((item, index) => {
-              const Icon = item.icon;
-              const card = (
-                <div className="rounded-[26px] border border-[#dce7ee] bg-white px-5 py-5 shadow-[0_16px_30px_-28px_rgba(22,53,91,0.28)]">
-                  <div className="flex items-start gap-4">
-                    <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#20aba5] text-lg font-black text-white">
-                      {item.number}
-                    </div>
-                    <div className="flex size-16 shrink-0 items-center justify-center rounded-[20px] bg-[#f8fbfd] text-[#6e8cab]">
-                      <Icon className="size-9" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[1.55rem] font-black leading-tight text-[#17355b]">{item.title}</p>
-                      <p className="mt-2 text-sm leading-7 text-[#4f6a80]">{item.copy}</p>
-                    </div>
-                    <ArrowRight className="ml-auto hidden size-5 shrink-0 text-[#23b1aa] xl:block" />
-                  </div>
-                </div>
-              );
-
-              if (index === stepItems.length - 1) {
-                return <div key={item.title}>{card}</div>;
-              }
-
-              return (
-                <div key={item.title} className="contents">
-                  {card}
-                  <div className="hidden text-center text-[2rem] font-light text-[#28b3ac] xl:block">›</div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        <section className="mt-8 rounded-[30px] border border-[#dce7ee] bg-white px-5 py-5 shadow-[0_18px_36px_-30px_rgba(22,53,91,0.28)] md:px-6">
-          <div className="flex items-center gap-3 text-[#17355b]">
-            <Sparkles className="size-5 text-[#f3b44a]" />
-            <h2 className="text-[2rem] font-black">実際に試してみる（サンプルでデモ体験）</h2>
-          </div>
-
-          <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(300px,0.7fr)_minmax(0,0.92fr)_320px]">
-            <div className="rounded-[24px] border border-[#dce7ee] bg-white px-4 py-4">
-              <p className="text-[1.35rem] font-black text-[#17355b]">① 求人票のテキストを入力</p>
+          <div className="rounded-[34px] border border-[#eceff3] bg-white px-7 py-7 shadow-[0_34px_80px_-56px_rgba(15,23,42,0.24)] xl:px-8 xl:py-7">
+            <p className="text-[1.42rem] font-bold tracking-[-0.028em] text-[#1f2937] xl:text-[1.6rem]">求人票のテキストやURLを貼り付けてください</p>
+            <div className="mt-5 rounded-[24px] border border-[#e4e7ec] bg-[#fffdfb] px-5 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+              <input
+                value={sourceUrl}
+                onChange={(event) => setSourceUrl(event.target.value)}
+                className="w-full border-none bg-transparent text-[1.02rem] text-[#8a7467] outline-none placeholder:text-[#bca899] xl:text-[1.05rem]"
+                placeholder="例)  https://example.com/job/123"
+              />
               <textarea
                 value={rawText}
                 onChange={(event) => setRawText(event.target.value)}
-                rows={14}
-                className="mt-4 min-h-[360px] w-full rounded-[18px] border border-[#c8d7e0] px-4 py-4 text-sm leading-7 text-[#17355b] outline-none focus:border-[#23b1aa] focus:ring-4 focus:ring-[#d5f4f2]"
-                placeholder="求人票テキストを入力"
+                rows={4}
+                className="mt-3 min-h-[100px] w-full resize-none border-none bg-transparent text-[1.02rem] leading-8 text-[#4b5563] outline-none placeholder:text-[#bca899] xl:min-h-[108px] xl:text-[1.04rem]"
+                placeholder="または、求人票のテキストをここに貼り付け"
               />
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => setRawText((currentText) => pickRandomSampleText(currentText))}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[linear-gradient(135deg,#24b4ae_0%,#129995_100%)] px-5 py-3 text-base font-black text-white"
-                >
-                  <ClipboardList className="size-4" />
-                  サンプル文を入力
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRawText(initialText)}
-                  className="inline-flex items-center justify-center rounded-xl border border-[#c8d7e0] px-5 py-3 text-base font-black text-[#21a8a3]"
-                >
-                  クリア
-                </button>
-              </div>
             </div>
-
-            <div className="rounded-[24px] border border-[#dce7ee] bg-white px-4 py-4">
-              <p className="text-[1.35rem] font-black text-[#17355b]">② 解析結果（デモ）</p>
-              <div className="mt-4 rounded-[18px] border border-[#dce7ee] bg-[linear-gradient(180deg,#f9fcfd_0%,#ffffff_100%)] px-5 py-5 text-center">
-                <p className="text-sm font-semibold text-[#35546f]">総合ランク</p>
-                <div className="mt-3 flex items-center justify-center gap-3">
-                  <span
-                    className={`font-black leading-none text-[#20ada6] ${
-                      scored.totalRank === "UNKNOWN" ? "text-[2.4rem] tracking-[0.06em]" : "text-[4.6rem]"
-                    }`}
-                  >
-                    {scored.totalRank}
-                  </span>
-                  {totalRankNote ? (
-                    <span
-                      className={`rounded-full px-4 py-2 text-sm font-bold ${
-                        scored.totalRank === "S" || scored.totalRank === "A"
-                          ? "bg-[#dff6f4] text-[#1f9d98]"
-                          : scored.totalRank === "B" || scored.totalRank === "C"
-                            ? "bg-[#edf4ff] text-[#2d5f93]"
-                            : scored.totalRank === "UNKNOWN"
-                              ? "bg-[#eef2f5] text-[#607284]"
-                              : "bg-[#fff1e3] text-[#cc7f22]"
-                      }`}
-                    >
-                      {totalRankNote}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="mt-4 space-y-2">
-                {rankItems.map((item) => (
-                  <div key={item.label} className="grid grid-cols-[minmax(0,1fr)_54px_88px] items-center gap-3 rounded-[16px] border border-[#dce7ee] px-4 py-3">
-                    <p className="text-sm font-semibold text-[#17355b]">{item.label}</p>
-                    <span className={`inline-flex justify-center rounded-lg px-3 py-1 font-black ${
-                      item.rank === "UNKNOWN"
-                        ? "text-xs tracking-[0.08em]"
-                        : "text-lg"
-                    } ${
-                      item.rank.startsWith("A") || item.rank.startsWith("S")
-                        ? "bg-[#ebfbfb] text-[#20a9a4]"
-                        : "bg-[#fff6ea] text-[#f09d34]"
-                    }`}>
-                      {item.rank}
-                    </span>
-                    <span className="text-sm font-semibold text-[#6c8192]">{hasInput ? getRankNote(item.rank) : ""}</span>
-                  </div>
-                ))}
-              </div>
-
+            <div className="mt-5 flex flex-col gap-3.5 xl:flex-row xl:items-center xl:justify-between">
               <button
                 type="button"
-                onClick={() => setShowExtracted((current) => !current)}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#bfe4e1] px-4 py-3 text-base font-black text-[#20a9a4] xl:hidden"
+                onClick={handleLoadFromUrl}
+                className="inline-flex min-h-[60px] items-center justify-center gap-3 rounded-full border border-[#e5e7eb] bg-white px-7 text-[1.02rem] font-bold text-[#424b5a] shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)]"
               >
-                ③ 抽出された主な情報を表示
-                <span>{showExtracted ? "▲" : "▼"}</span>
+                <Search className="h-5 w-5" />
+                URLを読み込む
+              </button>
+              <div className="text-[1.02rem] font-semibold text-[#a1a1aa]">または</div>
+              <button
+                type="button"
+                onClick={handleAnalyze}
+                className="inline-flex min-h-[60px] items-center justify-center gap-3 rounded-full bg-[linear-gradient(135deg,#52be56_0%,#3fae4c_100%)] px-8 text-[1.04rem] font-bold text-white shadow-[0_24px_50px_-34px_rgba(63,174,76,0.75)]"
+              >
+                <Sparkles className="h-5 w-5" />
+                AIで求人を解析する
               </button>
             </div>
+            <p className="mt-4 flex items-center gap-2 text-[0.98rem] font-medium text-[#7a6f67]">
+              <Lock className="h-4 w-4" />
+              入力した情報は公開されません。
+            </p>
+          </div>
 
-            <div className={`${showExtracted ? "block" : "hidden"} rounded-[24px] border border-[#dce7ee] bg-white xl:block`}>
-              <div className="px-4 py-4">
-                <p className="text-[1.35rem] font-black text-[#17355b]">③ 抽出された主な情報</p>
-              </div>
-              <div className="border-t border-[#dce7ee]">
-                <InfoRow label="会社名" value={parsed.companyName.value ?? "株式会社サンプルテック"} />
-                <InfoRow label="職種" value={parsed.title.value ?? "Webエンジニア"} />
-                <InfoRow label="基本給（最小）" value={formatYen(parsed.baseSalaryMin.value)} />
-                <InfoRow label="固定残業時間" value={formatHours(parsed.fixedOvertimeHours.value, parsed.fixedOvertimeHours.status)} />
-                <InfoRow label="固定残業代" value={parsed.fixedOvertimePay.status === "none" ? "固定残業制なし" : formatYen(parsed.fixedOvertimePay.value)} />
-                <InfoRow label="年間休日" value={formatDays(parsed.annualHolidays.value)} />
-                <InfoRow label="休日制度" value={parsed.holidayType.value ?? "完全週休2日制（土日祝）"} />
-                <InfoRow
-                  label="賞与制度"
-                  value={
-                    parsed.bonusCount?.status === "none"
-                      ? "なし"
-                      : parsed.bonusCount?.value != null
-                        ? `年${parsed.bonusCount.value}回${parsed.bonusPerformanceLinked?.status === "found" ? "（業績連動）" : ""}`
-                        : "不明"
-                  }
-                />
-                <InfoRow
-                  label="退職金制度"
-                  value={parsed.retirementAllowance?.status === "found" ? "あり" : parsed.retirementAllowance?.status === "none" ? "なし" : "不明"}
-                />
-                <InfoRow
-                  label="主な制度・福利厚生"
-                  value={parsed.benefits.value?.length ? parsed.benefits.value.join("、") : "リモートワーク可、住宅手当、資格取得支援、書籍購入補助 など"}
-                />
-                <InfoRow
-                  label="抽出された警告"
-                  value={parsed.warnings.value?.length ? parsed.warnings.value.join(" / ") : "固定残業時間が長め（45時間） / リモートワークの頻度が不明"}
-                  highlight
-                />
-              </div>
-            </div>
-
-            <aside id="criteria" className="space-y-3">
-              <div className="rounded-[26px] border border-[#dce7ee] bg-white px-5 py-5 shadow-[0_16px_28px_-28px_rgba(22,53,91,0.26)]">
-                <h2 className="text-[2rem] font-black text-[#17355b]">らくしゅうの判断基準（一例）</h2>
-                <div className="mt-4 space-y-3">
-                  {criteriaItems.map((item) => (
-                    <CriteriaPanel key={item.title} icon={item.icon} title={item.title} lines={item.lines} />
-                  ))}
+          <div className="pt-2">
+            <div className="ml-auto max-w-[284px] rounded-[24px] border border-[#eceff3] bg-white px-6 py-4 text-[1.04rem] font-bold leading-8 text-[#444b5a] shadow-[0_26px_60px_-46px_rgba(15,23,42,0.22)] xl:max-w-[296px]">
+              <div className="flex items-start gap-3">
+                <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#50b84d] text-white">
+                  <Check className="h-5 w-5" />
                 </div>
-                <Link
-                  href="/criteria"
-                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#bfe4e1] px-5 py-3 text-base font-black text-[#20a9a4]"
-                >
-                  すべての基準を見る
-                  <ArrowRight className="size-4" />
-                </Link>
-              </div>
-            </aside>
-          </div>
-        </section>
-
-        <section className="mt-8 grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_360px]">
-          <div className="rounded-[30px] border border-[#dce7ee] bg-white px-6 py-6 shadow-[0_18px_36px_-30px_rgba(22,53,91,0.28)]">
-            <h2 className="text-center text-[2.3rem] font-black text-[#17355b]">良い求人だけを保存して、就活をもっとスマートに</h2>
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              {savedValueItems.map((item) => {
-                const Icon = item.icon;
-
-                return (
-                  <div key={item.title} className="flex gap-4 rounded-[22px] border border-[#e4edf2] bg-[#fffefe] px-5 py-5">
-                    <div className="flex size-14 shrink-0 items-center justify-center rounded-[18px] bg-[#f7fbfd] text-[#6f8ead]">
-                      <Icon className="size-7" />
-                    </div>
-                    <div>
-                      <p className="text-[1.35rem] font-black leading-tight text-[#17355b]">{item.title}</p>
-                      <p className="mt-2 text-sm leading-7 text-[#4f6a80]">{item.copy}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="rounded-[30px] border border-[#dce7ee] bg-[linear-gradient(180deg,#ffffff_0%,#fffef7_100%)] px-6 py-6 shadow-[0_18px_36px_-30px_rgba(22,53,91,0.22)]">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[2rem] font-black leading-tight text-[#17355b]">
-                  今すぐ、らくしゅうで
+                <p>
+                  らくしゅうが
                   <br />
-                  就活を整理しよう！
+                  やさしくサポート！
                 </p>
               </div>
-              <div className="relative size-28 shrink-0 overflow-hidden rounded-full bg-[#fff8ef]">
-                <Image src={rakumoHappy} alt="応援するマスコット" fill className="object-cover" sizes="112px" />
+            </div>
+            <div className="relative mx-auto mt-3 max-w-[286px] xl:max-w-[296px]">
+              <Image src={rakumoPointingGuide} alt="ガイドするらくしゅうキャラクター" priority className="h-auto w-full object-contain" />
+            </div>
+          </div>
+        </section>
+
+        <section id="features" className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.96fr)_420px] xl:items-start">
+          <div className="rounded-[34px] border border-[#eceff2] bg-white p-5 shadow-[0_32px_80px_-58px_rgba(15,23,42,0.24)] md:p-6">
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-[2.22rem] font-black tracking-[-0.05em] text-[#111827] xl:text-[2.3rem]">AIが求人を自動で整理</h2>
+              <Link href="/criteria" className="text-[1.1rem] font-bold text-[#26a244] hover:text-[#14873a]">
+                すべての項目を見る →
+              </Link>
+            </div>
+            <div className="mt-5 grid gap-3.5 md:grid-cols-2 xl:grid-cols-5 xl:gap-3">
+              {organizeCards.map((item) => (
+                <AutoOrganizeCard key={item.title} icon={item.icon} title={item.title} value={item.value} note={item.note} />
+              ))}
+            </div>
+          </div>
+
+          <aside className="rounded-[34px] border border-[#eceff2] bg-white p-5 shadow-[0_32px_80px_-58px_rgba(15,23,42,0.24)] xl:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-[1.34rem] font-black leading-[1.24] tracking-[-0.04em] text-[#111827] xl:text-[1.46rem]">あなたの希望との相性スコア</h2>
+              <Link href="/login" className="text-[0.98rem] font-bold text-[#2ca44b] hover:text-[#14873a]">
+                設定を編集 →
+              </Link>
+            </div>
+
+            <div className="mt-5 grid gap-5 md:grid-cols-[140px_minmax(0,1fr)] md:items-center xl:grid-cols-[136px_minmax(0,1fr)]">
+              <div className="relative mx-auto h-[138px] w-[138px] xl:h-[142px] xl:w-[142px]">
+                <svg viewBox="0 0 180 180" className="h-full w-full -rotate-90">
+                  <circle cx="90" cy="90" r="78" fill="none" stroke="#edf0f4" strokeWidth="12" />
+                  <circle
+                    cx="90"
+                    cy="90"
+                    r="78"
+                    fill="none"
+                    stroke="#51b657"
+                    strokeWidth="12"
+                    strokeLinecap="round"
+                    strokeDasharray={circleLength}
+                    strokeDashoffset={circleOffset}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-[#3da649]">
+                  <span className="text-[3.48rem] font-extrabold leading-none tracking-[-0.06em]">{matchScore}</span>
+                  <span className="mt-1 text-[1.1rem] font-bold text-[#5a6577]">/100</span>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[1.5rem] font-black tracking-[-0.04em] text-[#2ea044] xl:text-[1.62rem]">良いマッチ度です！</p>
+                <p className="mt-1.5 text-[0.98rem] font-semibold leading-7 text-[#4b5563]">条件の多くを満たしています</p>
+                <div className="mt-5 space-y-3.5">
+                  {matchBars.map((item) => (
+                    <div key={item.label} className="grid grid-cols-[84px_minmax(0,1fr)_56px] items-center gap-3 text-[0.96rem] font-semibold text-[#495466]">
+                      <span>{item.label}</span>
+                      <div className="h-3 overflow-hidden rounded-full bg-[#edf0f4]">
+                        <div className={`h-full rounded-full ${item.tone}`} style={{ width: `${item.value}%` }} />
+                      </div>
+                      <span className="text-right text-[#3f4654]">{item.value}/100</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </aside>
+        </section>
+
+        <section id="how-to" className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.96fr)_420px] xl:items-start">
+          <div>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <h2 className="text-[2.18rem] font-black tracking-[-0.05em] text-[#111827] xl:text-[2.26rem]">保存した求人・選考中</h2>
+              <div className="flex flex-wrap items-center gap-3 text-sm font-bold text-[#5b6472]">
+                <span className="rounded-full bg-[#f5f2ef] px-4 py-2 text-[#2b313c]">すべて 12</span>
+                <span className="rounded-full bg-[#f9f7f5] px-4 py-2">保存済み 8</span>
+                <span className="rounded-full bg-[#f9f7f5] px-4 py-2">選考中 4</span>
               </div>
             </div>
 
+            <div className="mt-4 grid gap-3.5 lg:grid-cols-3">
+              {savedJobCards.map((item) => (
+                <article
+                  key={`${item.company}-${item.role}`}
+                  className="rounded-[28px] border border-[#eceef2] bg-white px-4 py-3.5 shadow-[0_28px_70px_-56px_rgba(15,23,42,0.24)]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <span className={`rounded-full px-3 py-1.5 text-sm font-bold ${item.badgeTone}`}>{item.badge}</span>
+                    <button type="button" aria-label="保存済み" className="text-[#6b7280]">
+                      <Bookmark className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <div className="mt-4 flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#f6f7fb] text-base font-black text-[#7b8798]">
+                      {item.company.slice(0, 1)}
+                    </div>
+                    <p className="text-[0.98rem] font-bold leading-7 text-[#3f4755]">{item.company}</p>
+                  </div>
+                  <h3 className="mt-3 min-h-[2.8rem] text-[1.16rem] font-black leading-[1.24] tracking-[-0.03em] text-[#111827]">{item.role}</h3>
+                  <dl className="mt-3.5 space-y-1 text-[0.92rem] text-[#4b5563]">
+                    <div className="grid grid-cols-[68px_minmax(0,1fr)] gap-2">
+                      <dt className="font-semibold text-[#667085]">年収</dt>
+                      <dd className="font-semibold text-[#1f2937]">{item.salary}</dd>
+                    </div>
+                    <div className="grid grid-cols-[68px_minmax(0,1fr)] gap-2">
+                      <dt className="font-semibold text-[#667085]">勤務地</dt>
+                      <dd>{item.location}</dd>
+                    </div>
+                    <div className="grid grid-cols-[68px_minmax(0,1fr)] gap-2">
+                      <dt className="font-semibold text-[#667085]">雇用形態</dt>
+                      <dd>{item.type}</dd>
+                    </div>
+                  </dl>
+                  <div className="mt-4 flex items-center justify-between gap-3 border-t border-[#eef0f3] pt-3">
+                    <span className={`rounded-full px-3 py-1.5 text-sm font-bold ${item.statusTone}`}>{item.status}</span>
+                    <span className="text-sm font-medium text-[#7c8594]">{item.updated}</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+
+          <aside className="rounded-[34px] border border-[#edf1ea] bg-[radial-gradient(circle_at_top,#f7fbf3_0%,#fdfdf9_100%)] px-6 py-4.5 shadow-[0_28px_70px_-56px_rgba(15,23,42,0.18)]">
+            <div className="flex items-start justify-between gap-5">
+              <div>
+                <h2 className="text-[1.52rem] font-black leading-[1.32] tracking-[-0.04em] text-[#2e7f2f]">
+                  希望条件を登録して
+                  <br />
+                  より精度の高いスコアを
+                </h2>
+                <ul className="mt-3.5 space-y-2 text-[0.96rem] font-semibold text-[#485665]">
+                  <li className="flex items-center gap-3">
+                    <Star className="h-4 w-4 text-[#53b34d]" />
+                    年収・働き方の希望を設定
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <Star className="h-4 w-4 text-[#53b34d]" />
+                    譲れない条件を優先評価
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <Star className="h-4 w-4 text-[#53b34d]" />
+                    非公開求人の提案も可能に
+                  </li>
+                </ul>
+              </div>
+              <div className="w-[124px] shrink-0 pt-2">
+                <Image src={shieldLockIcon} alt="安全な設定を表すシールドアイコン" className="h-auto w-full object-contain" />
+              </div>
+            </div>
             <Link
               href="/login"
-              className="mt-5 inline-flex w-full items-center justify-center gap-3 rounded-2xl bg-[linear-gradient(135deg,#23b4ae_0%,#149995_100%)] px-6 py-5 text-xl font-black text-white shadow-[0_20px_36px_-26px_rgba(18,153,149,0.82)]"
+              className="mt-5 inline-flex min-h-[58px] w-full items-center justify-center gap-3 rounded-full bg-[linear-gradient(135deg,#53be56_0%,#42ae4e_100%)] px-7 text-[1.04rem] font-bold text-white shadow-[0_24px_52px_-36px_rgba(66,174,78,0.78)]"
             >
-              <ClipboardList className="size-5" />
-              <span>
-                ランク付けを試す（無料）
-                <span className="mt-1 block text-sm font-semibold text-white/90">ログインして使い始める →</span>
-              </span>
+              希望条件を設定する
+              <Plus className="h-5 w-5" />
             </Link>
-          </div>
+          </aside>
         </section>
 
-        <section id="faq" className="mt-8 rounded-[30px] border border-[#dce7ee] bg-white px-6 py-6 shadow-[0_18px_36px_-30px_rgba(22,53,91,0.22)]">
-          <h2 className="text-[2rem] font-black text-[#17355b]">よくある質問</h2>
-          <div className="mt-5 grid gap-4 lg:grid-cols-3">
-            {faqItems.map((item) => (
-              <div key={item.question} className="rounded-[24px] border border-[#e2edf2] bg-[#fcfefe] px-5 py-5">
-                <p className="text-[1.25rem] font-black leading-tight text-[#17355b]">{item.question}</p>
-                <p className="mt-3 text-sm leading-7 text-[#4f6a80]">{item.answer}</p>
-              </div>
-            ))}
+        <section id="faq" className="mt-10">
+          <div className="rounded-[28px] border border-[#eceff3] bg-white px-6 py-5 text-center text-[1.4rem] font-semibold leading-9 text-[#6b7280] shadow-[0_24px_64px_-54px_rgba(15,23,42,0.18)]">
+            らくしゅうは、あなたの転職活動をやさしく、確かなデータでサポートします。
           </div>
         </section>
-
-        <footer className="mt-8 rounded-[28px] border border-[#dce7ee] bg-white px-6 py-6 shadow-[0_18px_36px_-30px_rgba(22,53,91,0.18)]">
-          <div className="flex flex-col items-center gap-5 text-center">
-            <Link href="/" className="flex items-center gap-3">
-              <div className="relative size-16 overflow-hidden rounded-full border border-[#ffe4c6] bg-[#fff9f0]">
-                <Image src={rakumoNeutral} alt="らくしゅうのマスコット" fill className="object-cover" sizes="64px" />
-              </div>
-              <div className="text-left">
-                <p className="text-[2rem] font-black leading-none text-[#25b0a9]">らくしゅう</p>
-                <p className="mt-1 text-sm font-semibold text-[#35546f]">求人を見極めて、就活を整える</p>
-              </div>
-            </Link>
-
-            <nav className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-              {navItems.map((item) => (
-                <Link key={`footer-${item.label}`} href={item.href} className="text-lg font-bold text-[#17355b] hover:text-[#25b0a9]">
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-
-            <nav className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-lg font-bold text-[#17355b]">
-              <Link href="/legal/commerce">特定商取引法に基づく表記</Link>
-              <Link href="/legal/terms">利用規約</Link>
-              <Link href="/legal/privacy">プライバシーポリシー</Link>
-              <Link href="/legal/refund">返金ポリシー</Link>
-            </nav>
-
-            <p className="text-base font-semibold text-[#6b8092]">© 2024 らくしゅう</p>
-          </div>
-        </footer>
       </div>
     </section>
   );

@@ -1,24 +1,19 @@
-# resume template path / CI repair
+# task
 
-## Task
-resume workbook export が参照する template path を、現在の repo 配置に合わせて修正し、同種の CI 再発を防ぐテストを追加する。
+`/about` の導線仕上げとして、正式な `/contact` ページ追加と `/#how-to` 導線を整える。
 
 ## Goal
-- `buildResumeWorkbookFromTemplate` が repo 内の正しい template を読める
-- 古い `UI_samples` 参照が残っていても当面はフォールバックできる
-- template が両方に存在しない場合、調査しやすい明示的なエラーになる
-- resume 関連の unit test が CI 上で再び赤くならない
-
-## Scope
-- `src/lib/resume/xlsx-template.server.ts`
-- `src/lib/resume/xlsx-template.server.test.ts`
-- 作業記録 (`task.md`, `implementation_plan.md`, `walkthrough.md`)
+- `/about` の「お問い合わせ」CTA を暫定 `/beta` から正式 `/contact` に切り替える
+- `UI-mock/about` と `UI-mock/beta` の既存 icon / character asset を使って `/contact` を成立させる
+- 「使い方を見る」がトップの `#how-to` に着地するよう導線を通す
+- marketing shell 間の nav / anchor の挙動を揃える
 
 ## Non-goals
-- resume template の見た目変更
-- 履歴書生成 UI の改修
-- 本番デプロイ
+- 新しい問い合わせ backend を追加すること
+- `/beta` フォームの送信仕様自体を変更すること
+- 未提供アセットを捏造すること
 
-## Notes
-- 現在の tracked fixture は `UI-mock/resume/resume_template.xlsx`
-- `UI_samples/resume/resume_template.xlsx` は現行ブランチ群では未追跡
+## Required outputs
+- `src/app/contact/page.tsx`
+- `src/components/about-faq-page.tsx`
+- `src/components/home-demo.tsx`

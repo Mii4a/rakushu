@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { Send, ShieldCheck } from "lucide-react";
 
 import { submitBetaIntakeAction, type BetaIntakeActionState } from "@/actions/beta-actions";
 import { MarketingEventTracker } from "@/components/marketing-event-tracker";
@@ -26,7 +27,7 @@ export function BetaIntakeForm({
   return (
     <>
       <MarketingEventTracker eventType="beta_form_view" ctaVariant={ctaVariant} />
-      <form action={formAction} className="space-y-5 rounded-[28px] border border-[#dce7ee] bg-white p-6 shadow-[0_18px_36px_-30px_rgba(22,53,91,0.28)]">
+      <form action={formAction} className="space-y-5 rounded-[32px] border border-[#e7ebef] bg-white p-6 shadow-[0_28px_68px_-54px_rgba(15,23,42,0.24)] xl:p-7">
         <input type="hidden" name="page" value={page} />
         <input type="hidden" name="referrer" value={referrer ?? ""} />
         <input type="hidden" name="ctaVariant" value={ctaVariant ?? ""} />
@@ -36,90 +37,80 @@ export function BetaIntakeForm({
         <input type="hidden" name="utmContent" value={utmParams.utmContent ?? ""} />
         <input type="hidden" name="utmTerm" value={utmParams.utmTerm ?? ""} />
 
-        <div>
-          <p className="text-sm font-bold text-[#1ea9a4]">無料でβ参加して、求人票の見極めを先に試す</p>
-          <h1 className="mt-2 text-[2rem] font-black leading-tight text-[#17355b]">先行βの案内を受け取る</h1>
-          <p className="mt-3 text-sm leading-7 text-[#4f6a80]">
-            まだ改善中のβ版なので、使い心地や困りごとを聞きながら少人数ずつ案内しています。連絡先と、いま困っていることを教えてください。
-          </p>
+        <div className="rounded-full bg-[linear-gradient(180deg,#f6fbf1_0%,#edf7e7_100%)] px-5 py-3 text-center text-base font-black text-[#2ea145]">
+          限定50名
         </div>
 
-        <div className="rounded-[24px] border border-[#ffe2cf] bg-[#fff8f3] p-4 text-sm leading-7 text-[#4f6a80]">
-          <p className="font-black text-[#17355b]">申し込み前に知っておいてほしいこと</p>
-          <ul className="mt-2 space-y-1">
-            <li>・いまは案内制の少人数βです</li>
-            <li>・すべての求人媒体で完全対応しているわけではありません</li>
-            <li>・比較材料が薄い求人は、判定より先に「本文未記載」「要確認」が増えることがあります</li>
-          </ul>
+        <div className="text-center">
+          <h1 className="text-[2.1rem] font-black tracking-[-0.05em] text-[#111827] xl:text-[2.4rem]">ベータ版に申し込む（無料）</h1>
+          <p className="mt-3 text-sm leading-7 text-[#667385]">ご入力いただいた方から順にご案内します。</p>
         </div>
 
-        <label className="block space-y-2 text-sm font-semibold text-[#17355b]">
-          <span>連絡先（メール or Discord）</span>
+        <label className="block space-y-2 text-sm font-black text-[#111827]">
+          <span>連絡先（メール or Discord） <span className="ml-2 rounded-full bg-[#edf8e9] px-2 py-1 text-xs text-[#2ea145]">必須</span></span>
           <input
             name="contact"
             required
-            placeholder="name@example.com / taro#1234"
-            className="w-full rounded-2xl border border-[#c8d7e0] px-4 py-3 text-sm font-medium text-[#17355b] outline-none focus:border-[#23b1aa] focus:ring-4 focus:ring-[#d5f4f2]"
+            placeholder="例）yamada.hanako@example.com / taro#1234"
+            className="w-full rounded-[18px] border border-[#dbe3ea] bg-white px-4 py-3.5 text-sm font-semibold text-[#263342] outline-none focus:border-[#2caf48] focus:ring-4 focus:ring-[#dff4cf]"
           />
         </label>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className="block space-y-2 text-sm font-semibold text-[#17355b]">
-            <span>現在の状況</span>
-            <select
-              name="currentStatus"
-              defaultValue="新卒就活"
-              className="w-full rounded-2xl border border-[#c8d7e0] px-4 py-3 text-sm font-medium text-[#17355b] outline-none focus:border-[#23b1aa] focus:ring-4 focus:ring-[#d5f4f2]"
-            >
-              <option value="新卒就活">新卒就活</option>
-              <option value="転職活動">転職活動</option>
-              <option value="情報収集中">情報収集中</option>
-            </select>
-          </label>
+        <label className="block space-y-2 text-sm font-black text-[#111827]">
+          <span>現在の就活状況 <span className="ml-2 rounded-full bg-[#edf8e9] px-2 py-1 text-xs text-[#2ea145]">必須</span></span>
+          <select
+            name="currentStatus"
+            defaultValue="新卒就活"
+            className="w-full rounded-[18px] border border-[#dbe3ea] bg-white px-4 py-3.5 text-sm font-semibold text-[#263342] outline-none focus:border-[#2caf48] focus:ring-4 focus:ring-[#dff4cf]"
+          >
+            <option value="新卒就活">新卒就活</option>
+            <option value="転職活動">転職活動</option>
+            <option value="情報収集中">情報収集中</option>
+          </select>
+        </label>
 
-          <label className="block space-y-2 text-sm font-semibold text-[#17355b]">
-            <span>いちばん近い悩み</span>
-            <select
-              name="topProblemCategory"
-              defaultValue="ブラック求人の見分け方"
-              className="w-full rounded-2xl border border-[#c8d7e0] px-4 py-3 text-sm font-medium text-[#17355b] outline-none focus:border-[#23b1aa] focus:ring-4 focus:ring-[#d5f4f2]"
-            >
-              <option value="ブラック求人の見分け方">ブラック求人の見分け方</option>
-              <option value="条件比較">条件比較</option>
-              <option value="応募管理">応募管理</option>
-              <option value="自己分析・軸づくり">自己分析・軸づくり</option>
-              <option value="その他">その他</option>
-            </select>
-          </label>
-        </div>
+        <label className="block space-y-2 text-sm font-black text-[#111827]">
+          <span>いちばん近い悩み <span className="ml-2 rounded-full bg-[#edf8e9] px-2 py-1 text-xs text-[#2ea145]">必須</span></span>
+          <select
+            name="topProblemCategory"
+            defaultValue="ブラック求人の見分け方"
+            className="w-full rounded-[18px] border border-[#dbe3ea] bg-white px-4 py-3.5 text-sm font-semibold text-[#263342] outline-none focus:border-[#2caf48] focus:ring-4 focus:ring-[#dff4cf]"
+          >
+            <option value="ブラック求人の見分け方">ブラック求人の見分け方</option>
+            <option value="条件比較">条件比較</option>
+            <option value="応募管理">応募管理</option>
+            <option value="自己分析・軸づくり">自己分析・軸づくり</option>
+            <option value="その他">その他</option>
+          </select>
+        </label>
 
-        <label className="block space-y-2 text-sm font-semibold text-[#17355b]">
-          <span>いま一番困っていること</span>
+        <label className="block space-y-2 text-sm font-black text-[#111827]">
+          <span>ご意見・ご要望 <span className="ml-2 text-xs font-semibold text-[#778494]">（任意）</span></span>
           <textarea
             name="topProblem"
             required
-            rows={5}
-            placeholder="例: 固定残業や休日制度の見方が分からず、応募前に毎回不安になる"
-            className="w-full rounded-2xl border border-[#c8d7e0] px-4 py-3 text-sm leading-7 text-[#17355b] outline-none focus:border-[#23b1aa] focus:ring-4 focus:ring-[#d5f4f2]"
+            rows={4}
+            placeholder="らくしゅうに期待することや、使ってみたい機能などをご自由にお書きください。"
+            className="w-full rounded-[18px] border border-[#dbe3ea] bg-white px-4 py-3.5 text-sm leading-7 text-[#263342] outline-none focus:border-[#2caf48] focus:ring-4 focus:ring-[#dff4cf]"
           />
         </label>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <label className="block space-y-2 text-sm font-semibold text-[#17355b]">
-            <span>志望職種（任意）</span>
+          <label className="block space-y-2 text-sm font-black text-[#111827]">
+            <span>志望職種 <span className="ml-2 text-xs font-semibold text-[#778494]">（任意）</span></span>
             <input
               name="desiredJobCategory"
-              placeholder="例: 事務 / 編集 / Web更新"
-              className="w-full rounded-2xl border border-[#c8d7e0] px-4 py-3 text-sm font-medium text-[#17355b] outline-none focus:border-[#23b1aa] focus:ring-4 focus:ring-[#d5f4f2]"
+              placeholder="例）事務 / 編集 / Web更新"
+              className="w-full rounded-[18px] border border-[#dbe3ea] bg-white px-4 py-3.5 text-sm font-semibold text-[#263342] outline-none focus:border-[#2caf48] focus:ring-4 focus:ring-[#dff4cf]"
             />
           </label>
 
-          <label className="block space-y-2 text-sm font-semibold text-[#17355b]">
-            <span>1週間で見る求人本数（任意）</span>
+          <label className="block space-y-2 text-sm font-black text-[#111827]">
+            <span>1週間で見る求人本数 <span className="ml-2 text-xs font-semibold text-[#778494]">（任意）</span></span>
             <select
               name="jobsPerWeekBucket"
               defaultValue="未定"
-              className="w-full rounded-2xl border border-[#c8d7e0] px-4 py-3 text-sm font-medium text-[#17355b] outline-none focus:border-[#23b1aa] focus:ring-4 focus:ring-[#d5f4f2]"
+              className="w-full rounded-[18px] border border-[#dbe3ea] bg-white px-4 py-3.5 text-sm font-semibold text-[#263342] outline-none focus:border-[#2caf48] focus:ring-4 focus:ring-[#dff4cf]"
             >
               <option value="未定">未定</option>
               <option value="1-5">1-5</option>
@@ -130,7 +121,7 @@ export function BetaIntakeForm({
           </label>
         </div>
 
-        <label className="flex items-start gap-3 rounded-2xl bg-[#f7fbfd] px-4 py-4 text-sm text-[#35546f]">
+        <label className="flex items-start gap-3 rounded-[18px] border border-[#edf1f4] bg-[#fbfdfb] px-4 py-4 text-sm font-medium text-[#546171]">
           <input type="checkbox" name="interviewOptIn" className="mt-1 size-4 rounded border-[#bdd1de]" />
           <span>必要なら 15〜20 分くらいのヒアリングに協力できる</span>
         </label>
@@ -141,10 +132,18 @@ export function BetaIntakeForm({
         <button
           type="submit"
           disabled={isPending}
-          className="inline-flex min-h-[60px] items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#24b4ae_0%,#129995_100%)] px-6 py-4 text-base font-black text-white shadow-[0_20px_34px_-24px_rgba(18,153,149,0.92)] disabled:opacity-60"
+          className="inline-flex min-h-[64px] w-full items-center justify-center gap-3 rounded-[20px] bg-[linear-gradient(135deg,#35b24a_0%,#25983a_100%)] px-6 py-4 text-lg font-black text-white shadow-[0_24px_52px_-36px_rgba(37,152,58,0.9)] disabled:opacity-60"
         >
-          {isPending ? "送信中..." : "無料でβ参加する"}
+          <Send className="size-5" />
+          {isPending ? "送信中..." : "ベータ版に申し込む"}
         </button>
+
+        <p className="text-center text-sm font-semibold text-[#6c7786]">通常3営業日以内にご連絡します</p>
+
+        <div className="flex items-start gap-3 rounded-[18px] bg-[#f7faf7] px-4 py-4 text-sm leading-7 text-[#546171]">
+          <ShieldCheck className="mt-0.5 size-5 shrink-0 text-[#31b14a]" />
+          <p>ご入力いただいた情報は、ベータプログラムのご案内にのみ使用し、厳重に管理いたします。</p>
+        </div>
       </form>
     </>
   );

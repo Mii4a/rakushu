@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Image from "next/image";
 
 import { BetaIntakeForm } from "@/components/beta-intake-form";
+import { MockSiteFooter, MockSiteHeader } from "@/components/mock-site-chrome";
+import rakumoThumbsUp from "../../../UI-mock/beta/character/rakumo-thumbs-up.png";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +31,58 @@ function firstValue(value: string | string[] | undefined) {
   return value;
 }
 
+const benefitCards = [
+  { title: "限定50名", body: "早期アクセス", icon: "👥" },
+  { title: "参加無料", body: "全機能を体験可能", icon: "¥" },
+  { title: "安心・安全", body: "個人情報は厳重に保護", icon: "🛡️" }
+] as const;
+
+const meritItems = [
+  {
+    title: "すべての機能をいち早く体験",
+    body: "正式リリース前の最新機能をいち早くお試しいただけます。",
+    icon: "🚀"
+  },
+  {
+    title: "プロダクト改善に直接参加",
+    body: "あなたのフィードバックが、サービスの改善に直結します。",
+    icon: "💬"
+  },
+  {
+    title: "正式版リリース時の特典",
+    body: "ベータ参加者限定の特典や優先サポートをご用意予定です。",
+    icon: "🎁"
+  },
+  {
+    title: "安心してご利用いただけます",
+    body: "個人情報は厳重に管理し、外部に公開されることはありません。",
+    icon: "✅"
+  }
+] as const;
+
+const availableFeatures = [
+  "AI求人マッチ度診断 β",
+  "希望条件の自動設定サポート",
+  "求人の自動解析・要約 β",
+  "保存した求人の管理",
+  "よくある質問（サポート）",
+  "フィードバック機能"
+] as const;
+
+const flowItems = [
+  { title: "使ってみる", body: "実際にサービスを体験してみる", icon: "🖥️" },
+  { title: "気づきを送る", body: "フィードバックをお寄せいただく", icon: "💭" },
+  { title: "改善に活かす", body: "いただいた声をもとに改善を行う", icon: "⚙️" },
+  { title: "より良い体験へ", body: "みんなで、もっと良い就活体験をつくる", icon: "🤝" }
+] as const;
+
+const faqItems = [
+  "ベータ版とは何ですか？",
+  "いつから利用できますか？",
+  "途中でやめることはできますか？",
+  "料金はかかりますか？"
+] as const;
+
 export default async function BetaPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
   const ctaVariant = firstValue(params.cta_variant);
@@ -41,66 +95,126 @@ export default async function BetaPage({ searchParams }: { searchParams: SearchP
   };
 
   return (
-    <section className="page-stack bg-[linear-gradient(180deg,#fffdfa_0%,#fdfefe_100%)] px-4 py-8 text-[#17355b] lg:px-8">
-      <div className="mx-auto grid w-full max-w-[1200px] gap-6 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1fr)]">
-        <article className="rounded-[28px] border border-[#dce7ee] bg-white p-6 shadow-[0_18px_36px_-30px_rgba(22,53,91,0.28)]">
-          <p className="text-sm font-bold text-[#1ea9a4]">SNSから来た人向けの先行案内</p>
-          <h2 className="mt-3 text-[2.1rem] font-black leading-tight text-[#17355b]">らくしゅうは、求人票の不安を先に減らしたい人のための案内制β版</h2>
-          <p className="mt-4 text-sm leading-8 text-[#4f6a80]">
-            ブラック求人の危険信号や、比較しづらい条件差を整理しやすくするための道具を作ってる。
-            今は少人数で改善を回したいから、悩みの内容や使い方の相性を見ながら順番に案内している。
-          </p>
+    <section className="marketing-surface min-h-screen bg-[radial-gradient(circle_at_top,#fff8ef_0%,#ffffff_18%,#ffffff_100%)] text-[#1f2937]">
+      <MockSiteHeader />
 
-          <div className="mt-6 rounded-[24px] border border-[#ffe2cf] bg-[#fff8f3] p-5">
-            <p className="text-base font-black text-[#17355b]">先に共有しておきたいこと</p>
-            <ul className="mt-3 space-y-2 text-sm leading-7 text-[#35546f]">
-              <li>・まだ改善中のβ版です</li>
-              <li>・すべての求人媒体や求人文で完全対応しているわけではありません</li>
-              <li>・比較材料が薄い求人は「本文未記載」「要確認」が増えることがあります</li>
-              <li>・状況を見ながら少人数ずつ順番に案内します</li>
-            </ul>
-          </div>
-
-          <div className="mt-6 rounded-[24px] bg-[#f7fbfd] p-5">
-            <p className="text-base font-black text-[#17355b]">いま拾いたいシグナル</p>
-            <ul className="mt-3 space-y-2 text-sm leading-7 text-[#35546f]">
-              <li>・求人票のどこが不安で止まるか</li>
-              <li>・比較のたびに手間になるポイントは何か</li>
-              <li>・応募管理までつながると本当に楽か</li>
-            </ul>
-          </div>
-
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
-            <div className="rounded-[20px] border border-[#dce7ee] p-4">
-              <p className="text-sm font-black text-[#17355b]">向いている人</p>
-              <ul className="mt-2 space-y-2 text-sm leading-6 text-[#4f6a80]">
-                <li>・求人比較で毎回迷う</li>
-                <li>・本文を貼って整理する流れを試したい</li>
-                <li>・保存や応募管理まで一緒に見たい</li>
-              </ul>
+      <div className="mx-auto w-full max-w-[1480px] px-6 pb-10 pt-6 xl:px-10">
+        <div className="grid gap-7 xl:grid-cols-[minmax(0,1.35fr)_340px_420px] xl:items-start">
+          <div className="space-y-6">
+            <div className="inline-flex items-center rounded-full bg-[#f1fbf1] px-4 py-2 text-sm font-bold text-[#2f9d47] shadow-[0_12px_30px_-28px_rgba(34,197,94,0.45)]">
+              限定50名・参加無料
             </div>
-            <div className="rounded-[20px] border border-[#dce7ee] p-4">
-              <p className="text-sm font-black text-[#17355b]">まだ向いていない人</p>
-              <ul className="mt-2 space-y-2 text-sm leading-6 text-[#4f6a80]">
-                <li>・どの求人でも完璧に自動判定してほしい</li>
-                <li>・説明なしですぐ公開サービス品質を期待している</li>
-                <li>・課金込みの完成版だけを探している</li>
-              </ul>
+            <div>
+              <h1 className="text-[4.1rem] font-black leading-[1.05] tracking-[-0.07em] text-[#111827] xl:text-[4.7rem]">
+                らくしゅう ベータ版
+                <br />
+                <span className="text-[#2fb14a]">参加受付中</span>
+              </h1>
+              <p className="mt-5 max-w-[620px] text-[1.15rem] font-semibold leading-9 text-[#364152]">
+                らくしゅうを、あなたの就活パートナーに。
+                <br />
+                実際に使っていただき、より良いサービスづくりにご協力いただける
+                初期ユーザーの方を募集しています。
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              {benefitCards.map((item) => (
+                <div key={item.title} className="rounded-[24px] border border-[#eceff3] bg-white px-5 py-4 shadow-[0_24px_56px_-46px_rgba(15,23,42,0.18)]">
+                  <div className="text-2xl">{item.icon}</div>
+                  <p className="mt-3 text-lg font-black text-[#1f8d39]">{item.title}</p>
+                  <p className="mt-1 text-sm font-semibold text-[#546171]">{item.body}</p>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="mt-6 flex flex-col gap-3 text-sm font-semibold text-[#35546f]">
-            <Link href="/" className="text-[#129995] hover:underline">
-              ← トップに戻る
-            </Link>
-            <Link href="/pricing" className="text-[#129995] hover:underline">
-              料金プランを見る →
-            </Link>
+          <div className="flex flex-col items-center pt-2">
+            <Image src={rakumoThumbsUp} alt="親指を立てるらくしゅうキャラクター" priority className="h-auto w-full max-w-[320px] object-contain" />
+            <div className="-mt-2 w-full rounded-[28px] border border-[#eceff3] bg-white px-6 py-5 text-center text-[1.15rem] font-black leading-9 text-[#283241] shadow-[0_24px_56px_-46px_rgba(15,23,42,0.18)]">
+              一緒に、<span className="text-[#2fb14a]">もっと使いやすい</span>
+              <br />
+              サービスをつくりましょう！
+            </div>
           </div>
-        </article>
 
-        <BetaIntakeForm ctaVariant={ctaVariant} utmParams={utmParams} page="/beta" />
+          <div className="xl:row-span-2">
+            <BetaIntakeForm ctaVariant={ctaVariant} utmParams={utmParams} page="/beta" />
+          </div>
+
+          <div className="grid gap-6 xl:col-span-2 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+            <article className="rounded-[32px] border border-[#eceff3] bg-white p-6 shadow-[0_28px_68px_-54px_rgba(15,23,42,0.2)]">
+              <div className="flex items-center gap-3 text-[#1f8d39]">
+                <span className="text-3xl">👑</span>
+                <h2 className="text-[2rem] font-black tracking-[-0.04em] text-[#111827]">ベータ版参加のメリット</h2>
+              </div>
+              <div className="mt-5 space-y-5">
+                {meritItems.map((item) => (
+                  <div key={item.title} className="flex gap-4">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#eef8ef] text-2xl">{item.icon}</div>
+                    <div>
+                      <p className="text-[1.2rem] font-black text-[#22a03b]">{item.title}</p>
+                      <p className="mt-1 text-sm leading-7 text-[#546171]">{item.body}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="rounded-[32px] border border-[#eceff3] bg-[radial-gradient(circle_at_top,#f7fbf3_0%,#fefefb_100%)] p-6 shadow-[0_28px_68px_-54px_rgba(15,23,42,0.16)]">
+              <div className="flex items-center gap-3">
+                <h2 className="text-[1.9rem] font-black tracking-[-0.04em] text-[#111827]">現在ご利用いただける機能</h2>
+                <span className="rounded-full bg-[#e6f6dd] px-3 py-1 text-sm font-black text-[#2ba643]">BETA</span>
+              </div>
+              <ul className="mt-5 space-y-4 text-[1.07rem] font-semibold text-[#364152]">
+                {availableFeatures.map((item) => (
+                  <li key={item} className="flex items-center gap-3">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#31b14a] text-xs font-black text-white">✓</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-6 text-sm leading-7 text-[#7b8794]">※ 一部機能はベータ版のため、変更される可能性があります。</p>
+            </article>
+
+            <article className="rounded-[32px] border border-[#eceff3] bg-white p-6 shadow-[0_28px_68px_-54px_rgba(15,23,42,0.18)] xl:col-span-2">
+              <h2 className="text-[2rem] font-black tracking-[-0.04em] text-[#111827]">フィードバックが、サービスを育てます</h2>
+              <p className="mt-3 text-[1.05rem] leading-8 text-[#546171]">
+                皆さんの声をもとに、らくしゅうは進化していきます。
+                気づいたこと、改善してほしいこと、どんなことでもお聞かせください。
+              </p>
+              <div className="mt-6 grid gap-4 lg:grid-cols-4">
+                {flowItems.map((item, index) => (
+                  <div key={item.title} className="rounded-[24px] border border-[#eceff3] bg-[#fffefd] p-5 shadow-[0_18px_45px_-36px_rgba(15,23,42,0.14)]">
+                    <div className="text-2xl">{item.icon}</div>
+                    <p className="mt-4 text-[1.15rem] font-black text-[#1f8d39]">{item.title}</p>
+                    <p className="mt-2 text-sm leading-7 text-[#546171]">{item.body}</p>
+                    {index < flowItems.length - 1 ? <div className="mt-4 text-xl font-black text-[#8f98a6]">→</div> : null}
+                  </div>
+                ))}
+              </div>
+              <p className="mt-4 text-sm leading-7 text-[#7b8794]">※ フィードバックは、アプリ内の「フィードバック」からいつでも送信できます。</p>
+            </article>
+          </div>
+        </div>
+
+        <aside className="mt-6 ml-auto w-full max-w-[420px] rounded-[32px] border border-[#eceff3] bg-white p-6 shadow-[0_28px_68px_-54px_rgba(15,23,42,0.18)]">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-[1.7rem] font-black tracking-[-0.04em] text-[#111827]">よくある質問</h2>
+            <a href="/about" className="text-base font-bold text-[#2ca44b]">すべて見る →</a>
+          </div>
+          <ul className="mt-5 space-y-3 text-base font-semibold text-[#364152]">
+            {faqItems.map((item) => (
+              <li key={item} className="flex items-center justify-between rounded-[18px] border border-[#edf1f4] px-4 py-3">
+                <span>{item}</span>
+                <span className="text-[#95a1ae]">›</span>
+              </li>
+            ))}
+          </ul>
+        </aside>
       </div>
+
+      <MockSiteFooter copy="らくしゅうは、あなたの就活をやさしく、確かなデータでサポートします。" />
     </section>
   );
 }

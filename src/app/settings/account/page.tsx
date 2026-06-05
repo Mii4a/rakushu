@@ -18,13 +18,6 @@ const planCopy: Record<Plan, { label: string; level: string }> = {
   pro: { label: "プロプラン", level: "Lv.4" }
 };
 
-function formatDate(value: Date) {
-  return new Intl.DateTimeFormat("ja-JP", {
-    dateStyle: "medium",
-    timeStyle: "short"
-  }).format(value);
-}
-
 export default async function AccountSettingsPage() {
   if (isProductionBuildPhase()) {
     return <section className="page-stack" />;
