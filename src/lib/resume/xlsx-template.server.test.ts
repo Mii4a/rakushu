@@ -100,7 +100,7 @@ describe("buildResumeWorkbookFromTemplate", () => {
         desiredConditions: "貴社の規定に従います。",
       }),
     ).toThrowError(
-      "Resume template workbook not found. Checked: /home/openclaw/rakushu/UI-mock/resume/resume_template.xlsx, /home/openclaw/rakushu/UI_samples/resume/resume_template.xlsx",
+      /Resume template workbook not found\. Checked: .*UI-mock\/resume\/resume_template\.xlsx, .*UI_samples\/resume\/resume_template\.xlsx/,
     );
   });
 });
