@@ -1,8 +1,10 @@
-import { createHmac, randomBytes, randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { createClient } from "@libsql/client/http";
+
+import { buildSignedCookie, cookieDomainFromBaseURL, cookieNameFromBaseURL, loadEnvFile } from "./session-auth-helpers.mjs";
 
 const ROOT = process.cwd();
 const ENV_PATH = path.join(ROOT, ".env.production");
@@ -11,47 +13,8 @@ const STORAGE_STATE_PATH = path.join(ROOT, "playwright/.auth/prod-user.json");
 const PROD_EMAIL = process.env.PLAYWRIGHT_PROD_EMAIL ?? "mii4a2501@gmail.com";
 const PROD_BASE_URL = process.env.PLAYWRIGHT_PROD_BASE_URL ?? "https://rakushu.mii4a.workers.dev";
 
-function parseDotEnv(src) {
-  const env = {};
-  for (const rawLine of src.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith("#")) continue;
-    const idx = line.indexOf("=");
-    if (idx === -1) continue;
-    const key = line.slice(0, idx).trim();
-    let value = line.slice(idx + 1).trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-      value = value.slice(1, -1);
-    }
-    env[key] = value;
-  }
-  return env;
-}
-
 async function loadProdEnv() {
-  const raw = await readFile(ENV_PATH, "utf8");
-  const env = parseDotEnv(raw);
-  const required = ["TURSO_DATABASE_URL", "TURSO_AUTH_TOKEN", "BETTER_AUTH_SECRET"];
-  for (const key of required) {
-    if (!env[key]) {
-      throw new Error(`Missing ${key} in .env.production`);
-    }
-  }
-  return env;
-}
-
-function buildSignedCookie(token, secret) {
-  const signature = createHmac("sha256", secret).update(token).digest("base64");
-  return `${token}.${signature}`;
-}
-
-function cookieNameFromBaseURL(baseURL) {
-  const isSecure = baseURL.startsWith("https://");
-  return `${isSecure ? "__Secure-" : ""}better-auth.session_token`;
-}
-
-function cookieDomainFromBaseURL(baseURL) {
-  return new URL(baseURL).hostname;
+  return loadEnvFile(ENV_PATH, ["TURSO_DATABASE_URL", "TURSO_AUTH_TOKEN", "BETTER_AUTH_SECRET"]);
 }
 
 export async function createProdSession() {

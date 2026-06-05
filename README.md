@@ -204,6 +204,12 @@
 - Vitest
 - Playwright
 
+## テスト
+- unit / integration: `npm test`
+- typecheck: `npm run typecheck`
+- local jobs smoke: `npm run test:local-jobs-smoke`
+- production smoke: `npm run test:prod-smoke`
+
 ## セットアップ
 1. 依存関係をインストール
    ```bash
@@ -257,6 +263,33 @@ GitHub Actions で以下を自動実行します。
 - `npm test`
 - `npm run typecheck`
 - `npm run build`
+
+### Playwright smoke tests
+- 本番 smoke: `npm run test:prod-smoke`
+- ローカル jobs 回帰 smoke: `npm run test:local-jobs-smoke`
+
+ローカル jobs 回帰 smoke の役割:
+- Better Auth セッションを local DB に一時作成して、Google OAuth を踏まずに認証済み route を確認する
+- `/jobs`
+- `/jobs/new`
+- `/jobs/[id]`
+  が 4xx/5xx にならず、console error / uncaught page error / login redirect を起こさないことを確認する
+
+前提:
+- `.env.local` に `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `BETTER_AUTH_SECRET` が入っていること
+- local DB に少なくとも 1 件の saved job を持つ user がいること
+
+この smoke は Playwright の `webServer` で local Next dev server を自動起動します。すでに同じ base URL で server が起動済みなら、それを再利用します。
+
+必要なら特定ユーザーを指定できます。
+```bash
+PLAYWRIGHT_LOCAL_EMAIL=you@example.com npm run test:local-jobs-smoke
+```
+
+必要なら別の base URL を指定できます。
+```bash
+PLAYWRIGHT_LOCAL_BASE_URL=http://127.0.0.1:3001 npm run test:local-jobs-smoke
+```
 
 trigger:
 - pull request
