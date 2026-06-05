@@ -1,26 +1,24 @@
-# dashboard UX / animation refinement
+# resume template path / CI repair
 
 ## Task
-`/dashboard` に、見た目を壊さずに使いやすさを上げる UX と、やりすぎないアニメーションを追加する。
+resume workbook export が参照する template path を、現在の repo 配置に合わせて修正し、同種の CI 再発を防ぐテストを追加する。
 
 ## Goal
-- 最初に何をすればいいかが一目で分かる
-- KPI / ToDo / おすすめ求人の視線誘導が自然になる
-- hover / focus / enter animation が入っても、情報の読み取りを邪魔しない
-- `prefers-reduced-motion` を尊重する
-- 問題があれば dashboard 関連ファイルだけ即ロールバックできる
+- `buildResumeWorkbookFromTemplate` が repo 内の正しい template を読める
+- 古い `UI_samples` 参照が残っていても当面はフォールバックできる
+- template が両方に存在しない場合、調査しやすい明示的なエラーになる
+- resume 関連の unit test が CI 上で再び赤くならない
 
 ## Scope
-- `src/components/dashboard/dashboard-mock-experience.tsx`
-- `src/app/globals.css`
+- `src/lib/resume/xlsx-template.server.ts`
+- `src/lib/resume/xlsx-template.server.test.ts`
 - 作業記録 (`task.md`, `implementation_plan.md`, `walkthrough.md`)
 
 ## Non-goals
-- 求人解析ロジック変更
-- DB / API 変更
+- resume template の見た目変更
+- 履歴書生成 UI の改修
 - 本番デプロイ
 
-## Rollback readiness
-- 変更前バックアップ: `/home/openclaw/rakushu/.hermes/rollback/dashboard-ux-20260604-205459`
-- 復元スクリプト: `/home/openclaw/rakushu/.hermes/rollback/dashboard-ux-20260604-205459/restore.sh`
-- 戻す対象: `src/app/dashboard/page.tsx`, `src/components/dashboard/dashboard-mock-experience.tsx`, `src/components/dashboard-sidebar.tsx`, `src/app/globals.css`, `task.md`, `implementation_plan.md`, `walkthrough.md`
+## Notes
+- 現在の tracked fixture は `UI-mock/resume/resume_template.xlsx`
+- `UI_samples/resume/resume_template.xlsx` は現行ブランチ群では未追跡

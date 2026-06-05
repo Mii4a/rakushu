@@ -1,34 +1,27 @@
 # walkthrough
 
 ## Manual review target
-- URL: `/dashboard`
-- Reference: `/home/openclaw/rakushu/UI-mock/dashboard/dashboard-pc.png`
+- Code path: `buildResumeWorkbookFromTemplate`
+- Fixture: `/home/openclaw/rakushu/UI-mock/resume/resume_template.xlsx`
 
 ## What changed
-- topbar 下に「今日のガイド」パネルを追加
-- KPI / chart / cards に段階的 reveal animation を追加
-- hover / focus の micro interaction を追加
-- ToDo にローカル完了状態と進行バーを追加
-- `prefers-reduced-motion` に対応
+- resume template の参照先を固定 1 パスから resolver 方式に変更
+- 現行の `UI-mock` 配置を優先参照
+- 旧 `UI_samples` 配置は互換フォールバックとして維持
+- 両方無い場合に調査しやすいエラーメッセージを返す
+- 再発防止の unit test を追加
 
-## UX checkpoints
-- 最初に見るべき行動が最上段で分かる
-- summary 情報が右往左往せず読める
-- hover が派手すぎず「触れる要素」を伝えるだけに留まっている
-- ToDo をチェックしたとき、進捗変化が即分かる
-- chart / progress / skill bar の animation が読み取りを妨げない
-
-## Frontend notes
-- UX は「機能を増やすこと」より「次に何をすればいいかを迷わせないこと」が効く
-- animation は主役ではなく、状態変化を伝える補助。0.5〜0.8 秒くらいの短い micro animation が扱いやすい
-- hover / focus はマウスだけでなくキーボード操作でも分かるよう、focus-visible を入れると安全
-- `prefers-reduced-motion` を入れると、動きに弱い人にも優しい UI になる
+## Validation checkpoints
+- 現行 fixture で workbook 生成 test が通る
+- TypeScript typecheck が通る
+- lint は error なしで通る
+- template 欠落時のエラーが checked paths を含む
 
 ## Validation commands
+- `npm test -- --run src/lib/resume/xlsx-template.server.test.ts`
 - `npm run typecheck`
 - `npm run lint`
-- `npm run build`
 
-## Rollback
-- backup directory: `/home/openclaw/rakushu/.hermes/rollback/dashboard-ux-20260604-205459`
-- restore command: `bash /home/openclaw/rakushu/.hermes/rollback/dashboard-ux-20260604-205459/restore.sh`
+## Notes
+- 今回の本質は fixture 欠落ではなく、コードの参照先 drift
+- repo 上の tracked fixture は `UI-mock/resume/resume_template.xlsx`
