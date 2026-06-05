@@ -31,11 +31,19 @@ body:has(.dashboard-frame) .page-shell {
 }
 
 body:has(.home-demo-shell) > header,
-body:has(.home-demo-shell) > footer {
-  display: none;
+body:has(.home-demo-shell) > footer,
+body:has(.marketing-surface) > header,
+body:has(.marketing-surface) > footer,
+body:has(.settings-mock-surface) > footer,
+body:has(.jobs-mock-surface) > header,
+body:has(.jobs-mock-surface) > footer {
+  display: none !important;
 }
 
-body:has(.home-demo-shell) .page-shell {
+body:has(.home-demo-shell) .page-shell,
+body:has(.marketing-surface) .page-shell,
+body:has(.settings-mock-surface) .page-shell,
+body:has(.jobs-mock-surface) .page-shell {
   max-width: none;
   padding: 0;
 }
