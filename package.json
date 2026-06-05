@@ -27,6 +27,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:local-jobs-smoke": "playwright test -c playwright.local-jobs-smoke.config.ts",
     "test:prod-smoke": "playwright test -c playwright.prod-smoke.config.ts"
   },
   "dependencies": {
