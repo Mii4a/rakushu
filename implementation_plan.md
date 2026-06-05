@@ -1,23 +1,27 @@
 # implementation plan
 
-1. 現状確認
-   - resume template の tracked path を git 上で確認する
-   - failing test を再実行し、古い `UI_samples` 参照で落ちていることを再現する
+1. 再利用できる mock / assets / 既存 route を確認する
+   - `UI-mock/about/icons/headphone.png`
+   - `UI-mock/beta/character/rakumo-thumbs-up.png`
+   - `/about`, `/beta`, `/`, `mock-site-chrome.tsx`, `beta-intake-form.tsx` を参照する
 
-2. パス解決ロジック修正
-   - `src/lib/resume/xlsx-template.server.ts` で template path resolver を追加
-   - 優先順は `UI-mock/resume/resume_template.xlsx` → `UI_samples/resume/resume_template.xlsx`
-   - どちらも無いときは checked paths を含む明示的エラーを投げる
+2. 導線差分を分解する
+   - `/about` support CTA のリンク先
+   - `/about` secondary CTA の anchor 着地点
+   - home nav の hash link 表現の揃え方
 
-3. 再発防止テスト追加
-   - 既存の workbook 生成テストが現行 fixture で通ることを維持する
-   - template path が両方欠落した場合に、明示的エラー文言を返すテストを追加する
+3. docs を同期する
+   - `task.md`, `implementation_plan.md`, `walkthrough.md` を contact/anchor 仕上げ内容へ更新
 
-4. 検証
-   - `npm test -- --run src/lib/resume/xlsx-template.server.test.ts`
+4. 実装する
+   - `src/app/contact/page.tsx` を追加
+   - `BetaIntakeForm` を再利用しつつ、contact 用 hero / 理由 cards / reassurance cards を足す
+   - `/about` の CTA を `/contact` に切り替える
+   - `/about` と home nav の `使い方` 導線を `/#how-to` に揃える
+
+5. 検証する
    - `npm run typecheck`
    - `npm run lint`
-
-5. Git / PR 反映
-   - fix branch に commit
-   - push 済み PR #16 を更新
+   - `npm run build`
+   - browser で `/contact`, `/about`, `/#how-to` を確認
+   - link miswire や console error がないことを確認する
