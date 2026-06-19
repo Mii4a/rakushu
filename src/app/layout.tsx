@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Script from "next/script";
 import { Inter, Noto_Sans_JP } from "next/font/google";
 import { BriefcaseBusiness, Sparkles } from "lucide-react";
 
@@ -15,6 +16,8 @@ const defaultDescription = "求人票の条件差や危険信号を整理し、�
 const defaultGoogleSiteVerification = "NcOgsMkKevVP1gYlcxCOIaynqmoCEKKHvokL0cdT1-U";
 const googleSiteVerification =
   process.env.GOOGLE_SEARCH_CONSOLE_SITE_VERIFICATION ?? process.env.GOOGLE_SITE_VERIFICATION ?? defaultGoogleSiteVerification;
+const defaultGaMeasurementId = "G-DN7RE22E6S";
+const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? defaultGaMeasurementId;
 
 const inter = Inter({
   subsets: ["latin"],
@@ -63,6 +66,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="ja">
+      <head>
+        <Script async src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`} strategy="afterInteractive" />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${gaMeasurementId}');
+          `}
+        </Script>
+      </head>
       <body className={`${inter.variable} ${notoSansJp.variable}`}>
         <header className="sticky top-0 z-40 border-b border-rakumo-border/80 bg-white/95 backdrop-blur-xl">
           <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 md:px-6">

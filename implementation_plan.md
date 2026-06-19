@@ -1,27 +1,18 @@
 # implementation plan
 
-1. 再利用できる mock / assets / 既存 route を確認する
-   - `UI-mock/about/icons/headphone.png`
-   - `UI-mock/beta/character/rakumo-thumbs-up.png`
-   - `/about`, `/beta`, `/`, `mock-site-chrome.tsx`, `beta-intake-form.tsx` を参照する
+1. 既存の head / analytics 状態を確認する
+   - `src/app/layout.tsx` を見て、全ページ共通で差し込める場所を使う
+   - 既存の `gtag`, `googletagmanager`, `GTM-`, `G-` を検索し、重複実装がないことを確認する
 
-2. 導線差分を分解する
-   - `/about` support CTA のリンク先
-   - `/about` secondary CTA の anchor 着地点
-   - home nav の hash link 表現の揃え方
+2. Google tag を root layout に集約して追加する
+   - `next/script` を使って `gtag.js?id=G-DN7RE22E6S` を全ページで読み込む
+   - 初期化スクリプトで `window.dataLayer`, `gtag('js', new Date())`, `gtag('config', 'G-DN7RE22E6S')` を設定する
+   - 既存 metadata / Search Console verification には触らない
 
-3. docs を同期する
-   - `task.md`, `implementation_plan.md`, `walkthrough.md` を contact/anchor 仕上げ内容へ更新
+3. 運用しやすい形にする
+   - 測定 ID は `NEXT_PUBLIC_GA_MEASUREMENT_ID` を優先し、未設定時は今回の `G-DN7RE22E6S` を使う
+   - これで次回差し替え時にコード変更を最小化する
 
-4. 実装する
-   - `src/app/contact/page.tsx` を追加
-   - `BetaIntakeForm` を再利用しつつ、contact 用 hero / 理由 cards / reassurance cards を足す
-   - `/about` の CTA を `/contact` に切り替える
-   - `/about` と home nav の `使い方` 導線を `/#how-to` に揃える
-
-5. 検証する
-   - `npm run typecheck`
-   - `npm run lint`
-   - `npm run build`
-   - browser で `/contact`, `/about`, `/#how-to` を確認
-   - link miswire や console error がないことを確認する
+4. 実装後に検証する
+   - `npm run build` を通す
+   - build 後または本番 HTML で `googletagmanager.com/gtag/js` と `G-DN7RE22E6S` が出ることを確認する

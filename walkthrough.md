@@ -1,25 +1,10 @@
 # walkthrough
 
-## Manual review target
-- `/contact`
-- `/about`
-- `/#how-to`
-
-## What to change
-- `/contact` を marketing surface 上で成立させる
-- `BetaIntakeForm` をそのまま使い、周辺の hero / cards で問い合わせページ化する
-- `/about` の support CTA は `/contact` に向ける
-- 「使い方を見る」はトップの `#how-to` へ着地させる
-- home nav の hash link も絶対パス化して他ページからの往復でブレないようにする
-
-## Visual checkpoints
-- `/contact` は hero 左説明 + 右キャラクター + 右フォームの3要素が破綻していない
-- headset icon と thumbs-up character が不自然なく収まっている
-- `/about` の CTA が視覚的にそのままでリンク先だけ正しく切り替わっている
-- `/#how-to` に飛んだとき、保存した求人セクションが viewport 内に見える
-
-## Validation commands
-- `npm run typecheck`
-- `npm run lint`
-- `npm run build`
-- visual pass on `/contact`, `/about`, `/#how-to`
+- 現状の本番 `https://rakushu.mii4a.workers.dev/` には `gtag.js`, `dataLayer`, `GTM-*`, `G-*` が見当たらず、通常の GA4 Google tag は未設置だった
+- `src/app/layout.tsx` は全ページ共通の root layout なので、ここへ入れればページごとの貼り漏れを防げる
+- 実装は `next/script` で 2 本入れる想定
+  - `https://www.googletagmanager.com/gtag/js?id=G-DN7RE22E6S`
+  - `window.dataLayer` と `gtag('config', 'G-DN7RE22E6S')` の初期化
+- Search Console verification meta は同じ layout の metadata 経由で入っているため、そこを壊さないよう head への追加だけに留める
+- 測定 ID は `NEXT_PUBLIC_GA_MEASUREMENT_ID` があればそれを優先し、未設定時は今回の ID を fallback にする
+- 最後に `npm run build` と本番 HTML 実測で、タグ文字列が返るところまで確認する
