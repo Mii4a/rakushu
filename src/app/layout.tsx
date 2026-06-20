@@ -17,7 +17,10 @@ const defaultGoogleSiteVerification = "NcOgsMkKevVP1gYlcxCOIaynqmoCEKKHvokL0cdT1
 const googleSiteVerification =
   process.env.GOOGLE_SEARCH_CONSOLE_SITE_VERIFICATION ?? process.env.GOOGLE_SITE_VERIFICATION ?? defaultGoogleSiteVerification;
 const defaultGaMeasurementId = "G-DN7RE22E6S";
-const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? defaultGaMeasurementId;
+const gaMeasurementId =
+  process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ??
+  process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID ??
+  defaultGaMeasurementId;
 
 const inter = Inter({
   subsets: ["latin"],
