@@ -1,9 +1,7 @@
 import Link from "next/link";
-import { Bookmark, FileSearch, GitCompareArrows, Home, Plane, Settings } from "lucide-react";
 import { desc, eq } from "drizzle-orm";
 
-import { DashboardSidebar } from "@/components/dashboard-sidebar";
-import type { ParsedJob } from "@/lib/analysis";
+import { AppMockSidebarShell } from "@/components/app-mock-sidebar-shell";
 import { parseStoredParsedJob } from "@/lib/analysis/parse-stored-job";
 import { requireUser } from "@/lib/auth/require-user";
 import { formatCommuteRange, formatCommuteRangeDetail, getCommuteDataKindLabel, getCommuteDataKindTone, getPrimaryCommuteMinutes } from "@/lib/commute/fields";
@@ -81,12 +79,8 @@ export default async function ComparePage() {
     }, null);
 
   return (
-    <section className="dashboard-frame">
-      <div className="dashboard-shell">
-        <DashboardSidebar activeKey="compare" note="比較ページは次の段階で実装します。通勤時間やランク軸を横並びで見比べる入口として使います。" />
-
-        <div className="dashboard-main">
-          <div className="page-stack">
+    <AppMockSidebarShell activeKey="compare">
+      <div className="page-stack">
             <div className="page-hero">
               <div className="section-heading">
                 <div>
@@ -209,32 +203,7 @@ export default async function ComparePage() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
-
-        <nav className="dashboard-mobile-nav">
-          <Link href="/dashboard" className="dashboard-mobile-nav-item">
-            <Home className="size-5" />
-            <span>ホーム</span>
-          </Link>
-          <Link href="/jobs/new" className="dashboard-mobile-nav-item">
-            <FileSearch className="size-5" />
-            <span>ランク付け</span>
-          </Link>
-          <Link href="/jobs" className="dashboard-mobile-nav-item">
-            <Bookmark className="size-5" />
-            <span>保存</span>
-          </Link>
-          <Link href="/jobs" className="dashboard-mobile-nav-item">
-            <Plane className="size-5" />
-            <span>応募</span>
-          </Link>
-          <Link href="/settings" className="dashboard-mobile-nav-item">
-            <Settings className="size-5" />
-            <span>設定</span>
-          </Link>
-        </nav>
       </div>
-    </section>
+    </AppMockSidebarShell>
   );
 }

@@ -6,6 +6,7 @@ import { parseStoredParsedJob } from "@/lib/analysis/parse-stored-job";
 import { getSession } from "@/lib/auth/session";
 import { isProductionBuildPhase } from "@/lib/env/build-phase";
 import { getLatestAnalysesByJobIds } from "@/lib/jobs/latest-analyses";
+import { getUserOnboardingDraft, isOnboardingFinished } from "@/lib/onboarding/profile";
 import { PLAN_LIMITS, type Plan } from "@/lib/plans";
 import { DashboardMockExperience } from "@/components/dashboard/dashboard-mock-experience";
 
@@ -68,10 +69,10 @@ function getProgressMessage(progressPercent: number) {
 }
 
 function getProgressSubtext(progressPercent: number) {
-  if (progressPercent >= 75) return "この調子で続けましょう。";
-  if (progressPercent >= 50) return "次の予定を入れておくと迷いが減ります。";
-  if (progressPercent >= 30) return "応募と書類の流れをそろえると見通しが良くなります。";
-  return "保存・応募・予定の3つがそろうと一気に見やすくなります。";
+  if (progressPercent >= 75) return "今日やる1件を決めて、応募状況か面接予定を更新しましょう。";
+  if (progressPercent >= 50) return "次に動く求人を1件選んで、予定日か応募状況を入れましょう。";
+  if (progressPercent >= 30) return "保存した求人の中から1件だけ選んで、応募するか保留かを決めましょう。";
+  return "まずは気になる求人を1件保存して、次に見る候補を作りましょう。";
 }
 
 function getActivityTitle(status: string, companyName: string, title: string) {
@@ -158,8 +159,13 @@ export default async function DashboardPage() {
   }
 
   const user = session.user;
+  const onboardingDraft = await getUserOnboardingDraft(user.id);
 
-  const [{ db }, { jobs }, { getUserPlan }, { getAnalysisCount, getMonthKey, getWeekKey }] = await Promise.all([
+  if (!isOnboardingFinished(onboardingDraft)) {
+    redirect("/onboarding");
+  }
+
+  const [{ db }, { jobs }, { getUserPlan }, { getAnalysisCount, getAiCreditsUsed, getMonthKey, getWeekKey }] = await Promise.all([
     import("@/lib/db/client"),
     import("@/lib/db/schema"),
     import("@/lib/subscription"),
@@ -212,7 +218,13 @@ export default async function DashboardPage() {
   const offerCount = statusCounts.offer ?? 0;
 
   const periodKey = limits.analysisPeriod === "week" ? getWeekKey() : getMonthKey();
-  const analysisCount = await getAnalysisCount(user.id, periodKey);
+  const monthKey = getMonthKey();
+  const [analysisCount, aiCreditsUsed] = await Promise.all([
+    getAnalysisCount(user.id, periodKey),
+    getAiCreditsUsed(user.id, monthKey)
+  ]);
+  const aiCreditsTotal = limits.monthlyAiCredits;
+  const aiCreditsRemaining = Math.max(0, aiCreditsTotal - aiCreditsUsed);
 
   const now = new Date();
   const oneWeekLater = new Date(now);
@@ -261,7 +273,7 @@ export default async function DashboardPage() {
       company: parsed?.companyName.value ?? job.companyName ?? "おすすめ求人",
       title: parsed?.title.value ?? job.title ?? "職種未設定",
       salary: formatSalary(parsed),
-      location: job.workAddress ?? "勤務地は求人詳細で確認",
+      location: parsed?.workAddress.value ?? job.workAddress ?? "勤務地は求人詳細で確認",
       tags: buildRecommendTags(parsed),
       badge: getRecommendBadge(rank),
       badgeTone: getRecommendTone(rank),
@@ -364,26 +376,26 @@ export default async function DashboardPage() {
 
   const todoItems = upcomingActions.map((job) => ({
     id: `todo-${job.id}`,
-    title: `${job.title ?? "求人"} を確認する`,
-    note: `${formatDateLabel(job.nextActionAt)} (${formatWeekdayLabel(job.nextActionAt)}) まで`
+    title: `${job.title ?? "求人"} の次アクションを決める`,
+    note: `${formatDateLabel(job.nextActionAt)} (${formatWeekdayLabel(job.nextActionAt)}) までに返信・応募・日程確認`
   }));
 
   if (todoItems.length < 4) {
     todoItems.push(
       {
         id: "todo-next-step",
-        title: nextStepLabel,
-        note: totalSavedJobs === 0 ? "まずは1件から" : "おすすめ順に進める"
+        title: totalSavedJobs === 0 ? "求人を1件保存する" : nextStepLabel,
+        note: totalSavedJobs === 0 ? "求人本文を貼って、最初の比較候補を作る" : "今日動かす1件を決めて、一覧か詳細を開く"
       },
       {
         id: "todo-criteria",
-        title: "判断基準を見直す",
-        note: "迷いが増えたら更新"
+        title: "判断基準を1か所だけ見直す",
+        note: "残業・休日・福利厚生のうち、迷っている軸を1つ更新"
       },
       {
         id: "todo-follow-up",
-        title: "応募状況を見直す",
-        note: "余裕がある日に整理"
+        title: "応募状況を更新する",
+        note: "応募済み・面接中・保留のどれかに整理する"
       }
     );
   }
@@ -398,6 +410,9 @@ export default async function DashboardPage() {
       analysisCount={analysisCount}
       analysisLimit={limits.maxAnalyses}
       planLabel={`${planSummary.label} ${planSummary.level}`}
+      aiCreditsUsed={aiCreditsUsed}
+      aiCreditsTotal={aiCreditsTotal}
+      aiCreditsRemaining={aiCreditsRemaining}
       summaryCards={[
         {
           key: "applications",
@@ -444,11 +459,29 @@ export default async function DashboardPage() {
       ]}
       trendPoints={trendSeries.points}
       trendLabels={trendSeries.labels}
-      todoItems={todoItems.slice(0, 4)}
-      skillMatches={[
-        { id: "skill-python", label: "Python", score: 85 },
-        { id: "skill-aws", label: "AWS", score: 80 },
-        { id: "skill-go", label: "Go", score: 70 }
+      todoItems={todoItems.slice(0, 4).map((item, index) => ({
+        ...item,
+        status: upcomingActions.length > 0 ? (index === 0 ? "active" : "upcoming") : (item.id === "todo-criteria" ? "completed" : "upcoming")
+      }))}
+      insightItems={[
+        {
+          id: "insight-holidays",
+          label: "休日・休暇の明記",
+          score: Math.min(100, Math.round((dashboardJobsWithAnalyses.filter((job) => parseStoredParsedJob(job.analyses[0]?.evidenceJson, `dashboard-holidays:${job.id}`)?.annualHolidays.value != null).length / Math.max(dashboardJobsWithAnalyses.length, 1)) * 100)),
+          note: "年間休日の比較に使える求人の割合"
+        },
+        {
+          id: "insight-location",
+          label: "勤務地・通勤の比較材料",
+          score: Math.min(100, Math.round((dashboardJobsWithAnalyses.filter((job) => Boolean(job.workAddress)).length / Math.max(dashboardJobsWithAnalyses.length, 1)) * 100)),
+          note: "勤務地を見比べやすい求人の割合"
+        },
+        {
+          id: "insight-benefits",
+          label: "福利厚生の記載量",
+          score: Math.min(100, Math.round((dashboardJobsWithAnalyses.filter((job) => (parseStoredParsedJob(job.analyses[0]?.evidenceJson, `dashboard-benefits:${job.id}`)?.benefits.value?.length ?? 0) > 0).length / Math.max(dashboardJobsWithAnalyses.length, 1)) * 100)),
+          note: "福利厚生の見極めに使える求人の割合"
+        }
       ]}
       recommendedJobs={recommendedJobs}
       recentActivities={recentActivities}

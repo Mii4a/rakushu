@@ -12,6 +12,7 @@ function buildParsedJob(overrides: Partial<ParsedJob> = {}): ParsedJob {
     parserVersion: "v-test",
     companyName: extracted({ status: "found", value: "株式会社らくしゅう", evidence: "会社名: 株式会社らくしゅう", source: "direct_label", confidence: "high" }),
     title: extracted({ status: "found", value: "Webエンジニア", evidence: "職種: Webエンジニア", source: "direct_label", confidence: "high" }),
+    workAddress: extracted({ status: "found", value: "東京都渋谷区渋谷1-1-1", evidence: "勤務地: 東京都渋谷区渋谷1-1-1", source: "direct_label", confidence: "high" }),
     employmentType: extracted({ status: "found", value: "正社員", evidence: "雇用形態: 正社員", source: "direct_label", confidence: "high" }),
     salaryText: extracted({ status: "found", value: "25万円以上", evidence: "月給25万円以上", source: "summary_line", confidence: "medium" }),
     baseSalaryMin: extracted<number>({ status: "unknown", value: null, evidence: null, source: "validation", confidence: "low" }),

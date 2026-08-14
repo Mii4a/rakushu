@@ -1,0 +1,20 @@
+[project]
+name = "ai-interview-transcriber"
+version = "0.1.0"
+description = "Private faster-whisper transcription service for Rakushu AI interview voice answers"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.116.0",
+  "uvicorn>=0.35.0",
+  "python-multipart>=0.0.20",
+  "httpx>=0.28.1",
+  "faster-whisper>=1.1.1"
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.4.1"
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

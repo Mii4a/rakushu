@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { PLAN_MARKETING, type PaidPlan } from "@/lib/plans";
+import { type PaidPlan } from "@/lib/plans";
 
 export function CheckoutButton({ plan, disabled }: { plan: PaidPlan; disabled?: boolean }) {
   const [loading, setLoading] = useState(false);
@@ -41,7 +41,13 @@ export function CheckoutButton({ plan, disabled }: { plan: PaidPlan; disabled?: 
         onClick={onClick}
         className="button-accent w-full"
       >
-        {loading ? "処理中..." : `${PLAN_MARKETING[plan].name}プランにアップグレード`}
+        {loading
+          ? "処理中..."
+          : plan === "starter"
+            ? "Starterで一社完遂を始める"
+            : plan === "plus"
+              ? "Plusで複数社の準備をまとめる"
+              : "Proで比較と基準共有まで広げる"}
       </button>
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
     </div>

@@ -5,26 +5,20 @@ import Link from "next/link";
 import { useEffect, useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Bell,
   Camera,
   Check,
   CircleUserRound,
-  CreditCard,
-  Database,
-  Headphones,
   ImagePlus,
   Info,
   KeyRound,
   Link2,
   LogOut,
   Mail,
-  ShieldCheck,
-  Trash2,
-  UserRound
+  Trash2
 } from "lucide-react";
 
 import { updateAccountNameAction, type AccountSettingsActionState } from "@/actions/account-settings-actions";
-import { MockSiteHeader } from "@/components/mock-site-chrome";
+import { AppMockSidebarShell } from "@/components/app-mock-sidebar-shell";
 import { authClient } from "@/lib/auth/client";
 import securityCharacter from "../../UI-mock/account-settings/character/rakumo-security-shield.png";
 
@@ -47,50 +41,6 @@ type AccountSettingsFormProps = {
 const initialState: AccountSettingsActionState = {
   status: "idle"
 };
-
-const settingsNavItems: Array<{
-  title: string;
-  subtitle: string;
-  icon: typeof UserRound;
-  active?: boolean;
-}> = [
-  {
-    title: "アカウント設定",
-    subtitle: "プロフィール・ログイン情報",
-    icon: UserRound,
-    active: true
-  },
-  {
-    title: "希望条件の管理",
-    subtitle: "保存した条件の確認・編集",
-    icon: CreditCard
-  },
-  {
-    title: "通知設定",
-    subtitle: "メール・お知らせの受信設定",
-    icon: Bell
-  },
-  {
-    title: "セキュリティ設定",
-    subtitle: "パスワード・ログイン保護",
-    icon: ShieldCheck
-  },
-  {
-    title: "プラン・お支払い",
-    subtitle: "ご利用プランの確認・変更",
-    icon: CreditCard
-  },
-  {
-    title: "データ・履歴",
-    subtitle: "解析履歴・保存データの管理",
-    icon: Database
-  },
-  {
-    title: "連携サービス",
-    subtitle: "外部サービスとの連携設定",
-    icon: Link2
-  }
-];
 
 function getProviderLabel(providerId: string) {
   if (providerId === "google") return "Google";
@@ -132,49 +82,8 @@ export function AccountSettingsForm({
   };
 
   return (
-    <section className="dashboard-frame settings-mock-surface min-h-screen bg-[radial-gradient(circle_at_top,#fff8ef_0%,#ffffff_18%,#ffffff_100%)] text-[#1f2937]">
-      <MockSiteHeader />
-
-      <div className="mx-auto grid w-full max-w-[1480px] gap-8 px-6 pb-12 pt-8 xl:grid-cols-[270px_minmax(0,1fr)_300px] xl:px-10">
-        <aside className="rounded-[32px] border border-[#eceff3] bg-white/96 p-6 shadow-[0_28px_68px_-54px_rgba(15,23,42,0.16)]">
-          <h2 className="text-[2rem] font-black tracking-[-0.05em] text-[#111827]">設定</h2>
-          <nav className="mt-6 space-y-3">
-            {settingsNavItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <div
-                  key={item.title}
-                  className={item.active ? "rounded-[24px] border border-[#dceedd] bg-[#f7fbf5] px-4 py-4 shadow-[inset_4px_0_0_#31b14a]" : "rounded-[24px] px-4 py-4"}
-                >
-                  <div className="flex items-start gap-3">
-                    <Icon className={item.active ? "mt-1 size-5 text-[#2ea145]" : "mt-1 size-5 text-[#677487]"} />
-                    <div>
-                      <p className={item.active ? "text-[1.02rem] font-black text-[#2ea145]" : "text-[1.02rem] font-black text-[#111827]"}>{item.title}</p>
-                      <p className="mt-1 text-sm leading-6 text-[#677487]">{item.subtitle}</p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </nav>
-
-          <div className="mt-10 rounded-[28px] border border-[#eceff3] bg-[#fffefd] p-5 shadow-[0_20px_48px_-42px_rgba(15,23,42,0.14)]">
-            <div className="flex items-center gap-3">
-              <Headphones className="size-6 text-[#111827]" />
-              <p className="text-[1.3rem] font-black tracking-[-0.03em] text-[#111827]">お困りですか？</p>
-            </div>
-            <p className="mt-4 text-sm leading-7 text-[#677487]">
-              設定についてご不明点がある場合は、サポートにお問い合わせください。
-            </p>
-            <Link
-              href="/about"
-              className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-[18px] border border-[#7ec96c] px-4 text-base font-black text-[#2ea145]"
-            >
-              お問い合わせ
-            </Link>
-          </div>
-        </aside>
-
+    <AppMockSidebarShell activeKey="settings" frameClassName="settings-mock-surface min-h-screen bg-[radial-gradient(circle_at_top,#fff8ef_0%,#ffffff_18%,#ffffff_100%)] text-[#1f2937]">
+      <div className="mx-auto grid w-full max-w-[1760px] gap-8 pb-12 xl:grid-cols-[minmax(0,1fr)_300px]">
         <div className="space-y-5">
           <div>
             <h1 className="text-[3.3rem] font-black tracking-[-0.06em] text-[#111827]">アカウント設定</h1>
@@ -373,6 +282,6 @@ export function AccountSettingsForm({
           </article>
         </aside>
       </div>
-    </section>
+    </AppMockSidebarShell>
   );
 }

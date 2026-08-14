@@ -2,6 +2,7 @@ import Link from "next/link";
 import { and, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 
+import { AppMockSidebarShell } from "@/components/app-mock-sidebar-shell";
 import { isProductionBuildPhase } from "@/lib/env/build-phase";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +33,8 @@ export default async function EditJobPage({ params }: { params: Promise<{ id: st
   }
 
   return (
-    <section className="mx-auto max-w-3xl space-y-4">
+    <AppMockSidebarShell activeKey="saved-jobs">
+      <section className="mx-auto max-w-3xl space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">求人編集</h1>
         <Link href={`/jobs?selected=${job.id}`} className="text-sm text-rakumo-ink underline decoration-rakumo-mint underline-offset-2">
@@ -126,6 +128,7 @@ export default async function EditJobPage({ params }: { params: Promise<{ id: st
           更新する
         </button>
       </form>
-    </section>
+      </section>
+    </AppMockSidebarShell>
   );
 }

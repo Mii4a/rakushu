@@ -92,79 +92,151 @@ export function defaultCriteriaValues() {
   };
 }
 
-const DEFAULT_PUBLIC_CRITERIA_SOURCE_ID = "system-default-public-criteria-v1";
+type DefaultCriteriaValues = Partial<{
+  overtimeAMaxHours: number;
+  overtimeBMaxHours: number;
+  overtimeCMaxHours: number;
+  overtimeDMaxHours: number;
+  holidaySMinDays: number;
+  holidayAMinDays: number;
+  holidayBMinDays: number;
+  holidayCMinDays: number;
+  holidayDMinDays: number;
+  bonusSMinCount: number;
+  bonusAMinCount: number;
+  bonusBMinCount: number;
+  bonusCMinCount: number;
+  retirementWithAllowanceRank: string;
+  retirementWithoutAllowanceRank: string;
+}>;
 
-export async function ensureDefaultPublicCriteria(ownerUserId: string) {
-  const existingDefaultRows = await db
-    .select({
-      ...criteriaTemplateColumns
-    })
-    .from(criteriaTemplates)
-    .where(eq(criteriaTemplates.sourceTemplateId, DEFAULT_PUBLIC_CRITERIA_SOURCE_ID))
-    .limit(1);
-  const existingDefault = existingDefaultRows[0] ?? null;
-
-  if (existingDefault) {
-    return existingDefault;
-  }
-
-  const publicCount = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(criteriaTemplates)
-    .where(eq(criteriaTemplates.visibility, "public"));
-
-  if ((publicCount[0]?.count ?? 0) > 0) {
-    return null;
-  }
-
-  const now = new Date();
-  const defaultMetrics = {
-    viewCount: 5612,
-    saveCount: 980,
-    cloneCount: 620,
-    useCount: 1125
+type DefaultPublicCriteriaDefinition = {
+  sourceTemplateId: string;
+  title: string;
+  description: string;
+  category: (typeof CRITERIA_CATEGORIES)[number];
+  tags: string[];
+  metrics: {
+    viewCount: number;
+    saveCount: number;
+    cloneCount: number;
+    useCount: number;
   };
+  values: DefaultCriteriaValues;
+};
 
-  await db.insert(criteriaTemplates).values({
-    id: crypto.randomUUID(),
-    userId: ownerUserId,
-    sourceTemplateId: DEFAULT_PUBLIC_CRITERIA_SOURCE_ID,
+const DEFAULT_PUBLIC_CRITERIA_DEFINITIONS: DefaultPublicCriteriaDefinition[] = [
+  {
+    sourceTemplateId: "system-default-public-criteria-v1",
     title: "固定残業・休日重視の働きやすさ基準",
     description:
       "ワークライフバランスを重視したい方におすすめの基準です。長く働き続けられる環境かどうかを、固定残業時間と年間休日を主軸に、賞与制度・退職金制度・福利厚生も含めて判断します。",
     category: "work-life",
-    tagsJson: JSON.stringify(["固定残業", "年間休日", "賞与制度", "退職金制度", "ワークライフバランス", "安定志向"]),
-    visibility: "public",
-    editable: false,
-    overtimeAMaxHours: 10,
-    overtimeBMaxHours: 20,
-    overtimeCMaxHours: 30,
-    overtimeDMaxHours: 45,
-    holidaySMinDays: 125,
-    holidayAMinDays: 115,
-    holidayBMinDays: 105,
-    holidayCMinDays: 95,
-    holidayDMinDays: 95,
-    bonusSMinCount: DEFAULT_RANK_SETTINGS.bonus.sMinCount,
-    bonusAMinCount: DEFAULT_RANK_SETTINGS.bonus.aMinCount,
-    bonusBMinCount: DEFAULT_RANK_SETTINGS.bonus.bMinCount,
-    bonusCMinCount: DEFAULT_RANK_SETTINGS.bonus.cMinCount,
-    retirementWithAllowanceRank: DEFAULT_RANK_SETTINGS.retirementAllowance.withAllowanceRank,
-    retirementWithoutAllowanceRank: DEFAULT_RANK_SETTINGS.retirementAllowance.withoutAllowanceRank,
-    ...defaultMetrics,
-    popularityScore: calculatePopularityScore(defaultMetrics),
-    publishedAt: now,
-    createdAt: now,
-    updatedAt: now
-  });
+    tags: ["固定残業", "年間休日", "賞与制度", "退職金制度", "ワークライフバランス", "安定志向"],
+    metrics: { viewCount: 5612, saveCount: 980, cloneCount: 620, useCount: 1125 },
+    values: { overtimeAMaxHours: 10, overtimeBMaxHours: 20, overtimeCMaxHours: 30, overtimeDMaxHours: 45, holidaySMinDays: 125, holidayAMinDays: 115, holidayBMinDays: 105, holidayCMinDays: 95, holidayDMinDays: 95 }
+  },
+  {
+    sourceTemplateId: "system-default-public-criteria-salary-v1",
+    title: "給与と賞与を見落とさない収入安定基準",
+    description: "初任給だけでなく、賞与回数・退職金・住宅補助まで含めて、学生が生活の見通しを立てやすい求人かを確認します。",
+    category: "salary",
+    tags: ["年収", "賞与制度", "退職金制度", "住宅補助", "生活安定"],
+    metrics: { viewCount: 4840, saveCount: 760, cloneCount: 508, useCount: 980 },
+    values: { overtimeAMaxHours: 15, overtimeBMaxHours: 25, overtimeCMaxHours: 35, overtimeDMaxHours: 45, holidaySMinDays: 120, holidayAMinDays: 110, holidayBMinDays: 105, holidayCMinDays: 95, holidayDMinDays: 85, bonusSMinCount: 3, bonusAMinCount: 2, bonusBMinCount: 2, bonusCMinCount: 1, retirementWithAllowanceRank: "A", retirementWithoutAllowanceRank: "D" }
+  },
+  {
+    sourceTemplateId: "system-default-public-criteria-growth-v1",
+    title: "成長環境と安心感を両立する若手育成基準",
+    description: "研修・裁量・職種一致を重視しつつ、固定残業や休日制度も最低ラインとして確認する、成長志向の学生向け基準です。",
+    category: "growth",
+    tags: ["若手育成", "研修", "職種一致", "裁量", "成長企業"],
+    metrics: { viewCount: 4290, saveCount: 690, cloneCount: 480, useCount: 910 },
+    values: { overtimeAMaxHours: 20, overtimeBMaxHours: 30, overtimeCMaxHours: 40, overtimeDMaxHours: 45, holidaySMinDays: 120, holidayAMinDays: 110, holidayBMinDays: 105, holidayCMinDays: 95, holidayDMinDays: 85 }
+  },
+  {
+    sourceTemplateId: "system-default-public-criteria-stability-v1",
+    title: "長く働けるかを先に見る安定志向基準",
+    description: "雇用形態・退職金・福利厚生・休日制度の未記載を厳しめに扱い、不安を残したまま応募しないための基準です。",
+    category: "stability",
+    tags: ["雇用形態", "福利厚生", "退職金制度", "休日制度", "未記載チェック"],
+    metrics: { viewCount: 3980, saveCount: 650, cloneCount: 410, useCount: 840 },
+    values: { overtimeAMaxHours: 10, overtimeBMaxHours: 20, overtimeCMaxHours: 30, overtimeDMaxHours: 45, holidaySMinDays: 125, holidayAMinDays: 115, holidayBMinDays: 110, holidayCMinDays: 100, holidayDMinDays: 90, retirementWithAllowanceRank: "S", retirementWithoutAllowanceRank: "D" }
+  },
+  {
+    sourceTemplateId: "system-default-public-criteria-balanced-v1",
+    title: "迷ったら最初に使う総合バランス基準",
+    description: "給与・休日・固定残業・福利厚生を偏りなく見て、まず応募候補に残すかを判断するための標準的なチェック基準です。",
+    category: "balanced",
+    tags: ["標準", "総合判断", "給与", "休日", "福利厚生"],
+    metrics: { viewCount: 5200, saveCount: 910, cloneCount: 570, useCount: 1030 },
+    values: {}
+  }
+];
 
-  const createdRows = await db
-    .select({
-      ...criteriaTemplateColumns
-    })
-    .from(criteriaTemplates)
-    .where(eq(criteriaTemplates.sourceTemplateId, DEFAULT_PUBLIC_CRITERIA_SOURCE_ID))
-    .limit(1);
+export async function ensureDefaultPublicCriteria(ownerUserId: string) {
+  const now = new Date();
+  const createdRows = [];
+
+  for (const definition of DEFAULT_PUBLIC_CRITERIA_DEFINITIONS) {
+    const existingRows = await db
+      .select({
+        ...criteriaTemplateColumns
+      })
+      .from(criteriaTemplates)
+      .where(eq(criteriaTemplates.sourceTemplateId, definition.sourceTemplateId))
+      .limit(1);
+    const existing = existingRows[0] ?? null;
+
+    if (existing) {
+      createdRows.push(existing);
+      continue;
+    }
+
+    const metrics = definition.metrics;
+    const values = definition.values;
+    await db.insert(criteriaTemplates).values({
+      id: crypto.randomUUID(),
+      userId: ownerUserId,
+      sourceTemplateId: definition.sourceTemplateId,
+      title: definition.title,
+      description: definition.description,
+      category: definition.category,
+      tagsJson: JSON.stringify(definition.tags),
+      visibility: "public",
+      editable: false,
+      overtimeAMaxHours: values.overtimeAMaxHours ?? DEFAULT_RANK_SETTINGS.fixedOvertime.aMaxHours,
+      overtimeBMaxHours: values.overtimeBMaxHours ?? DEFAULT_RANK_SETTINGS.fixedOvertime.bMaxHours,
+      overtimeCMaxHours: values.overtimeCMaxHours ?? DEFAULT_RANK_SETTINGS.fixedOvertime.cMaxHours,
+      overtimeDMaxHours: values.overtimeDMaxHours ?? DEFAULT_RANK_SETTINGS.fixedOvertime.dMaxHours,
+      holidaySMinDays: values.holidaySMinDays ?? DEFAULT_RANK_SETTINGS.annualHolidays.sMinDays,
+      holidayAMinDays: values.holidayAMinDays ?? DEFAULT_RANK_SETTINGS.annualHolidays.aMinDays,
+      holidayBMinDays: values.holidayBMinDays ?? DEFAULT_RANK_SETTINGS.annualHolidays.bMinDays,
+      holidayCMinDays: values.holidayCMinDays ?? DEFAULT_RANK_SETTINGS.annualHolidays.cMinDays,
+      holidayDMinDays: values.holidayDMinDays ?? DEFAULT_RANK_SETTINGS.annualHolidays.dMinDays,
+      bonusSMinCount: values.bonusSMinCount ?? DEFAULT_RANK_SETTINGS.bonus.sMinCount,
+      bonusAMinCount: values.bonusAMinCount ?? DEFAULT_RANK_SETTINGS.bonus.aMinCount,
+      bonusBMinCount: values.bonusBMinCount ?? DEFAULT_RANK_SETTINGS.bonus.bMinCount,
+      bonusCMinCount: values.bonusCMinCount ?? DEFAULT_RANK_SETTINGS.bonus.cMinCount,
+      retirementWithAllowanceRank: values.retirementWithAllowanceRank ?? DEFAULT_RANK_SETTINGS.retirementAllowance.withAllowanceRank,
+      retirementWithoutAllowanceRank: values.retirementWithoutAllowanceRank ?? DEFAULT_RANK_SETTINGS.retirementAllowance.withoutAllowanceRank,
+      ...metrics,
+      popularityScore: calculatePopularityScore(metrics),
+      publishedAt: now,
+      createdAt: now,
+      updatedAt: now
+    });
+
+    const insertedRows = await db
+      .select({
+        ...criteriaTemplateColumns
+      })
+      .from(criteriaTemplates)
+      .where(eq(criteriaTemplates.sourceTemplateId, definition.sourceTemplateId))
+      .limit(1);
+    if (insertedRows[0]) createdRows.push(insertedRows[0]);
+  }
+
   return createdRows[0] ?? null;
 }
 

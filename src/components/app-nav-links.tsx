@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BriefcaseBusiness, CreditCard, FileText, LayoutDashboard, Layers3, Search } from "lucide-react";
+import { BriefcaseBusiness, Building2, CreditCard, FileText, LayoutDashboard, Layers3, Mic, Search } from "lucide-react";
 
 const navItems = [
   {
@@ -19,6 +19,16 @@ const navItems = [
     href: "/jobs",
     label: "求人整理",
     icon: BriefcaseBusiness
+  },
+  {
+    href: "/company-research",
+    label: "企業研究",
+    icon: Building2
+  },
+  {
+    href: "/ai-interview",
+    label: "AI面接",
+    icon: Mic
   },
   {
     href: "/pricing",

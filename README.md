@@ -170,7 +170,18 @@
 - 面接で口頭補足するポイント付きの下書き生成
 - Excel 形式出力 API（`/api/resume/xlsx`）
 
-### 11. β運用・計測・内部向け機能
+### 11. AI面接の音声文字起こしフロー
+- `/ai-interview` で `テキストで入力` / `音声で回答` の2モード切り替え
+- ブラウザ録音（`MediaRecorder`）
+- 録音後の private transcription kickoff (`/api/ai-interview/voice/start`)
+- 所有者限定の録音ステータス参照 (`/api/ai-interview/voice/[recordingSessionId]`)
+- private callback (`/api/internal/ai-interview/transcriptions/callback`)
+- raw transcript をそのまま使わず、確認済みテキストだけを AI面接フィードバックへ投入
+- recording / transcription / confirmed answer / deletion log の DB lineage 保存
+- Python `faster-whisper` transcriber service（`services/ai-interview-transcriber/`）
+- stale temp audio cleanup command（`uv run python -m app.cleanup --older-than-seconds 900`）
+
+### 12. β運用・計測・内部向け機能
 - β参加フォーム送信
 - β応募内容の DB 保存
 - UTM / referrer / CTA variant つきのマーケイベント保存
@@ -234,7 +245,21 @@
    OPENAI_API_KEY=sk-...
    OPENAI_MAIN_MODEL=gpt-4.1-mini
    OPENAI_LIGHT_MODEL=gpt-4.1-nano
+   AI_INTERVIEW_TRANSCRIBER_URL=http://127.0.0.1:18080
+   AI_INTERVIEW_TRANSCRIBER_SECRET=replace-with-long-random-secret
+   AI_INTERVIEW_CALLBACK_SECRET=replace-with-another-long-random-secret
+   AI_INTERVIEW_RECORDING_POLICY_VERSION=2026-06-15
    ```
+   AI面接の音声文字起こしをローカルで動かすときは、Next.js とは別に transcriber service も起動します。
+   `.env.local` を読み込んだうえで、別ターミナルから次を実行してください。
+   ```bash
+   ./scripts/start-ai-interview-transcriber.sh
+   ```
+   起動確認:
+   ```bash
+   curl http://127.0.0.1:18080/health
+   ```
+   `{"status":"ok"}` が返れば成功です。
    Maps のキーは `開発/本番` と `server/browser` で分けます。
    - server key: `GOOGLE_MAPS_SERVER_API_KEY`
    - browser key: `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_API_KEY`

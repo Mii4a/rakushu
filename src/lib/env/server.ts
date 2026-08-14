@@ -22,7 +22,11 @@ const serverEnvSchema = z.object({
   OPENAI_MAIN_MODEL: z.string().default("gpt-4.1-mini"),
   OPENAI_LIGHT_MODEL: z.string().default("gpt-4.1-nano"),
   INTERNAL_TOOL_EMAILS: z.string().default(""),
-  INTERNAL_ADMIN_EMAILS: z.string().default("")
+  INTERNAL_ADMIN_EMAILS: z.string().default(""),
+  AI_INTERVIEW_TRANSCRIBER_URL: z.string().url().optional(),
+  AI_INTERVIEW_TRANSCRIBER_SECRET: z.string().optional(),
+  AI_INTERVIEW_CALLBACK_SECRET: z.string().optional(),
+  AI_INTERVIEW_RECORDING_POLICY_VERSION: z.string().default("2026-06-15")
 });
 
 const runtimeEnvInput = {

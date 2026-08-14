@@ -6,6 +6,7 @@
     "dev": "next dev",
     "dev:clean": "rm -rf .next && next dev",
     "clean": "rm -rf .next",
+    "ai-interview:transcriber": "./scripts/start-ai-interview-transcriber.sh",
     "build": "next build",
     "start": "next start",
     "lint": "eslint src tests scripts next.config.ts tailwind.config.ts vitest.config.ts playwright.prod-smoke.config.ts open-next.config.ts eslint.config.mjs",

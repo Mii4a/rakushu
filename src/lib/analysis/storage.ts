@@ -13,6 +13,7 @@ export function buildStoredParsedJobSnapshot(parsed: ParsedJob): ParsedJob {
     parserVersion: parsed.parserVersion,
     companyName: stripEvidence(parsed.companyName),
     title: stripEvidence(parsed.title),
+    workAddress: stripEvidence(parsed.workAddress),
     employmentType: stripEvidence(parsed.employmentType),
     salaryText: stripEvidence(parsed.salaryText),
     baseSalaryMin: stripEvidence(parsed.baseSalaryMin),

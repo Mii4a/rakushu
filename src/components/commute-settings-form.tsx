@@ -5,6 +5,7 @@ import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Home, MapPin, TrainFront, TimerReset } from "lucide-react";
 
+import { AppMockSidebarShell } from "@/components/app-mock-sidebar-shell";
 import { initialCommuteSettingsActionState, saveCommuteProfileAction } from "@/actions/commute-settings-actions";
 
 type CommuteSettingsFormProps = {
@@ -26,7 +27,8 @@ export function CommuteSettingsForm({ defaults }: CommuteSettingsFormProps) {
   }, [router, state.status]);
 
   return (
-    <section className="page-stack">
+    <AppMockSidebarShell activeKey="settings">
+      <div className="page-stack">
       <div className="page-hero">
         <div className="section-heading">
           <div>
@@ -82,6 +84,7 @@ export function CommuteSettingsForm({ defaults }: CommuteSettingsFormProps) {
           </button>
         </form>
       </div>
-    </section>
+      </div>
+    </AppMockSidebarShell>
   );
 }

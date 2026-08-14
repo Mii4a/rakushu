@@ -6,14 +6,19 @@ import { usePathname } from "next/navigation";
 import {
   Bookmark,
   BriefcaseBusiness,
+  Building2,
+  CircleCheck,
   CreditCard,
   FileText,
   GitCompareArrows,
   Home,
   Menu,
+  MessageCircle,
+  Mic,
   Plane,
   Scale,
   Settings,
+  UsersRound,
   X,
   type LucideIcon
 } from "lucide-react";
@@ -26,15 +31,28 @@ type SidebarItem = {
   muted?: boolean;
 };
 
-const defaultNavItems: SidebarItem[] = [
+export const dashboardNavItems: SidebarItem[] = [
   { href: "/dashboard", label: "ダッシュボード", icon: Home, key: "dashboard" },
-  { href: "/jobs/new", label: "ランクを付ける", icon: Plane, key: "jobs-new" },
-  { href: "/jobs", label: "求人一覧", icon: BriefcaseBusiness, key: "jobs" },
+  { href: "/jobs/new", label: "求人チェッカー", icon: Plane, key: "jobs-new" },
   { href: "/jobs", label: "保存した求人", icon: Bookmark, key: "saved-jobs" },
+  { href: "/company-research", label: "企業研究", icon: Building2, key: "company-research" },
+  { href: "/ai-interview", label: "AI面接", icon: Mic, key: "ai-interview" },
   { href: "/compare", label: "比較", icon: GitCompareArrows, key: "compare" },
   { href: "/resume", label: "履歴書", icon: FileText, key: "resume" },
-  { href: "/criteria", label: "判断基準", icon: Scale, key: "criteria" },
+  { href: "/criteria", label: "チェック基準", icon: Scale, key: "criteria" },
   { href: "/pricing", label: "料金", icon: CreditCard, key: "pricing" },
+  { href: "/settings", label: "設定", icon: Settings, key: "settings", muted: true }
+] as const;
+
+export const dashboardMockNavItems: SidebarItem[] = [
+  { href: "/dashboard", label: "ダッシュボード", icon: Home, key: "dashboard" },
+  { href: "/jobs", label: "求人一覧", icon: BriefcaseBusiness, key: "saved-jobs" },
+  { href: "/jobs/new", label: "求人チェッカー", icon: CircleCheck, key: "jobs-new" },
+  { href: "/company-research", label: "企業研究", icon: Building2, key: "company-research" },
+  { href: "/resume", label: "レジュメAI", icon: FileText, key: "resume" },
+  { href: "/ai-interview", label: "AI面接", icon: MessageCircle, key: "ai-interview" },
+  { href: "/criteria", label: "チェック基準", icon: Scale, key: "criteria" },
+  { label: "みんなで知恵袋", icon: UsersRound, key: "knowledge" },
   { href: "/settings", label: "設定", icon: Settings, key: "settings", muted: true }
 ] as const;
 
@@ -47,7 +65,8 @@ export function DashboardSidebar({
   mode = "links",
   onItemSelect,
   footerContent,
-  variant = "default"
+  itemActions,
+  variant = "mock"
 }: {
   activeKey: string;
   note: string;
@@ -57,11 +76,12 @@ export function DashboardSidebar({
   mode?: "links" | "tabs";
   onItemSelect?: (key: string) => void;
   footerContent?: ReactNode;
+  itemActions?: Partial<Record<string, ReactNode>>;
   variant?: "default" | "mock";
 }) {
   const pathname = usePathname();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const navItems = items ?? defaultNavItems;
+  const navItems = items ?? (variant === "mock" ? dashboardMockNavItems : dashboardNavItems);
 
   useEffect(() => {
     setIsMobileOpen(false);
@@ -99,6 +119,8 @@ export function DashboardSidebar({
             .filter(Boolean)
             .join(" ");
 
+          const action = itemActions?.[item.key];
+
           if (mode === "tabs") {
             return (
               <button
@@ -116,12 +138,24 @@ export function DashboardSidebar({
             );
           }
 
-          return (
-            <Link key={`${item.key}-${item.label}`} href={item.href ?? "#"} className={className}>
+          const linkNode = item.href ? (
+            <Link key={`${item.key}-${item.label}`} href={item.href} className={className}>
               <Icon className="size-5" />
               <span>{item.label}</span>
             </Link>
+          ) : (
+            <div key={`${item.key}-${item.label}`} className={`${className} dashboard-nav-item-disabled`} aria-disabled="true">
+              <Icon className="size-5" />
+              <span>{item.label}</span>
+            </div>
           );
+
+          return action ? (
+            <div key={`${item.key}-${item.label}`} className="flex items-center gap-2">
+              <div className="min-w-0 flex-1">{linkNode}</div>
+              {action}
+            </div>
+          ) : linkNode;
         })}
       </nav>
 

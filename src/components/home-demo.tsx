@@ -8,7 +8,6 @@ import {
   Bell,
   Bookmark,
   Check,
-  ChevronDown,
   Lock,
   Plus,
   Search,
@@ -19,6 +18,7 @@ import {
 import { parseJobText, scoreParsedJob } from "@/lib/analysis";
 import { getTextLengthBucket, getUtmParams, sendMarketingEvent } from "@/lib/marketing/client";
 import { MarketingEventTracker } from "@/components/marketing-event-tracker";
+import { PublicLoginLink } from "@/components/mock-site-chrome";
 import walletCoinsIcon from "../../UI-mock/home-demo/icons/wallet-coins.png";
 import clockIcon from "../../UI-mock/home-demo/icons/clock.png";
 import calendarIcon from "../../UI-mock/home-demo/icons/calender.png";
@@ -344,16 +344,7 @@ export function HomeDemo() {
             >
               <Bell className="h-5 w-5" />
             </button>
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-3 rounded-full border border-[#e8eaef] bg-white px-3 py-2 shadow-[0_14px_34px_-30px_rgba(15,23,42,0.35)]"
-            >
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[linear-gradient(135deg,#f5d7c2_0%,#f0b388_100%)] text-sm font-bold text-[#673b2d]">
-                山
-              </div>
-              <span className="text-base font-semibold text-[#374151]">山田 花子</span>
-              <ChevronDown className="h-4 w-4 text-[#6b7280]" />
-            </Link>
+            <PublicLoginLink />
           </div>
         </header>
 
@@ -361,17 +352,17 @@ export function HomeDemo() {
           <div className="pt-2">
             <div className="inline-flex items-center gap-2 rounded-full bg-[#f1fbf1] px-4 py-2 text-sm font-bold text-[#3b934f] shadow-[0_12px_30px_-28px_rgba(34,197,94,0.45)]">
               <Check className="h-4 w-4" />
-              AIで求人チェック、転職をもっとスマートに
+              一社の選考準備を、求人チェックから完遂までつなぐ
             </div>
-            <h1 className="mt-8 max-w-[450px] text-[3.42rem] font-black leading-[0.97] tracking-[-0.072em] text-[#111827] xl:max-w-[480px] xl:text-[4.05rem]">
-              求人選びを、
+            <h1 className="mt-8 max-w-[450px] text-[3.42rem] font-black leading-[0.97] tracking-[-0.072em] text-[#111827] xl:max-w-[520px] xl:text-[4.05rem]">
+              この企業で
               <br />
-              もっと<span className="text-[#43b649]">ラク</span>に。
+              大丈夫かを、<span className="text-[#43b649]">進めながら</span>確かめる。
             </h1>
-            <p className="mt-6 max-w-[470px] text-[1.08rem] font-semibold leading-[1.88] text-[#313a49] xl:max-w-[500px] xl:text-[1.16rem]">
-              求人票を貼り付けるだけで、AI が条件・待遇・注意点を自動で整理。
+            <p className="mt-6 max-w-[500px] text-[1.08rem] font-semibold leading-[1.88] text-[#313a49] xl:max-w-[540px] xl:text-[1.16rem]">
+              求人票を貼るところから、企業研究・履歴書・AI面接まで。
               <br />
-              あなたの希望に合うか、ひと目でわかります。
+              らくしゅうは「全部やるのが面倒」「これでだいじょうぶか不安」を、一社ずつ前に進めやすくします。
             </p>
           </div>
 

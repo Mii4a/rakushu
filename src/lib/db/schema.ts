@@ -79,6 +79,7 @@ export const jobs = sqliteTable(
     selectionStatus: text("selection_status").notNull().default("saved"),
     nextActionAt: integer("next_action_at", { mode: "timestamp_ms" }),
     selectionMemo: text("selection_memo"),
+    isFavorite: integer("is_favorite", { mode: "boolean" }).notNull().default(false),
     rawText: text("raw_text"),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
@@ -230,6 +231,305 @@ export const subscriptions = sqliteTable(
     uniqueIndex("subscriptions_user_id_unique").on(table.userId),
     uniqueIndex("subscriptions_stripe_customer_id_unique").on(table.stripeCustomerId),
     uniqueIndex("subscriptions_stripe_subscription_id_unique").on(table.stripeSubscriptionId)
+  ]
+);
+
+export const companyResearches = sqliteTable(
+  "company_researches",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    query: text("query").notNull(),
+    companyName: text("company_name").notNull(),
+    industry: text("industry").notNull(),
+    location: text("location").notNull(),
+    size: text("size").notNull(),
+    summary: text("summary").notNull(),
+    keyPointsJson: text("key_points_json").notNull(),
+    interviewHintsJson: text("interview_hints_json").notNull(),
+    nextActionsJson: text("next_actions_json").notNull(),
+    websiteUrl: text("website_url"),
+    reportJson: text("report_json").notNull().default('{"companyName":"","generatedAt":"","estimatedPages":24,"estimatedFigures":18,"sections":[],"sources":[],"suggestedQuestions":[]}'),
+    sourceChunksJson: text("source_chunks_json").notNull().default("[]"),
+    chatMessagesJson: text("chat_messages_json").notNull().default("[]"),
+    modelName: text("model_name"),
+    sourceCount: integer("source_count").notNull().default(0),
+    errorCode: text("error_code"),
+    errorSummary: text("error_summary"),
+    status: text("status").notNull().default("要点整理済み"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
+  },
+  (table) => [
+    index("company_researches_user_id_idx").on(table.userId),
+    index("company_researches_created_at_idx").on(table.createdAt),
+    index("company_researches_website_url_idx").on(table.websiteUrl)
+  ]
+);
+
+export const aiInterviewAttempts = sqliteTable(
+  "ai_interview_attempts",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    questionId: text("question_id").notNull(),
+    prompt: text("prompt").notNull(),
+    answerText: text("answer_text").notNull(),
+    score: integer("score").notNull(),
+    strengthsJson: text("strengths_json").notNull(),
+    improvementsJson: text("improvements_json").notNull(),
+    followUpsJson: text("follow_ups_json").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
+  },
+  (table) => [
+    index("ai_interview_attempts_user_id_idx").on(table.userId),
+    index("ai_interview_attempts_created_at_idx").on(table.createdAt),
+    index("ai_interview_attempts_question_id_idx").on(table.questionId)
+  ]
+);
+
+export const aiInterviewSessions = sqliteTable(
+  "ai_interview_sessions",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    settingSetName: text("setting_set_name").notNull().default("基本セット"),
+    interviewType: text("interview_type").notNull(),
+    targetCompany: text("target_company").notNull(),
+    targetRole: text("target_role").notNull().default("営業職"),
+    scenarioType: text("scenario_type").notNull().default("new-grad"),
+    questionSet: text("question_set").notNull(),
+    startedAt: integer("started_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
+  },
+  (table) => [
+    index("ai_interview_sessions_user_id_idx").on(table.userId),
+    index("ai_interview_sessions_updated_at_idx").on(table.updatedAt)
+  ]
+);
+
+export const aiInterviewRecordingSessions = sqliteTable(
+  "ai_interview_recording_sessions",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    sessionId: text("session_id").references(() => aiInterviewSessions.id, { onDelete: "set null" }),
+    questionId: text("question_id").notNull(),
+    inputMethod: text("input_method").notNull().default("voice"),
+    status: text("status").notNull().default("queued"),
+    mimeType: text("mime_type").notNull(),
+    durationMs: integer("duration_ms").notNull(),
+    byteSize: integer("byte_size").notNull(),
+    tempObjectKey: text("temp_object_key"),
+    audioDeleteState: text("audio_delete_state").notNull().default("pending"),
+    audioDeletedAt: integer("audio_deleted_at", { mode: "timestamp_ms" }),
+    lastErrorCode: text("last_error_code"),
+    lastErrorSummary: text("last_error_summary"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
+  },
+  (table) => [
+    index("ai_interview_recording_sessions_user_id_idx").on(table.userId),
+    index("ai_interview_recording_sessions_session_id_idx").on(table.sessionId),
+    index("ai_interview_recording_sessions_status_idx").on(table.status),
+    index("ai_interview_recording_sessions_audio_delete_state_idx").on(table.audioDeleteState),
+    index("ai_interview_recording_sessions_updated_at_idx").on(table.updatedAt)
+  ]
+);
+
+export const aiInterviewTranscriptions = sqliteTable(
+  "ai_interview_transcriptions",
+  {
+    id: text("id").primaryKey(),
+    recordingSessionId: text("recording_session_id")
+      .notNull()
+      .references(() => aiInterviewRecordingSessions.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull().default("faster-whisper"),
+    modelName: text("model_name").notNull(),
+    languageCode: text("language_code").notNull().default("ja"),
+    rawTranscriptText: text("raw_transcript_text"),
+    normalizedTranscriptText: text("normalized_transcript_text"),
+    status: text("status").notNull().default("queued"),
+    startedAt: integer("started_at", { mode: "timestamp_ms" }),
+    finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
+  },
+  (table) => [
+    uniqueIndex("ai_interview_transcriptions_recording_session_unique").on(table.recordingSessionId),
+    index("ai_interview_transcriptions_status_idx").on(table.status)
+  ]
+);
+
+export const aiInterviewTranscriptionSegments = sqliteTable(
+  "ai_interview_transcription_segments",
+  {
+    id: text("id").primaryKey(),
+    transcriptionId: text("transcription_id")
+      .notNull()
+      .references(() => aiInterviewTranscriptions.id, { onDelete: "cascade" }),
+    segmentIndex: integer("segment_index").notNull(),
+    startMs: integer("start_ms").notNull(),
+    endMs: integer("end_ms").notNull(),
+    text: text("text").notNull(),
+    avgLogprob: text("avg_logprob"),
+    noSpeechProb: text("no_speech_prob"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
+  },
+  (table) => [uniqueIndex("ai_interview_transcription_segments_unique").on(table.transcriptionId, table.segmentIndex)]
+);
+
+export const aiInterviewConfirmedAnswers = sqliteTable(
+  "ai_interview_confirmed_answers",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    sessionId: text("session_id").notNull().references(() => aiInterviewSessions.id, { onDelete: "cascade" }),
+    recordingSessionId: text("recording_session_id").references(() => aiInterviewRecordingSessions.id, { onDelete: "set null" }),
+    questionId: text("question_id").notNull(),
+    sourceKind: text("source_kind").notNull().default("text"),
+    rawTranscriptTextSnapshot: text("raw_transcript_text_snapshot"),
+    confirmedText: text("confirmed_text").notNull(),
+    confirmedAt: integer("confirmed_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
+  },
+  (table) => [
+    index("ai_interview_confirmed_answers_user_id_idx").on(table.userId),
+    index("ai_interview_confirmed_answers_session_id_idx").on(table.sessionId),
+    index("ai_interview_confirmed_answers_question_id_idx").on(table.questionId)
+  ]
+);
+
+export const aiInterviewGeneratedQuestions = sqliteTable(
+  "ai_interview_generated_questions",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id").notNull().references(() => aiInterviewSessions.id, { onDelete: "cascade" }),
+    categoryId: text("category_id").notNull(),
+    questionId: text("question_id").notNull(),
+    questionNumber: integer("question_number").notNull(),
+    prompt: text("prompt").notNull(),
+    basedOnAnswerId: text("based_on_answer_id").references(() => aiInterviewSessionAnswers.id, { onDelete: "set null" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
+  },
+  (table) => [
+    index("ai_interview_generated_questions_session_id_idx").on(table.sessionId),
+    uniqueIndex("ai_interview_generated_questions_session_question_unique").on(table.sessionId, table.questionId)
+  ]
+);
+
+export const aiInterviewCategoryFeedbacks = sqliteTable(
+  "ai_interview_category_feedbacks",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id").notNull().references(() => aiInterviewSessions.id, { onDelete: "cascade" }),
+    categoryId: text("category_id").notNull(),
+    startQuestionNumber: integer("start_question_number").notNull(),
+    endQuestionNumber: integer("end_question_number").notNull(),
+    overallScore: integer("overall_score").notNull(),
+    summaryText: text("summary_text").notNull(),
+    strengthsJson: text("strengths_json").notNull(),
+    improvementsJson: text("improvements_json").notNull(),
+    nextFocusText: text("next_focus_text").notNull(),
+    nextQuestionsJson: text("next_questions_json").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
+  },
+  (table) => [
+    index("ai_interview_category_feedbacks_session_id_idx").on(table.sessionId),
+    uniqueIndex("ai_interview_category_feedbacks_session_category_unique").on(table.sessionId, table.categoryId)
+  ]
+);
+
+export const aiInterviewSessionAnswers = sqliteTable(
+  "ai_interview_session_answers",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id").notNull().references(() => aiInterviewSessions.id, { onDelete: "cascade" }),
+    confirmedAnswerId: text("confirmed_answer_id").references(() => aiInterviewConfirmedAnswers.id, { onDelete: "set null" }),
+    recordingSessionId: text("recording_session_id").references(() => aiInterviewRecordingSessions.id, { onDelete: "set null" }),
+    answerSourceKind: text("answer_source_kind").notNull().default("text"),
+    questionId: text("question_id").notNull(),
+    prompt: text("prompt").notNull(),
+    answerText: text("answer_text").notNull(),
+    score: integer("score").notNull(),
+    strengthsJson: text("strengths_json").notNull(),
+    improvementsJson: text("improvements_json").notNull(),
+    followUpsJson: text("follow_ups_json").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
+  },
+  (table) => [
+    index("ai_interview_session_answers_session_id_idx").on(table.sessionId),
+    index("ai_interview_session_answers_created_at_idx").on(table.createdAt),
+    index("ai_interview_session_answers_confirmed_answer_id_idx").on(table.confirmedAnswerId)
+  ]
+);
+
+export const aiInterviewRecordingConsents = sqliteTable(
+  "ai_interview_recording_consents",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    recordingSessionId: text("recording_session_id")
+      .notNull()
+      .references(() => aiInterviewRecordingSessions.id, { onDelete: "cascade" }),
+    policyVersion: text("policy_version").notNull(),
+    consentTextHash: text("consent_text_hash").notNull(),
+    consentedAt: integer("consented_at", { mode: "timestamp_ms" }).notNull(),
+    ipHash: text("ip_hash"),
+    userAgentHash: text("user_agent_hash"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
+  },
+  (table) => [index("ai_interview_recording_consents_recording_session_id_idx").on(table.recordingSessionId)]
+);
+
+export const aiInterviewAudioDeletionLogs = sqliteTable(
+  "ai_interview_audio_deletion_logs",
+  {
+    id: text("id").primaryKey(),
+    recordingSessionId: text("recording_session_id")
+      .notNull()
+      .references(() => aiInterviewRecordingSessions.id, { onDelete: "cascade" }),
+    attemptedAt: integer("attempted_at", { mode: "timestamp_ms" }).notNull(),
+    actor: text("actor").notNull(),
+    outcome: text("outcome").notNull(),
+    detailCode: text("detail_code"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
+  },
+  (table) => [index("ai_interview_audio_deletion_logs_recording_session_id_idx").on(table.recordingSessionId)]
+);
+
+export const userOnboardingProfiles = sqliteTable(
+  "user_onboarding_profiles",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    started: integer("started", { mode: "boolean" }).notNull().default(false),
+    currentStep: integer("current_step").notNull().default(0),
+    nickname: text("nickname"),
+    applicantStatusJson: text("applicant_status_json").notNull().default("[]"),
+    workStylesJson: text("work_styles_json").notNull().default("[]"),
+    locationsJson: text("locations_json").notNull().default("[]"),
+    commutePreference: text("commute_preference"),
+    locationNote: text("location_note"),
+    salaryPreference: text("salary_preference"),
+    avoidConditionsJson: text("avoid_conditions_json").notNull().default("[]"),
+    jobHuntingStatus: text("job_hunting_status"),
+    priorityJson: text("priority_json").notNull().default("[]"),
+    deferredRoles: integer("deferred_roles", { mode: "boolean" }).notNull().default(false),
+    deferredSkills: integer("deferred_skills", { mode: "boolean" }).notNull().default(false),
+    completedAt: integer("completed_at", { mode: "timestamp_ms" }),
+    skippedAt: integer("skipped_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
+  },
+  (table) => [
+    index("user_onboarding_profiles_user_id_idx").on(table.userId),
+    uniqueIndex("user_onboarding_profiles_user_id_unique").on(table.userId)
   ]
 );
 

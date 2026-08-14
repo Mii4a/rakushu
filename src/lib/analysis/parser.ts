@@ -290,14 +290,72 @@ function extractCompanyName(context: ParserContext): ExtractedValue<string> {
   return unknown();
 }
 
+function findTitleInTopLines(context: ParserContext): ExtractedValue<string> | null {
+  const lines = context.text
+    .split("\n")
+    .map((line) => normalizeLineValue(line))
+    .filter((line) => line.length > 0)
+    .slice(0, 12);
+  const locationNoise = /(東京都|神奈川県|千葉県|埼玉県|大阪府|京都府|兵庫県|愛知県|福岡県|北海道|勤務地|就業場所|勤務先|最寄り駅|駅徒歩|年収|月給|給与|賞与|休日|年休|リモート|在宅|フレックス)/;
+  const titlePattern = /(エンジニア|営業|事務|デザイナー|マーケター|ディレクター|コンサルタント|広報|経理|人事|総務|カスタマーサクセス|サポート|バックオフィス|PM|PdM|QA|運用|保守|施工管理|看護師|介護|保育士|ドライバー|店長|Web|IT|SE)/;
+
+  for (const line of lines) {
+    if (isSectionHeadingLine(line) || locationNoise.test(line)) continue;
+    if (!titlePattern.test(line)) continue;
+
+    const cleaned = line
+      .replace(/^[【\[][^】\]]+[】\]]\s*/, "")
+      .replace(/^(?:募集職種|職種|仕事内容)[:：]?\s*/, "")
+      .split(/[／|｜•●]/)[0]
+      .trim();
+
+    if (cleaned.length >= 2 && cleaned.length <= 60) {
+      return found(cleaned, line, "summary_line", "medium");
+    }
+  }
+
+  return null;
+}
+
 function extractTitle(context: ParserContext): ExtractedValue<string> {
   const match = captureByRegex(context.text, [/職種[:：]\s*([^\n]+)/, /募集職種[:：]\s*([^\n]+)/, /仕事内容[:：]\s*([^\n]+)/]);
   if (match) return found(match[1].trim(), match[0], "direct_label", "high");
 
   const section = getSectionValue(context.sections, ["募集職種", "職種"]);
   const line = section ? firstNonEmptyLine(section) : null;
-  if (!line) return unknown();
-  return found(line, `募集職種\n${line}`, "section", "high");
+  if (line) return found(line, `募集職種\n${line}`, "section", "high");
+
+  const topLineTitle = findTitleInTopLines(context);
+  if (topLineTitle) return topLineTitle;
+
+  return unknown();
+}
+
+function extractWorkAddress(context: ParserContext): ExtractedValue<string> {
+  const match = captureByRegex(context.text, [
+    /(?:勤務地|勤務先|就業場所|配属先|所在地)[:：]\s*([^\n]+)/,
+    /(?:勤務地|勤務先|就業場所|配属先|所在地)\s*\n\s*([^\n]+)/
+  ]);
+  if (match) return found(match[1].trim(), match[0], "direct_label", "high");
+
+  const section = getSectionValue(context.sections, ["勤務地", "勤務先", "就業場所", "配属先", "所在地"]);
+  const line = section ? firstNonEmptyLine(section) : null;
+  if (line) return found(line, `勤務地\n${line}`, "section", "high");
+
+  const lines = context.text
+    .split("\n")
+    .map((rawLine) => normalizeLineValue(rawLine))
+    .filter((rawLine) => rawLine.length > 0)
+    .slice(0, 20);
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (!/(東京都|神奈川県|千葉県|埼玉県|大阪府|京都府|兵庫県|愛知県|福岡県|北海道|本社|各プロジェクト先|転勤なし|勤務地)/.test(line)) continue;
+    if (/(給与|年収|賞与|休日|雇用形態|会社名)/.test(line)) continue;
+    return found(line, line, index <= 5 ? "summary_line" : "global_scan", index <= 5 ? "medium" : "low");
+  }
+
+  return unknown();
 }
 
 function extractEmploymentType(context: ParserContext): ExtractedValue<string> {
@@ -886,6 +944,7 @@ export function parseJobText(rawText: string): ParsedJob {
     parserVersion: PARSER_VERSION,
     companyName: extractCompanyName(context),
     title: extractTitle(context),
+    workAddress: extractWorkAddress(context),
     employmentType: extractEmploymentType(context),
     salaryText,
     baseSalaryMin: baseSalary.min,

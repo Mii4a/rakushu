@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Bell, Bookmark, ChevronDown, Search } from "lucide-react";
 
 export function JobsMockShell({ children }: { children: React.ReactNode }) {
-  return <section className="jobs-mock-surface min-h-screen bg-white">{children}</section>;
+  return <section className="jobs-mock-surface h-screen overflow-hidden bg-white">{children}</section>;
 }
 
 export function JobsMockHeader({ displayName }: { displayName: string }) {
@@ -104,7 +104,7 @@ export function SearchIconField({ name, defaultValue, placeholder }: { name: str
   return (
     <div className="relative">
       <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-[#656d76]" />
-      <input name={name} defaultValue={defaultValue} placeholder={placeholder} className="h-14 w-full rounded-[16px] border border-[#e6e9e1] bg-white pl-12 pr-4 text-[0.98rem] text-[#1f252a] outline-none focus:border-[#86d58a] focus:ring-4 focus:ring-[#86d58a]/15" />
+      <input name={name} defaultValue={defaultValue} placeholder={placeholder} aria-label={placeholder} className="h-12 w-full rounded-[16px] border border-[#e6e9e1] bg-white pl-12 pr-4 text-sm text-[#1f252a] outline-none focus:border-[#86d58a] focus:ring-4 focus:ring-[#86d58a]/15" />
     </div>
   );
 }

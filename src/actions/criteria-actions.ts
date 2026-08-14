@@ -288,3 +288,137 @@ export async function updateOwnedCriteriaAction(formData: FormData) {
   revalidatePath(`/criteria/${existing.id}`);
   redirect(`/criteria?owned=${existing.id}#criteria-detail`);
 }
+
+export async function saveChatCriteriaAction(formData: FormData) {
+  const user = await requireUser();
+  const plan = await getUserPlan(user.id);
+  const limits = PLAN_LIMITS[plan].criteria;
+  const targetTemplateId = String(formData.get("targetTemplateId") ?? "").trim();
+  const sourceTemplateId = String(formData.get("sourceTemplateId") ?? "").trim();
+
+  const parsed = ownedCriteriaSchema.safeParse({
+    templateId: targetTemplateId || "temp-chat-template-id",
+    title: formData.get("title"),
+    description: formData.get("description"),
+    category: formData.get("category"),
+    tags: formData.get("tags"),
+    overtimeAMaxHours: formData.get("overtimeAMaxHours"),
+    overtimeBMaxHours: formData.get("overtimeBMaxHours"),
+    overtimeCMaxHours: formData.get("overtimeCMaxHours"),
+    overtimeDMaxHours: formData.get("overtimeDMaxHours"),
+    holidaySMinDays: formData.get("holidaySMinDays"),
+    holidayAMinDays: formData.get("holidayAMinDays"),
+    holidayBMinDays: formData.get("holidayBMinDays"),
+    holidayCMinDays: formData.get("holidayCMinDays"),
+    holidayDMinDays: formData.get("holidayDMinDays"),
+    bonusSMinCount: formData.get("bonusSMinCount"),
+    bonusAMinCount: formData.get("bonusAMinCount"),
+    bonusBMinCount: formData.get("bonusBMinCount"),
+    bonusCMinCount: formData.get("bonusCMinCount"),
+    retirementWithAllowanceRank: formData.get("retirementWithAllowanceRank"),
+    retirementWithoutAllowanceRank: formData.get("retirementWithoutAllowanceRank")
+  });
+
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message ?? "判断基準の入力値が不正です。");
+  }
+
+  const tags = parsed.data.tags
+    .split(/[,、\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+
+  if (targetTemplateId) {
+    if (!limits.canEditClonedTemplates) {
+      throw new Error("自分用基準の編集はPlusプラン以上で利用できます。");
+    }
+
+    const existing = (await db
+      .select()
+      .from(criteriaTemplates)
+      .where(and(eq(criteriaTemplates.id, targetTemplateId), eq(criteriaTemplates.userId, user.id), eq(criteriaTemplates.visibility, "private")))
+      .limit(1))[0];
+
+    if (!existing) {
+      throw new Error("保存対象の自分用基準が見つかりません。");
+    }
+
+    if (!existing.editable) {
+      throw new Error("この基準は編集できません。");
+    }
+
+    await db
+      .update(criteriaTemplates)
+      .set({
+        title: parsed.data.title,
+        description: parsed.data.description,
+        category: parsed.data.category,
+        tagsJson: JSON.stringify(tags),
+        overtimeAMaxHours: parsed.data.overtimeAMaxHours,
+        overtimeBMaxHours: parsed.data.overtimeBMaxHours,
+        overtimeCMaxHours: parsed.data.overtimeCMaxHours,
+        overtimeDMaxHours: parsed.data.overtimeDMaxHours,
+        holidaySMinDays: parsed.data.holidaySMinDays,
+        holidayAMinDays: parsed.data.holidayAMinDays,
+        holidayBMinDays: parsed.data.holidayBMinDays,
+        holidayCMinDays: parsed.data.holidayCMinDays,
+        holidayDMinDays: parsed.data.holidayDMinDays,
+        bonusSMinCount: parsed.data.bonusSMinCount,
+        bonusAMinCount: parsed.data.bonusAMinCount,
+        bonusBMinCount: parsed.data.bonusBMinCount,
+        bonusCMinCount: parsed.data.bonusCMinCount,
+        retirementWithAllowanceRank: parsed.data.retirementWithAllowanceRank,
+        retirementWithoutAllowanceRank: parsed.data.retirementWithoutAllowanceRank,
+        updatedAt: new Date()
+      })
+      .where(eq(criteriaTemplates.id, existing.id));
+
+    revalidatePath("/criteria");
+    revalidatePath(`/criteria/${existing.id}`);
+    redirect(`/criteria?owned=${existing.id}#criteria-detail`);
+  }
+
+  if (!limits.canCreatePrivate) {
+    throw new Error("この基準の保存はPlusプラン以上で利用できます。");
+  }
+
+  const ownedCount = await countOwnedCriteria(user.id);
+  if (ownedCount >= limits.maxOwnedCriteria) {
+    throw new Error(`自分の基準の保有上限（${limits.maxOwnedCriteria}件）に達しています。`);
+  }
+
+  const now = new Date();
+  const createdId = crypto.randomUUID();
+  await db.insert(criteriaTemplates).values({
+    id: createdId,
+    userId: user.id,
+    sourceTemplateId: sourceTemplateId || null,
+    title: parsed.data.title,
+    description: parsed.data.description,
+    category: parsed.data.category,
+    tagsJson: JSON.stringify(tags),
+    visibility: "private",
+    editable: true,
+    overtimeAMaxHours: parsed.data.overtimeAMaxHours,
+    overtimeBMaxHours: parsed.data.overtimeBMaxHours,
+    overtimeCMaxHours: parsed.data.overtimeCMaxHours,
+    overtimeDMaxHours: parsed.data.overtimeDMaxHours,
+    holidaySMinDays: parsed.data.holidaySMinDays,
+    holidayAMinDays: parsed.data.holidayAMinDays,
+    holidayBMinDays: parsed.data.holidayBMinDays,
+    holidayCMinDays: parsed.data.holidayCMinDays,
+    holidayDMinDays: parsed.data.holidayDMinDays,
+    bonusSMinCount: parsed.data.bonusSMinCount,
+    bonusAMinCount: parsed.data.bonusAMinCount,
+    bonusBMinCount: parsed.data.bonusBMinCount,
+    bonusCMinCount: parsed.data.bonusCMinCount,
+    retirementWithAllowanceRank: parsed.data.retirementWithAllowanceRank,
+    retirementWithoutAllowanceRank: parsed.data.retirementWithoutAllowanceRank,
+    createdAt: now,
+    updatedAt: now
+  });
+
+  revalidatePath("/criteria");
+  redirect(`/criteria?owned=${createdId}#criteria-detail`);
+}
