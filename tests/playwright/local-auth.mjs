@@ -4,13 +4,13 @@ import path from "node:path";
 
 import { createClient } from "@libsql/client/http";
 
-import { buildSignedCookie, cookieDomainFromBaseURL, cookieNameFromBaseURL, loadEnvFile } from "./session-auth-helpers.mjs";
+import { buildSignedCookie, cookieNameFromBaseURL, loadEnvFile } from "./session-auth-helpers.mjs";
 
 const ROOT = process.cwd();
 const ENV_PATH = path.join(ROOT, ".env.local");
 const META_PATH = path.join(ROOT, "playwright/.auth/local-session-meta.json");
 const STORAGE_STATE_PATH = path.join(ROOT, "playwright/.auth/local-user.json");
-const LOCAL_BASE_URL = process.env.PLAYWRIGHT_LOCAL_BASE_URL ?? "http://127.0.0.1:3000";
+const LOCAL_BASE_URL = process.env.PLAYWRIGHT_LOCAL_BASE_URL ?? "http://localhost:3000";
 const LOCAL_EMAIL = process.env.PLAYWRIGHT_LOCAL_EMAIL ?? null;
 
 async function loadLocalEnv() {
@@ -66,8 +66,7 @@ export async function createLocalSession() {
     const cookie = {
       name: cookieNameFromBaseURL(LOCAL_BASE_URL),
       value: buildSignedCookie(token, env.BETTER_AUTH_SECRET),
-      domain: cookieDomainFromBaseURL(LOCAL_BASE_URL),
-      path: "/",
+      url: LOCAL_BASE_URL,
       httpOnly: true,
       secure: LOCAL_BASE_URL.startsWith("https://"),
       sameSite: "Lax",

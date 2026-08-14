@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { AppMockSidebarShell } from "@/components/app-mock-sidebar-shell";
 import { requireUser } from "@/lib/auth/require-user";
 import { parseAllowedInternalEmails } from "@/lib/auth/internal-access";
 import { getLatestAnalysisFeedback, type FeedbackSeverity, type FeedbackStatus } from "@/lib/jobs/latest-analysis-feedback";
@@ -52,7 +53,8 @@ export default async function InternalParserFeedbackPage({
   });
 
   return (
-    <section className="mx-auto max-w-6xl space-y-6 px-6 py-10">
+    <AppMockSidebarShell activeKey="settings">
+      <section className="mx-auto max-w-6xl space-y-6">
       <div className="space-y-2">
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Internal</p>
         <h1 className="text-3xl font-black text-slate-900">Parser feedback</h1>
@@ -155,6 +157,7 @@ export default async function InternalParserFeedbackPage({
           ))
         )}
       </div>
-    </section>
+      </section>
+    </AppMockSidebarShell>
   );
 }

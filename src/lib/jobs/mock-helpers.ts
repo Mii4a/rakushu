@@ -2,11 +2,13 @@ import type { ParsedJob } from "@/lib/analysis";
 import { buildMissingItemSummary, type MissingItemKey, type MissingItemSummary } from "@/lib/analysis/missing-items";
 
 export const SORT_OPTIONS = {
-  created_desc: "更新日が新しい順",
+  created_desc: "新着順",
+  rank_desc: "マッチ度が高い順",
+  rank_asc: "マッチ度が低い順",
+  favorite_desc: "お気に入り済み",
   created_asc: "更新日が古い順",
   company_asc: "会社名A→Z",
   company_desc: "会社名Z→A",
-  rank_desc: "マッチ度が高い順",
   holidays_desc: "年間休日が多い順"
 } as const;
 

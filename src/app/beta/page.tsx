@@ -101,6 +101,9 @@ export default async function BetaPage({ searchParams }: { searchParams: SearchP
       <div className="mx-auto w-full max-w-[1480px] px-6 pb-10 pt-6 xl:px-10">
         <div className="grid gap-7 xl:grid-cols-[minmax(0,1.35fr)_340px_420px] xl:items-start">
           <div className="space-y-6">
+            <div className="rounded-[24px] border border-[#dcebd7] bg-white/90 px-5 py-4 text-sm font-semibold leading-7 text-[#3e4a57] shadow-[0_18px_40px_-34px_rgba(15,23,42,0.16)]">
+              将来的には、この案内はログイン後の onboarding に寄せて、ニックネーム設定や初回の使い方案内とまとめる予定です。今は先行参加の窓口として公開しています。
+            </div>
             <div className="inline-flex items-center rounded-full bg-[#f1fbf1] px-4 py-2 text-sm font-bold text-[#2f9d47] shadow-[0_12px_30px_-28px_rgba(34,197,94,0.45)]">
               限定50名・参加無料
             </div>

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth/require-user";
 import { db } from "@/lib/db/client";
 import { resumeProfiles } from "@/lib/db/schema";
+import { PLAN_LIMITS } from "@/lib/plans";
 import { getUserPlan } from "@/lib/subscription";
 
 export type ResumeActionState = {
@@ -73,9 +74,9 @@ export async function generateResumeDraftAction(
   const user = await requireUser();
   const plan = await getUserPlan(user.id);
 
-  if (plan !== "pro") {
+  if (!PLAN_LIMITS[plan].features.resumeWorkspace) {
     return {
-      error: "履歴書下書き作成はProプラン限定機能です。",
+      error: "このプランでは履歴書ワークスペースを利用できません。",
       result: null
     };
   }

@@ -6,7 +6,9 @@ import { Loader2 } from "lucide-react";
 import { authClient } from "@/lib/auth/client";
 
 type GoogleLoginButtonProps = {
-  variant?: "default" | "login-mock";
+  variant?: "default" | "login-mock" | "top-modal";
+  label?: string;
+  callbackPath?: string;
 };
 
 function GoogleMark() {
@@ -20,7 +22,7 @@ function GoogleMark() {
   );
 }
 
-export function GoogleLoginButton({ variant = "default" }: GoogleLoginButtonProps) {
+export function GoogleLoginButton({ variant = "default", label, callbackPath = "/onboarding" }: GoogleLoginButtonProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,7 +31,7 @@ export function GoogleLoginButton({ variant = "default" }: GoogleLoginButtonProp
     setLoading(true);
 
     try {
-      const callbackURL = `${window.location.origin}/dashboard`;
+      const callbackURL = new URL(callbackPath, window.location.origin).toString();
       const result = await authClient.signIn.social({
         provider: "google",
         callbackURL
@@ -47,15 +49,17 @@ export function GoogleLoginButton({ variant = "default" }: GoogleLoginButtonProp
   };
 
   const buttonClassName =
-    variant === "login-mock"
-      ? "flex min-h-[72px] w-full items-center justify-center gap-4 rounded-[18px] border border-[#e6e9ef] bg-white px-6 text-[1.02rem] font-bold text-[#1f2937] shadow-[0_18px_40px_-32px_rgba(15,23,42,0.28)] hover:bg-[#fcfcfc] disabled:cursor-not-allowed disabled:opacity-60"
-      : "button-primary w-full";
+    variant === "top-modal"
+      ? "flex min-h-[76px] w-full items-center justify-center gap-5 rounded-[10px] border border-[#dfe3ea] bg-white px-8 text-[1.08rem] font-bold text-[#111827] shadow-[0_18px_44px_-34px_rgba(15,23,42,0.34)] hover:bg-[#fcfcfc] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#111827] disabled:cursor-not-allowed disabled:opacity-60"
+      : variant === "login-mock"
+        ? "flex min-h-[72px] w-full items-center justify-center gap-4 rounded-[18px] border border-[#e6e9ef] bg-white px-6 text-[1.02rem] font-bold text-[#1f2937] shadow-[0_18px_40px_-32px_rgba(15,23,42,0.28)] hover:bg-[#fcfcfc] disabled:cursor-not-allowed disabled:opacity-60"
+        : "button-primary w-full";
 
   return (
     <div className="space-y-3">
       <button type="button" className={buttonClassName} onClick={handleLogin} disabled={loading}>
         {loading ? <Loader2 className="size-5 animate-spin" /> : <GoogleMark />}
-        <span>Google でログイン</span>
+        <span>{label ?? "Google でログイン"}</span>
       </button>
 
       {error ? (

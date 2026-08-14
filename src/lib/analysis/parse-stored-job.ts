@@ -28,6 +28,7 @@ function normalizeParsedJob(parsed: ParsedJob): ParsedJob {
     parserVersion: parsed.parserVersion ?? "legacy",
     companyName: withDefault(parsed.companyName, unknownValue<string>()),
     title: withDefault(parsed.title, unknownValue<string>()),
+    workAddress: withDefault(parsed.workAddress, unknownValue<string>()),
     employmentType: withDefault(parsed.employmentType, unknownValue<string>()),
     salaryText: withDefault(parsed.salaryText, unknownValue<string>()),
     baseSalaryMin: withDefault(parsed.baseSalaryMin, unknownValue<number>()),

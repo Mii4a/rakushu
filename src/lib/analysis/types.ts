@@ -30,6 +30,7 @@ export type ParsedJob = {
   parserVersion: string;
   companyName: ExtractedValue<string>;
   title: ExtractedValue<string>;
+  workAddress: ExtractedValue<string>;
   employmentType: ExtractedValue<string>;
   salaryText: ExtractedValue<string>;
   baseSalaryMin: ExtractedValue<number>;

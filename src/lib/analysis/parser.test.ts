@@ -764,6 +764,40 @@ ITカンファー株式会社　採用担当
     expect(parsed.benefits.value).toEqual(expect.arrayContaining(["リモート勤務可能"]));
   });
 
+  it("extracts title and work address from indeed-style blocks", () => {
+    const raw = readFixture("phase6-indeed-detail-block-051-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.title.status).toBe("found");
+    expect(parsed.title.value).toBe("Webエンジニア");
+    expect(parsed.workAddress.status).toBe("found");
+    expect(parsed.workAddress.value).toBe("東京都渋谷区渋谷2-1-1");
+    expect(parsed.employmentType.value).toBe("正社員");
+  });
+
+  it("extracts title and inline work address from indeed-style summary lines", () => {
+    const raw = readFixture("phase6-indeed-inline-location-052-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.companyName.value).toBe("株式会社サンプルキャリア");
+    expect(parsed.title.value).toBe("インフラエンジニア");
+    expect(parsed.workAddress.value).toBe("大阪府大阪市北区梅田1-2-3");
+    expect(parsed.employmentType.value).toBe("正社員");
+  });
+
+  it("extracts work address from 就業場所 headings and keeps top-line role titles", () => {
+    const raw = readFixture("phase6-indeed-workplace-heading-053-anon.txt");
+
+    const parsed = parseJobText(raw);
+
+    expect(parsed.companyName.value).toBe("株式会社ワークシフト");
+    expect(parsed.title.value).toBe("カスタマーサクセス");
+    expect(parsed.workAddress.value).toBe("東京都新宿区西新宿3-4-5");
+    expect(parsed.employmentType.value).toBe("正社員");
+  });
+
   it("keeps teaser-only noisy promo fixtures unresolved instead of hallucinating hidden critical fields", () => {
     const raw043 = readFixture("phase3-rekatsu-noisy-promo-043-anon.txt");
     const raw044 = readFixture("phase3-rekatsu-noisy-promo-044-anon.txt");

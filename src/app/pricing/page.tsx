@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { CreditCard, Layers3, Settings2, Sparkles } from "lucide-react";
+import { BrainCircuit, Building2, CreditCard, Layers3, Mic, Settings2, Sparkles } from "lucide-react";
 
 import { updateRankSettingsAction } from "@/actions/rank-settings-actions";
+import { AppMockSidebarShell } from "@/components/app-mock-sidebar-shell";
 import { CheckoutButton } from "@/components/checkout-button";
 import { CustomerPortalButton } from "@/components/customer-portal-button";
 import { CONFIGURABLE_RANKS, DEFAULT_RANK_SETTINGS } from "@/lib/analysis";
@@ -35,25 +36,26 @@ export default async function PricingPage() {
   const campaignActive = Boolean(serverEnv.STRIPE_CAMPAIGN_PROMOTION_CODE_ID);
 
   return (
-    <section className="page-stack">
+    <AppMockSidebarShell activeKey="pricing">
+      <section className="page-stack">
       <div className="page-hero page-hero-split">
         <div>
           <p className="eyebrow">Pricing</p>
-          <h1 className="page-title">基準を育てながら、ランク付けの量を増やすための3プラン</h1>
+          <h1 className="page-title">「この企業で大丈夫か」を、一社ずつ完遂しやすくするための料金設計</h1>
           <p className="page-copy mt-3">
-            らくしゅうの主役は、判断基準を決めて求人をランク付けし、残した求人だけ整理する流れです。プランはその流れをどこまで広げられるかで選べます。
+            らくしゅうは便利な単機能AIではなく、求人チェックから企業研究、履歴書、AI面接までをつないで、選考準備を前に進めるための作業台です。まずは無料で試し、最初の一社は Starter、その後の複数社運用は Plus へ広げられます。
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
           <div className="metric-tile">
             <CreditCard className="size-5 text-rakumo-mint" />
             <p className="mt-3 text-sm font-medium text-rakumo-ink">ランク付け量</p>
-            <p className="mt-2 text-sm leading-6 text-rakumo-ink/75">求人をどれだけ追加してランク付けできるかが広がります。</p>
+            <p className="mt-2 text-sm leading-6 text-rakumo-ink/75">無料は週3回、Starter は月20回、Plus 以上は本格運用向けの回数まで広がります。</p>
           </div>
           <div className="metric-tile">
             <Layers3 className="size-5 text-rakumo-lavender" />
             <p className="mt-3 text-sm font-medium text-rakumo-ink">判断基準</p>
-            <p className="mt-2 text-sm leading-6 text-rakumo-ink/75">公開基準の閲覧から、自分用基準の編集・公開まで段階的に広がります。</p>
+            <p className="mt-2 text-sm leading-6 text-rakumo-ink/75">公開基準の閲覧は無料から、保存・編集・公開は上位プランで段階的に広がります。</p>
           </div>
           <div className="metric-tile">
             <Settings2 className="size-5 text-rakumo-warning" />
@@ -63,10 +65,47 @@ export default async function PricingPage() {
           <div className="metric-tile">
             <Sparkles className="size-5 text-rakumo-mint" />
             <p className="mt-3 text-sm font-medium text-rakumo-ink">履歴書ワークスペース</p>
-            <p className="mt-2 text-sm leading-6 text-rakumo-ink/75">Pro では履歴書の下書きを保存して、次回以降の叩き台として再利用できます。</p>
+            <p className="mt-2 text-sm leading-6 text-rakumo-ink/75">全プランで1件の下書きから始められ、上位プランほど他機能と横断して使いやすくなります。</p>
+          </div>
+          <div className="metric-tile">
+            <Building2 className="size-5 text-rakumo-lavender" />
+            <p className="mt-3 text-sm font-medium text-rakumo-ink">企業研究</p>
+            <p className="mt-2 text-sm leading-6 text-rakumo-ink/75">無料で1回、Starterで月10件、Plusで月30件まで会社理解を先回りできます。</p>
+          </div>
+          <div className="metric-tile">
+            <Mic className="size-5 text-rakumo-warning" />
+            <p className="mt-3 text-sm font-medium text-rakumo-ink">AI面接</p>
+            <p className="mt-2 text-sm leading-6 text-rakumo-ink/75">無料で1セッション、Starterで月2セッション、Plus以上で本格練習まで進められます。</p>
           </div>
         </div>
       </div>
+
+      <article className="panel border-emerald-200 bg-emerald-50/70">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="eyebrow">Free Trial</p>
+            <h2 className="section-title">無料でここまで試せます</h2>
+            <p className="section-copy mt-2">最初の1社で、本当に続けて使う価値があるかを見極めるための無料枠です。求人チェックから企業研究、AI面接の入口までを体験してから有料化を判断できます。</p>
+          </div>
+          <div className="rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm text-slate-700">
+            <p>フリー: 0円 / 週3採点 + 企業研究1回 + AI面接1セッション</p>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="metric-tile text-sm text-slate-700">
+            <p className="font-medium text-slate-900">求人採点</p>
+            <p className="mt-1">週3回まで。まずは気になる求人だけ採点して、比較の手触りを確認できます。</p>
+          </div>
+          <div className="metric-tile text-sm text-slate-700">
+            <p className="font-medium text-slate-900">企業研究</p>
+            <p className="mt-1">1回まで。会社理解・志望動機の材料・面接論点の整理をお試しできます。</p>
+          </div>
+          <div className="metric-tile text-sm text-slate-700">
+            <p className="font-medium text-slate-900">AI面接</p>
+            <p className="mt-1">1セッションまで。研究した会社を踏まえて、回答改善の流れを一通り体験できます。</p>
+          </div>
+        </div>
+      </article>
 
       <div className="grid gap-4 lg:grid-cols-3">
         {PAID_PLAN_ORDER.map((paidPlan) => {
@@ -82,6 +121,7 @@ export default async function PricingPage() {
                   <p className="mt-1 text-xs text-slate-500">{marketing.audience}</p>
                 </div>
                 {paidPlan === "plus" ? <span className="soft-pill text-rakumo-ink">標準</span> : null}
+                {paidPlan === "starter" ? <span className="soft-pill text-emerald-700">一社完遂向け</span> : null}
               </div>
 
               <div className="mt-5">
@@ -100,10 +140,11 @@ export default async function PricingPage() {
               </div>
 
               <ul className="mt-5 space-y-2 text-sm text-slate-700">
-                <li>月間AIクレジット: {limits.monthlyAiCredits}</li>
+                <li>求人採点: {limits.analysisPeriod === "week" ? `週${limits.maxAnalyses}回` : `月${limits.maxAnalyses}回`}</li>
                 <li>求人保存: {Number.isFinite(limits.maxJobs) ? `${limits.maxJobs}件` : "無制限"}</li>
-                <li>求人票要約: 1クレジット</li>
-                <li>求人特徴抽出: 1クレジット</li>
+                <li>企業研究: {Number.isFinite(limits.maxCompanyResearches) ? `月${limits.maxCompanyResearches}件まで` : "実質上限なし"}</li>
+                <li>AI面接: {Number.isFinite(limits.maxAiInterviewSessions) ? `月${limits.maxAiInterviewSessions}セッションまで` : "実質上限なし"}</li>
+                <li>公開基準の閲覧: {limits.criteria.canBrowsePublic ? "可" : "不可"}</li>
                 <li>
                   通勤プロフィール保存: {limits.commute.canSaveProfile ? "可" : "不可"}
                 </li>
@@ -113,7 +154,7 @@ export default async function PricingPage() {
                 <li>
                   比較ページ: {limits.commute.canCompare ? "横並び比較可" : "対象外"}
                 </li>
-                <li>履歴書ワークスペース: {paidPlan === "pro" ? "保存・再利用可" : "対象外"}</li>
+                <li>履歴書ワークスペース: 1件の下書き保存・再利用</li>
               </ul>
 
               <div className="mt-5">
@@ -149,6 +190,31 @@ export default async function PricingPage() {
           );
         })}
       </div>
+
+      <article className="panel">
+        <h2 className="section-title">企業研究とAI面接の違い</h2>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="metric-tile text-sm text-slate-700">
+            <Building2 className="size-5 text-rakumo-lavender" />
+            <p className="mt-3 font-medium text-slate-900">Starter</p>
+            <p className="mt-1">企業URLから研究を始め、会社の要点・志望動機の材料・面接で見たい論点を整理できます。</p>
+          </div>
+          <div className="metric-tile text-sm text-slate-700">
+            <Mic className="size-5 text-rakumo-warning" />
+            <p className="mt-3 font-medium text-slate-900">Plus</p>
+            <p className="mt-1">企業研究の内容を踏まえた AI面接 を使い、質問ごとの回答改善と追質問の練習まで進められます。</p>
+          </div>
+          <div className="metric-tile text-sm text-slate-700">
+            <BrainCircuit className="size-5 text-rakumo-mint" />
+            <p className="mt-3 font-medium text-slate-900">Pro</p>
+            <p className="mt-1">研究・面接・比較・履歴書を横断して、応募判断から提出書類の叩き台まで一気通貫で使えます。</p>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Link href="/company-research" className="button-secondary">企業研究を見る</Link>
+          <Link href="/ai-interview" className="button-secondary">AI面接を見る</Link>
+        </div>
+      </article>
 
       <article className="panel">
         <h2 className="section-title">判断基準まわりの違い</h2>
@@ -345,6 +411,7 @@ export default async function PricingPage() {
         </div>
         <p className="mt-3 text-xs text-slate-500">ランク付け量を一時的に増やしたいときのための追加枠です。現在は表示のみです。</p>
       </article>
-    </section>
+      </section>
+    </AppMockSidebarShell>
   );
 }

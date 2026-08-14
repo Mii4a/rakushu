@@ -255,7 +255,7 @@ export async function createJobAction(_: JobActionState | undefined, formData: F
     title: parsed.title.value || parsedForm.data.title || null,
     sourceName: parsedForm.data.sourceName || null,
     sourceUrl: parsedForm.data.sourceUrl || null,
-    workAddress: parsedForm.data.workAddress || null,
+    workAddress: parsedForm.data.workAddress || parsed.workAddress.value || null,
     nearestStation: parsedForm.data.nearestStation || null,
     ...commuteFields,
     rawText: null,
@@ -270,7 +270,7 @@ export async function createJobAction(_: JobActionState | undefined, formData: F
   await incrementAnalysisCount(user.id, PLAN_LIMITS[plan].analysisPeriod === "week" ? getWeekKey() : getMonthKey());
 
   revalidatePath("/jobs");
-  redirect(`/jobs?selected=${jobId}`);
+  redirect(`/jobs/${jobId}`);
 }
 
 export async function rerunAnalysisAction(jobId: string, _: JobActionState | undefined, __: FormData): Promise<JobActionState> {
@@ -437,6 +437,20 @@ export async function deleteJobAction(formData: FormData) {
 
   revalidatePath("/jobs");
   redirect("/jobs");
+}
+
+export async function toggleJobFavoriteAction(jobId: string) {
+  const user = await requireUser();
+  const target = (await db.select({ isFavorite: jobs.isFavorite }).from(jobs).where(and(eq(jobs.id, jobId), eq(jobs.userId, user.id))).limit(1))[0];
+  if (!target) throw new Error("求人が見つかりません");
+
+  await db
+    .update(jobs)
+    .set({ isFavorite: !target.isFavorite, updatedAt: new Date() })
+    .where(and(eq(jobs.id, jobId), eq(jobs.userId, user.id)));
+
+  revalidatePath("/jobs");
+  revalidatePath(`/jobs/${jobId}`);
 }
 
 export async function updateSelectionProgressAction(_: ActionState, formData: FormData): Promise<ActionState> {

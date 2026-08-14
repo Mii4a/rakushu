@@ -11,3 +11,14 @@ node_modules
 tsconfig.tsbuildinfo
 .brv
 config/gtfs-feeds.local.json
+
+# Local agent / verification artifacts
+.hermes/
+.rollback/
+.tmp/
+tmp/
+playwright-artifacts/
+playwright-output/
+test-results/
+__pycache__/
+*.pyc

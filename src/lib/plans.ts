@@ -9,6 +9,8 @@ export type PlanLimits = {
   analysisPeriod: AnalysisPeriod;
   monthlyAiCredits: number;
   detailedScoring: boolean;
+  maxCompanyResearches: number;
+  maxAiInterviewSessions: number;
   commute: {
     canSaveProfile: boolean;
     canAutoEstimate: boolean;
@@ -24,22 +26,29 @@ export type PlanLimits = {
     canViewPublicStats: boolean;
     maxOwnedCriteria: number;
   };
+  features: {
+    companyResearch: boolean;
+    aiInterview: boolean;
+    resumeWorkspace: boolean;
+  };
 };
 
 export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   free: {
-    maxJobs: 20,
-    maxAnalyses: 5,
+    maxJobs: 10,
+    maxAnalyses: 3,
     analysisPeriod: "week",
-    monthlyAiCredits: 0,
+    monthlyAiCredits: 10,
     detailedScoring: false,
+    maxCompanyResearches: 1,
+    maxAiInterviewSessions: 1,
     commute: {
       canSaveProfile: false,
       canAutoEstimate: false,
       canCompare: false
     },
     criteria: {
-      canBrowsePublic: false,
+      canBrowsePublic: true,
       canSaveTemplates: false,
       canCloneTemplates: false,
       canEditClonedTemplates: false,
@@ -47,14 +56,21 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
       canPublish: false,
       canViewPublicStats: false,
       maxOwnedCriteria: 0
+    },
+    features: {
+      companyResearch: true,
+      aiInterview: true,
+      resumeWorkspace: true
     }
   },
   starter: {
-    maxJobs: 50,
-    maxAnalyses: 30,
+    maxJobs: 30,
+    maxAnalyses: 20,
     analysisPeriod: "month",
-    monthlyAiCredits: 30,
+    monthlyAiCredits: 40,
     detailedScoring: false,
+    maxCompanyResearches: 10,
+    maxAiInterviewSessions: 2,
     commute: {
       canSaveProfile: true,
       canAutoEstimate: false,
@@ -69,14 +85,21 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
       canPublish: false,
       canViewPublicStats: false,
       maxOwnedCriteria: 3
+    },
+    features: {
+      companyResearch: true,
+      aiInterview: true,
+      resumeWorkspace: true
     }
   },
   plus: {
-    maxJobs: Number.POSITIVE_INFINITY,
-    maxAnalyses: 100,
+    maxJobs: 100,
+    maxAnalyses: 80,
     analysisPeriod: "month",
-    monthlyAiCredits: 120,
+    monthlyAiCredits: 160,
     detailedScoring: true,
+    maxCompanyResearches: 30,
+    maxAiInterviewSessions: 12,
     commute: {
       canSaveProfile: true,
       canAutoEstimate: true,
@@ -91,14 +114,21 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
       canPublish: false,
       canViewPublicStats: false,
       maxOwnedCriteria: 20
+    },
+    features: {
+      companyResearch: true,
+      aiInterview: true,
+      resumeWorkspace: true
     }
   },
   pro: {
     maxJobs: Number.POSITIVE_INFINITY,
-    maxAnalyses: 400,
+    maxAnalyses: 240,
     analysisPeriod: "month",
     monthlyAiCredits: 400,
     detailedScoring: true,
+    maxCompanyResearches: Number.POSITIVE_INFINITY,
+    maxAiInterviewSessions: Number.POSITIVE_INFINITY,
     commute: {
       canSaveProfile: true,
       canAutoEstimate: true,
@@ -113,15 +143,22 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
       canPublish: true,
       canViewPublicStats: true,
       maxOwnedCriteria: Number.POSITIVE_INFINITY
+    },
+    features: {
+      companyResearch: true,
+      aiInterview: true,
+      resumeWorkspace: true
     }
   }
 };
 
-export type AiCreditFeature = "job_summary" | "job_feature_extraction";
+export type AiCreditFeature = "job_summary" | "job_feature_extraction" | "company_research" | "ai_interview_session";
 
 export const AI_CREDIT_COSTS: Record<AiCreditFeature, number> = {
   job_summary: 1,
-  job_feature_extraction: 1
+  job_feature_extraction: 1,
+  company_research: 1,
+  ai_interview_session: 1
 };
 
 export const CREDIT_PACKS = [
@@ -159,23 +196,23 @@ export const PLAN_MARKETING: Record<PaidPlan, {
 }> = {
   starter: {
     name: "Starter",
-    priceYen: 580,
-    campaignPriceYen: getDiscountedPriceYen(580, DEFAULT_CAMPAIGN_DISCOUNT.percentOff),
-    audience: "軽度利用者、まず試したい学生",
-    uses: ["求人票の要約", "軽い特徴抽出", "少数の求人検討", "みんなの基準の閲覧"]
+    priceYen: 480,
+    campaignPriceYen: getDiscountedPriceYen(480, DEFAULT_CAMPAIGN_DISCOUNT.percentOff),
+    audience: "まず一社をちゃんと完遂したい人",
+    uses: ["求人採点を月20回まで継続", "企業研究を月10件まで", "AI面接を月2セッションまで", "最初の一社完遂パックとして使う"]
   },
   plus: {
     name: "Plus",
-    priceYen: 1480,
-    campaignPriceYen: getDiscountedPriceYen(1480, DEFAULT_CAMPAIGN_DISCOUNT.percentOff),
-    audience: "標準的な就活ユーザー",
-    uses: ["求人票の要約", "特徴抽出", "保存求人の整理補助", "自分用の基準作成・編集", "他人の基準テンプレートをコピーして編集"]
+    priceYen: 980,
+    campaignPriceYen: getDiscountedPriceYen(980, DEFAULT_CAMPAIGN_DISCOUNT.percentOff),
+    audience: "複数社の比較・研究・面接準備をまとめて進めたい人",
+    uses: ["求人採点を主力運用", "企業研究を月30件まで", "AI面接を月12セッションまで", "自分用基準の作成・編集"]
   },
   pro: {
     name: "Pro",
-    priceYen: 2980,
-    campaignPriceYen: getDiscountedPriceYen(2980, DEFAULT_CAMPAIGN_DISCOUNT.percentOff),
-    audience: "高頻度利用者、ヘビーユーザー",
-    uses: ["多数求人の深い分析補助", "履歴書下書き作成", "自作基準の公開", "公開した基準の利用統計確認", "将来の高度分析機能"]
+    priceYen: 1980,
+    campaignPriceYen: getDiscountedPriceYen(1980, DEFAULT_CAMPAIGN_DISCOUNT.percentOff),
+    audience: "高頻度で比較し、基準公開まで回したい人",
+    uses: ["求人採点を高頻度で運用", "企業研究・AI面接を実質上限なしで回す", "公開基準の作成と統計確認", "比較ページと通勤比較を横断"]
   }
 };

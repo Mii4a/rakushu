@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bell, ChevronDown } from "lucide-react";
+import { Bell, LogIn } from "lucide-react";
 
 const navItems = [
   { href: "/#how-to", label: "使い方" },
@@ -7,6 +7,18 @@ const navItems = [
   { href: "/pricing", label: "料金" },
   { href: "/about", label: "よくある質問" }
 ] as const;
+
+export function PublicLoginLink() {
+  return (
+    <Link
+      href="/login"
+      className="inline-flex items-center gap-3 rounded-full border border-[#d8e9da] bg-[#effaf0] px-5 py-3 text-[0.98rem] font-bold text-[#1f7a34] shadow-[0_14px_34px_-30px_rgba(34,197,94,0.45)] transition hover:bg-[#e6f8e8]"
+    >
+      <LogIn className="h-5 w-5" />
+      <span>ログイン</span>
+    </Link>
+  );
+}
 
 export function MockSiteHeader({ activeHref }: { activeHref?: string }) {
   return (
@@ -35,16 +47,7 @@ export function MockSiteHeader({ activeHref }: { activeHref?: string }) {
           >
             <Bell className="h-5 w-5" />
           </button>
-          <Link
-            href="/login"
-            className="inline-flex items-center gap-3 rounded-full border border-[#e8eaef] bg-white px-3 py-2 shadow-[0_14px_34px_-30px_rgba(15,23,42,0.35)]"
-          >
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[linear-gradient(135deg,#f5d7c2_0%,#f0b388_100%)] text-sm font-bold text-[#673b2d]">
-              山
-            </div>
-            <span className="text-base font-semibold text-[#374151]">山田 花子</span>
-            <ChevronDown className="h-4 w-4 text-[#6b7280]" />
-          </Link>
+          <PublicLoginLink />
         </div>
       </div>
     </header>

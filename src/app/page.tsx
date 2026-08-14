@@ -1,25 +1,25 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
-import { HomeDemo } from "@/components/home-demo";
+import { TopLandingPage } from "@/components/top-landing-page";
 import { getSession } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "トップ",
-  description: "求人票を貼るだけで、固定残業・休日・福利厚生の差を整理し、気になる求人だけ保存しやすくする。",
+  description: "求人票を貼るところから企業研究・履歴書・AI面接まで、一社の選考準備を不安ごと進めやすくする。",
   alternates: {
     canonical: "/"
   },
   openGraph: {
-    title: "らくしゅう | 求人を見極めて、就活を整える",
-    description: "求人票を貼るだけで、固定残業・休日・福利厚生の差を整理し、気になる求人だけ保存しやすくする。",
+    title: "らくしゅう | 一社ずつ、就活を完遂しやすくする",
+    description: "求人票を貼るところから企業研究・履歴書・AI面接まで、一社の選考準備を不安ごと進めやすくする。",
     url: "/"
   },
   twitter: {
-    title: "らくしゅう | 求人を見極めて、就活を整える",
-    description: "求人票を貼るだけで、固定残業・休日・福利厚生の差を整理し、気になる求人だけ保存しやすくする。"
+    title: "らくしゅう | 一社ずつ、就活を完遂しやすくする",
+    description: "求人票を貼るところから企業研究・履歴書・AI面接まで、一社の選考準備を不安ごと進めやすくする。"
   }
 };
 
@@ -30,5 +30,5 @@ export default async function HomePage() {
     redirect("/dashboard");
   }
 
-  return <HomeDemo />;
+  return <TopLandingPage />;
 }

@@ -10,17 +10,14 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock3,
-  CreditCard,
   FileCheck2,
-  Home,
-  Inbox,
   Search,
   Send,
-  Settings,
   ShieldCheck,
   Sparkles,
   TrendingUp,
   Zap,
+  CreditCard,
   type LucideIcon
 } from "lucide-react";
 
@@ -31,7 +28,6 @@ import documentCheckBlue from "../../../UI-mock/dashboard/icons/document-check-b
 import interviewMeeting from "../../../UI-mock/dashboard/icons/interview-meeting.png";
 import rakushuBotWave from "../../../UI-mock/dashboard/icons/rakushu-bot-wave.png";
 import verifiedBadgeRed from "../../../UI-mock/dashboard/icons/verified-badge-red.png";
-import rakumoAnalyticsThumbsUp from "../../../UI-mock/dashboard/character/rakumo-analytics-thumbs-up.png";
 import rakumoIdeaGuide from "../../../UI-mock/dashboard/character/rakumo-idea-guide.png";
 
 type KpiTone = "green" | "blue" | "orange" | "red";
@@ -45,6 +41,9 @@ type DashboardMockExperienceProps = {
   analysisCount: number;
   analysisLimit: number;
   planLabel: string;
+  aiCreditsUsed: number;
+  aiCreditsTotal: number;
+  aiCreditsRemaining: number;
   summaryCards: Array<{
     key: string;
     label: string;
@@ -68,11 +67,13 @@ type DashboardMockExperienceProps = {
     id: string;
     title: string;
     note: string;
+    status?: "completed" | "active" | "upcoming";
   }>;
-  skillMatches: Array<{
+  insightItems: Array<{
     id: string;
     label: string;
     score: number;
+    note: string;
   }>;
   recommendedJobs: Array<{
     id: string;
@@ -97,23 +98,6 @@ type DashboardMockExperienceProps = {
   nextStepHref: string;
   nextStepLabel: string;
 };
-
-type DashboardNavItem = {
-  key: string;
-  label: string;
-  icon: LucideIcon;
-  href: string;
-};
-
-const dashboardSidebarItems: DashboardNavItem[] = [
-  { key: "dashboard", label: "ダッシュボード", icon: Home, href: "/dashboard" },
-  { key: "jobs", label: "求人一覧", icon: BriefcaseBusiness, href: "/jobs" },
-  { key: "saved-jobs", label: "保存した求人", icon: Inbox, href: "/jobs" },
-  { key: "applications", label: "応募管理", icon: FileCheck2, href: "/jobs" },
-  { key: "plan-settings", label: "プラン・条件設定", icon: CreditCard, href: "/criteria" },
-  { key: "ai-report", label: "AI分析・レポート", icon: TrendingUp, href: "/dashboard" },
-  { key: "settings", label: "設定", icon: Settings, href: "/settings" }
-];
 
 const progressIcons: Record<string, LucideIcon> = {
   search: Search,
@@ -265,20 +249,6 @@ function splitKpiValue(value: string) {
   };
 }
 
-function getSkillIconClassName(label: string) {
-  if (label.toLowerCase() === "python") return "dashboard-mock-skill-icon dashboard-mock-skill-icon-python";
-  if (label.toLowerCase() === "aws") return "dashboard-mock-skill-icon dashboard-mock-skill-icon-aws";
-  if (label.toLowerCase() === "go") return "dashboard-mock-skill-icon dashboard-mock-skill-icon-go";
-  return "dashboard-mock-skill-icon";
-}
-
-function getSkillIconLabel(label: string) {
-  if (label.toLowerCase() === "python") return "Py";
-  if (label.toLowerCase() === "aws") return "aws";
-  if (label.toLowerCase() === "go") return "Go";
-  return label.slice(0, 2);
-}
-
 function getRecommendLogoClassName(index: number) {
   return `dashboard-mock-recommend-logo dashboard-mock-recommend-logo-${index + 1}`;
 }
@@ -296,13 +266,12 @@ function getRevealStyle(index: number): CSSProperties {
 export function DashboardMockExperience(props: DashboardMockExperienceProps) {
   const profileInitial = props.displayName.slice(0, 1) || "山";
   const visibleTodoItems = props.todoItems.slice(0, 4);
-  const visibleSkillItems = props.skillMatches.slice(0, 3);
+  const visibleInsightItems = props.insightItems.slice(0, 3);
   const visibleRecommendedJobs = props.recommendedJobs.slice(0, 3);
   const visibleActivities = props.recentActivities.slice(0, 3);
 
   const [isReady, setIsReady] = useState(false);
   const [animatedProgress, setAnimatedProgress] = useState(0);
-  const [completedTodoIds, setCompletedTodoIds] = useState<string[]>([]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -333,7 +302,7 @@ export function DashboardMockExperience(props: DashboardMockExperienceProps) {
     return () => window.cancelAnimationFrame(animationFrame);
   }, [props.progressPercent]);
 
-  const completedTodoCount = completedTodoIds.length;
+  const completedTodoCount = visibleTodoItems.filter((item) => item.status === "completed").length;
   const todoCompletionPercent = visibleTodoItems.length > 0 ? Math.round((completedTodoCount / visibleTodoItems.length) * 100) : 0;
   const focusStats = [
     {
@@ -359,13 +328,32 @@ export function DashboardMockExperience(props: DashboardMockExperienceProps) {
     }
   ];
 
+  const aiCreditUsagePercent = props.aiCreditsTotal > 0 ? Math.min(100, Math.round((props.aiCreditsUsed / props.aiCreditsTotal) * 100)) : 0;
+
   const sidebarFooter = useMemo(
     () => (
       <>
-        <div className="dashboard-sidebar-mock-promo dashboard-sidebar-mock-promo-cream">
-          <div className="dashboard-sidebar-mock-speech">今日も一緒に<br />就活を進めよう！</div>
-          <div className="dashboard-sidebar-mock-promo-character">
-            <Image src={rakumoAnalyticsThumbsUp} alt="分析を応援するらくも" fill className="object-contain" sizes="140px" />
+        <div className="rounded-[28px] border border-[#dfe8d8] bg-[linear-gradient(180deg,#fffef7_0%,#f7f3e4_100%)] p-5 shadow-[0_18px_36px_-30px_rgba(15,23,42,0.16)]">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[0.72rem] font-bold uppercase tracking-[0.18em] text-[#8b7a33]">AI credit</p>
+              <p className="mt-2 text-[1.75rem] font-black tracking-[-0.04em] text-[#181c20]">
+                {props.aiCreditsRemaining}
+                <span className="ml-1 text-[0.95rem] font-bold text-[#6e7580]">/ {props.aiCreditsTotal}</span>
+              </p>
+            </div>
+            <div className="inline-flex size-11 shrink-0 items-center justify-center rounded-[16px] border border-white/80 bg-white/80 text-[#b68a19] shadow-[0_14px_28px_-24px_rgba(15,23,42,0.35)]">
+              <CreditCard className="size-5" />
+            </div>
+          </div>
+          <div className="mt-4 h-2 rounded-full bg-white/80">
+            <div className="h-full rounded-full bg-[linear-gradient(90deg,#f0c44b_0%,#d79d12_100%)]" style={{ width: `${aiCreditUsagePercent}%` }} />
+          </div>
+          <div className="mt-3 flex items-center justify-between gap-3 text-xs font-semibold text-[#6d7480]">
+            <span>使用 {props.aiCreditsUsed} / {props.aiCreditsTotal}</span>
+            <Link href="/pricing" className="text-[#8a6110] transition hover:text-[#6f4d07]">
+              料金を見る →
+            </Link>
           </div>
         </div>
 
@@ -383,13 +371,13 @@ export function DashboardMockExperience(props: DashboardMockExperienceProps) {
         </div>
       </>
     ),
-    []
+    [aiCreditUsagePercent, props.aiCreditsRemaining, props.aiCreditsTotal, props.aiCreditsUsed]
   );
 
   return (
     <section className={`dashboard-frame dashboard-mock-frame ${isReady ? "dashboard-mock-ready" : ""}`}>
       <div className="dashboard-mock-shell">
-        <DashboardSidebar activeKey="dashboard" note="" items={dashboardSidebarItems} footerContent={sidebarFooter} showMobileToggle variant="mock" />
+        <DashboardSidebar activeKey="dashboard" note="" footerContent={sidebarFooter} showMobileToggle variant="mock" />
 
         <div className="dashboard-mock-content-shell">
           <header className="dashboard-mock-topbar dashboard-mock-reveal" style={getRevealStyle(0)}>
@@ -598,19 +586,13 @@ export function DashboardMockExperience(props: DashboardMockExperienceProps) {
                 </div>
                 <div className="dashboard-mock-todo-list">
                   {visibleTodoItems.map((item) => {
-                    const checked = completedTodoIds.includes(item.id);
+                    const checked = item.status === "completed";
+                    const statusLabel = item.status === "completed" ? "完了" : item.status === "active" ? "対応中" : "予定";
                     return (
-                      <label key={item.id} className={`dashboard-mock-todo-row dashboard-mock-interactive ${checked ? "dashboard-mock-todo-row-checked" : ""}`}>
-                        <input
-                          type="checkbox"
-                          aria-label={item.title}
-                          checked={checked}
-                          onChange={() => {
-                            setCompletedTodoIds((current) =>
-                              current.includes(item.id) ? current.filter((todoId) => todoId !== item.id) : [...current, item.id]
-                            );
-                          }}
-                        />
+                      <div key={item.id} className={`dashboard-mock-todo-row dashboard-mock-interactive ${checked ? "dashboard-mock-todo-row-checked" : ""}`}>
+                        <span className={`inline-flex min-w-[3.8rem] items-center justify-center rounded-full px-2 py-1 text-[0.72rem] font-black ${checked ? "bg-[#2faa45] text-white" : item.status === "active" ? "bg-[#eef8ff] text-[#276ae2]" : "bg-[#f3f5f7] text-[#6b7680]"}`}>
+                          {statusLabel}
+                        </span>
                         <div>
                           <p className="dashboard-mock-todo-title">{item.title}</p>
                           <p className="dashboard-mock-todo-note">
@@ -618,33 +600,33 @@ export function DashboardMockExperience(props: DashboardMockExperienceProps) {
                             {item.note}
                           </p>
                         </div>
-                      </label>
+                      </div>
                     );
                   })}
                 </div>
                 <Link href={props.nextStepHref} className="dashboard-mock-center-link">
-                  すべてのToDoを見る →
+                  進捗を確認する →
                 </Link>
               </section>
 
               <section className="dashboard-mock-surface-card dashboard-mock-reveal dashboard-mock-interactive" style={getRevealStyle(11)}>
                 <div className="dashboard-mock-card-heading dashboard-mock-card-heading-between">
-                  <h2>スキルマッチ度トップ3</h2>
+                  <h2>見極めポイントの揃い具合</h2>
                   <Link href="/jobs" className="dashboard-mock-text-link">
                     もっと見る →
                   </Link>
                 </div>
                 <div className="dashboard-mock-skill-list">
-                  {visibleSkillItems.map((item) => (
+                  {visibleInsightItems.map((item) => (
                     <div key={item.id} className="dashboard-mock-skill-row">
                       <div className="dashboard-mock-skill-label-row">
-                        <div className={getSkillIconClassName(item.label)}>{getSkillIconLabel(item.label)}</div>
                         <span>{item.label}</span>
                       </div>
                       <div className="dashboard-mock-skill-track">
                         <div className="dashboard-mock-skill-fill" style={{ width: `${isReady ? item.score : 0}%` }} />
                       </div>
                       <span className="dashboard-mock-skill-score">{item.score}%</span>
+                      <p className="text-xs leading-6 text-[#6b7680]">{item.note}</p>
                     </div>
                   ))}
                 </div>
