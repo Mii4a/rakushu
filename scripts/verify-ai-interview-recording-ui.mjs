@@ -1,8 +1,10 @@
 import { chromium } from '@playwright/test';
+import path from 'node:path';
 
-const storageState = '/home/openclaw/rakushu/playwright/.auth/local-user.json';
+const repoRoot = process.cwd();
+const storageState = path.join(repoRoot, 'playwright/.auth/local-user.json');
 const baseURL = process.env.PLAYWRIGHT_LOCAL_BASE_URL ?? 'http://127.0.0.1:3002';
-const screenshotDir = '/home/openclaw/rakushu/playwright-artifacts/ai-interview-recording-ui';
+const screenshotDir = path.join(repoRoot, 'playwright-artifacts/ai-interview-recording-ui');
 
 await import('node:fs/promises').then(({ mkdir }) => mkdir(screenshotDir, { recursive: true }));
 

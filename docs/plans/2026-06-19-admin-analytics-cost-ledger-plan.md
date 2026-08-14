@@ -39,22 +39,7 @@ Current behavior:
 
 ### Data-backed spot check
 
-Observed counts from live Turso query:
-- users: 4
-- subscriptions: 1
-- active_subscriptions: 1
-- marketing_events: 43
-- ai_interview_sessions: 25
-- ai_interview_answers: 13
-- usage_counters: 3
-- stripe_webhook_events: 0
-
-Observed marketing event mix:
-- `lp_view`: 33
-- `beta_form_view`: 4
-- `analysis_completed`: 2
-- `demo_interaction_started`: 2
-- `job_text_pasted`: 2
+A live Turso spot check was performed during planning, but exact production counts and event mixes are intentionally omitted from the public repository.
 
 Implication:
 - a basic top-funnel board is possible now

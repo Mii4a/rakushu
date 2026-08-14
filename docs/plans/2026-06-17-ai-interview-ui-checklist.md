@@ -2,7 +2,7 @@
 
 Target:
 - Route: `/ai-interview`
-- Prompt: `/home/openclaw/rakushu/UI-mock/ai-interview/pc/ai-interview-implementation-prompt.md`
+- Prompt: `UI-mock/ai-interview/pc/ai-interview-implementation-prompt.md`
 
 Assets reviewed:
 - `ai-interview-00-main-before-recording.png`

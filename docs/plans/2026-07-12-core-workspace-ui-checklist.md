@@ -4,7 +4,7 @@ Legend: exact = supplied mock can be matched; approximate = real data/product wi
 
 ## 2026-07-13 visual audit rerun
 
-Fresh audit output: `/home/openclaw/rakushu/playwright-artifacts/visual-mock-audit/report.json`.
+Fresh audit output: `playwright-artifacts/visual-mock-audit/report.json`.
 
 - [x] `/jobs/new`: switched from public header to mock sidebar shell; page-level overflow fixed at 1672x941 (`doc=941/body=941/overflow=false`). Remaining approximation: CTA can be disabled on empty input, so it appears gray until enough text is entered.
 - [x] `/ai-interview`: setup and feedback modals now expose real `role="dialog"`, viewport-fit within 1672x941, and use CSS fade/slide animation with reduced-motion fallback. Remaining approximation: live background content is slightly different from the supplied saved-session mock data.

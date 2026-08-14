@@ -19,14 +19,14 @@
 
 ローカル起動:
 ```bash
-cd /home/openclaw/rakushu
+cd rakushu
 ./scripts/start-ai-interview-transcriber.sh
 ```
 
 手動で直接起動する場合:
 ```bash
-cd /home/openclaw/rakushu/services/ai-interview-transcriber
-set -a && source /home/openclaw/rakushu/.env.local && set +a
+cd services/ai-interview-transcriber
+set -a && source ../../.env.local && set +a
 uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 18080
 ```
 
