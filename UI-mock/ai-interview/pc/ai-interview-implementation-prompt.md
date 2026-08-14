@@ -2,7 +2,7 @@
 
 らくしゅうの /ai-interview 画面を、以下のモック画像を基準に再現してください。
 
-参照画像は /home/openclaw/rakushu/UI-mock/ai-interview/pc に保存されています。
+参照画像は `UI-mock/ai-interview/pc` に保存されています。
 
 - ai-interview-00-main-before-recording.png
 - ai-interview-01-setup-modal-method.png

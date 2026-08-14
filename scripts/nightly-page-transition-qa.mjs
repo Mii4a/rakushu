@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import { chromium } from '@playwright/test';
 
-const repoRoot = '/home/openclaw/rakushu';
+const repoRoot = process.cwd();
 const manifest = JSON.parse(await fs.readFile(`${repoRoot}/docs/qa/nightly-page-transition-edges.json`, 'utf8'));
 const helperPath = process.argv[2] ?? '/tmp/rakushu-nightly-page-transition-helper.json';
 const helper = JSON.parse(await fs.readFile(helperPath, 'utf8'));
