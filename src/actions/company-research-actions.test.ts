@@ -1,20 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const {
-  selectLimitMock,
-  insertValuesMock,
-  insertMock,
-  selectMock,
-  updateSetMock,
-  updateWhereMock,
-  updateMock,
-  requireUserMock,
-  buildCompanyResearchResultFromQueryMock,
-  generateCompanyResearchReportMock,
-  generateCompanyResearchChatAnswerMock,
-  revalidatePathMock,
-  consumeAiCreditsMock
-} = vi.hoisted(() => {
+const mocks = vi.hoisted(() => {
   const selectLimit = vi.fn();
   const selectWhere = vi.fn(() => ({ limit: selectLimit }));
   const selectFrom = vi.fn(() => ({ where: selectWhere }));
@@ -39,21 +25,38 @@ const {
     generateCompanyResearchReportMock: vi.fn(),
     generateCompanyResearchChatAnswerMock: vi.fn(),
     revalidatePathMock: vi.fn(),
+    assertAiCreditsAvailableMock: vi.fn(),
     consumeAiCreditsMock: vi.fn(),
     selectMock: select
   };
 });
 
+const {
+  selectLimitMock,
+  insertValuesMock,
+  insertMock,
+  updateSetMock,
+  updateWhereMock,
+  updateMock,
+  requireUserMock,
+  buildCompanyResearchResultFromQueryMock,
+  generateCompanyResearchReportMock,
+  generateCompanyResearchChatAnswerMock,
+  revalidatePathMock,
+  assertAiCreditsAvailableMock,
+  consumeAiCreditsMock
+} = mocks;
+
 vi.mock("drizzle-orm", () => ({ and: vi.fn((...args: unknown[]) => ({ args })), desc: vi.fn(), eq: vi.fn((left: unknown, right: unknown) => ({ left, right })), gte: vi.fn((left: unknown, right: unknown) => ({ left, right })), isNull: vi.fn((value: unknown) => ({ value })), lt: vi.fn((left: unknown, right: unknown) => ({ left, right })) }));
-vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
-vi.mock("@/lib/auth/require-user", () => ({ requireUser: requireUserMock }));
+vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePathMock }));
+vi.mock("@/lib/auth/require-user", () => ({ requireUser: mocks.requireUserMock }));
 vi.mock("@/lib/db/schema", () => ({ companyResearches: { id: "id", userId: "userId", createdAt: "createdAt", updatedAt: "updatedAt", query: "query", websiteUrl: "websiteUrl", reportJson: "reportJson", chatMessagesJson: "chatMessagesJson" } }));
-vi.mock("@/lib/db/client", () => ({ db: { select: selectMock, insert: insertMock, update: updateMock } }));
-vi.mock("@/lib/company-research/generate-result", () => ({ buildCompanyResearchResultFromQuery: buildCompanyResearchResultFromQueryMock }));
-vi.mock("@/lib/company-research/report-generator", () => ({ generateCompanyResearchReport: generateCompanyResearchReportMock }));
-vi.mock("@/lib/company-research/chat-generator", () => ({ generateCompanyResearchChatAnswer: generateCompanyResearchChatAnswerMock }));
+vi.mock("@/lib/db/client", () => ({ db: { select: mocks.selectMock, insert: mocks.insertMock, update: mocks.updateMock } }));
+vi.mock("@/lib/company-research/generate-result", () => ({ buildCompanyResearchResultFromQuery: mocks.buildCompanyResearchResultFromQueryMock }));
+vi.mock("@/lib/company-research/report-generator", () => ({ generateCompanyResearchReport: mocks.generateCompanyResearchReportMock }));
+vi.mock("@/lib/company-research/chat-generator", () => ({ generateCompanyResearchChatAnswer: mocks.generateCompanyResearchChatAnswerMock }));
 vi.mock("@/lib/subscription", () => ({ getUserPlan: vi.fn(async () => "free") }));
-vi.mock("@/lib/usage/counters", () => ({ consumeAiCredits: consumeAiCreditsMock }));
+vi.mock("@/lib/usage/counters", () => ({ assertAiCreditsAvailable: mocks.assertAiCreditsAvailableMock, consumeAiCredits: mocks.consumeAiCreditsMock }));
 
 import { saveCompanyResearchAction, askCompanyResearchQuestionAction } from "./company-research-actions";
 import { buildMockCompanyResearchReport } from "@/lib/company-research/mock-data";
@@ -79,11 +82,16 @@ describe("saveCompanyResearchAction", () => {
     requireUserMock.mockResolvedValue({ id: "user-1" });
     buildCompanyResearchResultFromQueryMock.mockReturnValue({ ...generatedResult, chatMessages: [] });
     generateCompanyResearchReportMock.mockResolvedValue({ result: generatedResult, model: "gpt-5.6-terra", usageEventId: null });
+    assertAiCreditsAvailableMock.mockResolvedValue(undefined);
+    consumeAiCreditsMock.mockResolvedValue(undefined);
   });
 
   it("rejects free users who already consumed the single trial research", async () => {
     selectLimitMock.mockResolvedValueOnce([{ id: "existing-1" }]);
     await expect(saveCompanyResearchAction({ query: "https://example.com" })).resolves.toEqual({ ok: false, message: expect.stringContaining("無料") });
+    expect(assertAiCreditsAvailableMock).not.toHaveBeenCalled();
+    expect(generateCompanyResearchReportMock).not.toHaveBeenCalled();
+    expect(consumeAiCreditsMock).not.toHaveBeenCalled();
     expect(insertMock).not.toHaveBeenCalled();
   });
 
@@ -95,8 +103,12 @@ describe("saveCompanyResearchAction", () => {
     const result = await saveCompanyResearchAction({ query: "https://example.com" });
 
     expect(result.ok).toBe(true);
-    expect(consumeAiCreditsMock).toHaveBeenCalledTimes(1);
+    expect(assertAiCreditsAvailableMock).toHaveBeenCalledTimes(1);
     expect(generateCompanyResearchReportMock).toHaveBeenCalledTimes(1);
+    expect(consumeAiCreditsMock).toHaveBeenCalledTimes(1);
+    expect(assertAiCreditsAvailableMock.mock.invocationCallOrder[0]).toBeLessThan(generateCompanyResearchReportMock.mock.invocationCallOrder[0]);
+    expect(generateCompanyResearchReportMock.mock.invocationCallOrder[0]).toBeLessThan(consumeAiCreditsMock.mock.invocationCallOrder[0]);
+    expect(consumeAiCreditsMock.mock.invocationCallOrder[0]).toBeLessThan(insertValuesMock.mock.invocationCallOrder[0]);
     const called = generateCompanyResearchReportMock.mock.calls[0]?.[0] as { userId: string; researchId: string; websiteUrl: string; researchRequest: { websiteUrl: string } };
     expect(called.userId).toBe("user-1");
     expect(called.researchId).toEqual(expect.any(String));
@@ -109,18 +121,35 @@ describe("saveCompanyResearchAction", () => {
 
   it("returns an upgrade message when AI credits are exhausted", async () => {
     selectLimitMock.mockResolvedValueOnce([]);
-    consumeAiCreditsMock.mockRejectedValueOnce(new Error("今月のAIクレジット上限（10）に達しています。"));
+    assertAiCreditsAvailableMock.mockRejectedValueOnce(new Error("今月のAIクレジット上限（10）に達しています。"));
     await expect(saveCompanyResearchAction({ query: "https://example.com" })).resolves.toEqual({ ok: false, message: expect.stringContaining("料金") });
     expect(insertMock).not.toHaveBeenCalled();
     expect(generateCompanyResearchReportMock).not.toHaveBeenCalled();
+    expect(consumeAiCreditsMock).not.toHaveBeenCalled();
+  });
+
+  it("returns an upgrade message when post-generation credits are exhausted", async () => {
+    selectLimitMock.mockResolvedValueOnce([]);
+    assertAiCreditsAvailableMock.mockResolvedValueOnce(undefined);
+    generateCompanyResearchReportMock.mockResolvedValueOnce({ result: generatedResult, model: "gpt-5.6-terra", usageEventId: null });
+    consumeAiCreditsMock.mockRejectedValueOnce(new Error("今月のAIクレジット上限（10）に達しています。"));
+
+    await expect(saveCompanyResearchAction({ query: "https://example.com" })).resolves.toEqual({ ok: false, message: expect.stringContaining("料金") });
+
+    expect(generateCompanyResearchReportMock).toHaveBeenCalledTimes(1);
+    expect(consumeAiCreditsMock).toHaveBeenCalledTimes(1);
+    expect(insertMock).not.toHaveBeenCalled();
+    expect(revalidatePathMock).not.toHaveBeenCalled();
   });
 
   it("does not insert when generation fails", async () => {
     selectLimitMock.mockResolvedValueOnce([]);
-    consumeAiCreditsMock.mockResolvedValueOnce(undefined);
+    assertAiCreditsAvailableMock.mockResolvedValueOnce(undefined);
     generateCompanyResearchReportMock.mockRejectedValueOnce(new Error("Company research report generation failed"));
     await expect(saveCompanyResearchAction({ query: "https://example.com" })).resolves.toEqual({ ok: false, message: expect.stringContaining("生成") });
+    expect(assertAiCreditsAvailableMock).toHaveBeenCalledTimes(1);
     expect(insertMock).not.toHaveBeenCalled();
+    expect(consumeAiCreditsMock).not.toHaveBeenCalled();
   });
 });
 
@@ -173,6 +202,7 @@ describe("askCompanyResearchQuestionAction", () => {
     const result = await askCompanyResearchQuestionAction({ researchId: "research-1", question: "質問" });
 
     expect(result.ok).toBe(true);
+    expect(assertAiCreditsAvailableMock).not.toHaveBeenCalled();
     expect(consumeAiCreditsMock).not.toHaveBeenCalled();
     expect(generateCompanyResearchChatAnswerMock).toHaveBeenCalledTimes(1);
     const call = generateCompanyResearchChatAnswerMock.mock.calls[0]?.[0] as { userId: string; researchId: string; question: string; report: unknown; previousMessages: unknown[] };

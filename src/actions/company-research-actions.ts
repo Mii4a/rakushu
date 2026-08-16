@@ -16,7 +16,7 @@ import { db } from "@/lib/db/client";
 import { companyResearches } from "@/lib/db/schema";
 import { PLAN_LIMITS } from "@/lib/plans";
 import { getUserPlan } from "@/lib/subscription";
-import { consumeAiCredits } from "@/lib/usage/counters";
+import { consumeAiCredits, assertAiCreditsAvailable } from "@/lib/usage/counters";
 
 const saveCompanyResearchSchema = z.object({
   query: z.string().trim().min(1, "企業URLを入力してください").max(500, "URLが長すぎます")
@@ -147,7 +147,7 @@ export async function saveCompanyResearchAction(input: { query: string }) {
   }
 
   try {
-    await consumeAiCredits(user.id, "company_research");
+    await assertAiCreditsAvailable(user.id, "company_research");
   } catch (error) {
     const message = toAiCreditLimitMessage(error);
     if (message) {
@@ -172,6 +172,20 @@ export async function saveCompanyResearchAction(input: { query: string }) {
       ok: false as const,
       message: toGenerationErrorMessage(error)
     };
+  }
+
+  try {
+    await consumeAiCredits(user.id, "company_research");
+  } catch (error) {
+    const message = toAiCreditLimitMessage(error);
+    if (message) {
+      return {
+        ok: false as const,
+        message
+      };
+    }
+
+    throw error;
   }
 
   const generatedResult = generation.result;

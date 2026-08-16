@@ -15,6 +15,16 @@ async function getUsageCounter(userId: string, periodKey: string) {
   return rows[0] ?? null;
 }
 
+async function getAiCreditAvailability(userId: string, feature: AiCreditFeature, monthKey: string) {
+  const plan = await getUserPlan(userId);
+  const monthlyLimit = PLAN_LIMITS[plan].monthlyAiCredits;
+  const cost = AI_CREDIT_COSTS[feature];
+  const existing = await getUsageCounter(userId, monthKey);
+  const current = existing?.aiCreditsUsed ?? 0;
+
+  return { monthlyLimit, cost, current, existing };
+}
+
 export function getMonthKey(date = new Date()): string {
   const year = date.getUTCFullYear();
   const month = String(date.getUTCMonth() + 1).padStart(2, "0");
@@ -69,12 +79,16 @@ export async function incrementAnalysisCount(userId: string, periodKey = getMont
     .where(eq(usageCounters.id, existing.id));
 }
 
+export async function assertAiCreditsAvailable(userId: string, feature: AiCreditFeature, monthKey = getMonthKey()): Promise<void> {
+  const { monthlyLimit, cost, current } = await getAiCreditAvailability(userId, feature, monthKey);
+
+  if (current + cost > monthlyLimit) {
+    throw new Error(`今月のAIクレジット上限（${monthlyLimit}）に達しています。`);
+  }
+}
+
 export async function consumeAiCredits(userId: string, feature: AiCreditFeature, monthKey = getMonthKey()): Promise<void> {
-  const plan = await getUserPlan(userId);
-  const monthlyLimit = PLAN_LIMITS[plan].monthlyAiCredits;
-  const cost = AI_CREDIT_COSTS[feature];
-  const existing = await getUsageCounter(userId, monthKey);
-  const current = existing?.aiCreditsUsed ?? 0;
+  const { monthlyLimit, cost, current, existing } = await getAiCreditAvailability(userId, feature, monthKey);
 
   if (current + cost > monthlyLimit) {
     throw new Error(`今月のAIクレジット上限（${monthlyLimit}）に達しています。`);
