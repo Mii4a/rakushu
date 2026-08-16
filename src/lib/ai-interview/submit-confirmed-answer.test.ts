@@ -13,7 +13,9 @@ const buildAiInterviewCategoryFeedbackMock = vi.fn();
 const buildAiInterviewFollowUpQuestionMock = vi.fn();
 
 const dbMock = {
+  eventLog: [] as string[],
   sessions: [] as Array<{
+
     id: string;
     userId: string;
     scenarioType: string;
@@ -76,6 +78,7 @@ const dbMock = {
     dbMock.confirmedAnswers = [];
     dbMock.recordingUpdates = [];
     dbMock.sessionUpdates = [];
+    dbMock.eventLog = [];
   },
   select() {
     return {
@@ -109,11 +112,25 @@ const dbMock = {
   insert(table: unknown) {
     return {
       async values(value: unknown) {
-        if (table === aiInterviewConfirmedAnswers) dbMock.confirmedAnswers.push(value as (typeof dbMock.confirmedAnswers)[number]);
-        if (table === aiInterviewSessionAnswers) dbMock.answers.push(value as (typeof dbMock.answers)[number]);
-        if (table === aiInterviewGeneratedQuestions) dbMock.generatedQuestions.push(value as (typeof dbMock.generatedQuestions)[number]);
-        if (table === aiInterviewCategoryFeedbacks) dbMock.categoryFeedbacks.push(value as (typeof dbMock.categoryFeedbacks)[number]);
-        if (table === aiInterviewSessions) dbMock.sessions.push(value as (typeof dbMock.sessions)[number]);
+        if (table === aiInterviewConfirmedAnswers) {
+          dbMock.eventLog.push("insert confirmed answer");
+          dbMock.confirmedAnswers.push(value as (typeof dbMock.confirmedAnswers)[number]);
+        }
+        if (table === aiInterviewSessionAnswers) {
+          dbMock.eventLog.push("insert session answer");
+          dbMock.answers.push(value as (typeof dbMock.answers)[number]);
+        }
+        if (table === aiInterviewGeneratedQuestions) {
+          dbMock.eventLog.push("insert generated question");
+          dbMock.generatedQuestions.push(value as (typeof dbMock.generatedQuestions)[number]);
+        }
+        if (table === aiInterviewCategoryFeedbacks) {
+          dbMock.eventLog.push("insert category feedback");
+          dbMock.categoryFeedbacks.push(value as (typeof dbMock.categoryFeedbacks)[number]);
+        }
+        if (table === aiInterviewSessions) {
+          dbMock.sessions.push(value as (typeof dbMock.sessions)[number]);
+        }
       }
     };
   },
@@ -156,8 +173,11 @@ describe("submitConfirmedInterviewAnswer", () => {
   });
 
   it("generates and persists an AI follow-up when the next slot in the category is AI-generated", async () => {
-    buildAiInterviewFollowUpQuestionMock.mockResolvedValue({
-      prompt: "自己紹介の中で、周囲からどんな役割を期待されることが多いですか？"
+    buildAiInterviewFollowUpQuestionMock.mockImplementation(async () => {
+      dbMock.eventLog.push("call build follow-up");
+      return {
+        prompt: "自己紹介の中で、周囲からどんな役割を期待されることが多いですか？"
+      };
     });
 
     const { submitConfirmedInterviewAnswer } = await import("./submit-confirmed-answer");
@@ -173,6 +193,12 @@ describe("submitConfirmedInterviewAnswer", () => {
     expect(buildAiInterviewFollowUpQuestionMock).toHaveBeenCalledTimes(1);
     expect(buildAiInterviewFollowUpQuestionMock).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-1", sessionId: "session-1" }));
     expect(buildAiInterviewCategoryFeedbackMock).not.toHaveBeenCalled();
+    expect(dbMock.eventLog).toEqual([
+      "insert confirmed answer",
+      "insert session answer",
+      "call build follow-up",
+      "insert generated question"
+    ]);
     expect(response.nextQuestion).toMatchObject({
       questionId: "new-grad-selfIntro-2",
       categoryId: "selfIntro",
@@ -213,13 +239,16 @@ describe("submitConfirmedInterviewAnswer", () => {
       createdAt: new Date("2026-06-17T00:00:30.000Z"),
       updatedAt: new Date("2026-06-17T00:00:30.000Z")
     });
-    buildAiInterviewCategoryFeedbackMock.mockResolvedValue({
-      overallScore: 4.4,
-      summary: "自己紹介として要点が整理されており、人物像が伝わります。",
-      strengths: ["第一印象が明快"],
-      improvements: ["成果の具体性を足す"],
-      nextFocus: "結論のあとに一言で強みを補足する",
-      nextQuestions: ["学生時代に最も力を入れたことは？"]
+    buildAiInterviewCategoryFeedbackMock.mockImplementation(async () => {
+      dbMock.eventLog.push("call build category feedback");
+      return {
+        overallScore: 4.4,
+        summary: "自己紹介として要点が整理されており、人物像が伝わります。",
+        strengths: ["第一印象が明快"],
+        improvements: ["成果の具体性を足す"],
+        nextFocus: "結論のあとに一言で強みを補足する",
+        nextQuestions: ["学生時代に最も力を入れたことは？"]
+      };
     });
 
     const { submitConfirmedInterviewAnswer } = await import("./submit-confirmed-answer");
@@ -234,6 +263,12 @@ describe("submitConfirmedInterviewAnswer", () => {
     expect(response.ok).toBe(true);
     expect(buildAiInterviewFollowUpQuestionMock).not.toHaveBeenCalled();
     expect(buildAiInterviewCategoryFeedbackMock).toHaveBeenCalledTimes(1);
+    expect(dbMock.eventLog).toEqual([
+      "insert confirmed answer",
+      "insert session answer",
+      "call build category feedback",
+      "insert category feedback"
+    ]);
     expect(response.completedCategoryFeedback).toMatchObject({
       categoryId: "selfIntro",
       overallScore: 4.4,

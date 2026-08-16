@@ -1,15 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-class FakeStructuredAiRequestError extends Error {
-  code: string;
-  model: string;
-  constructor(code: string, model: string) {
-    super(`Structured AI request failed: ${code}`);
-    this.name = "StructuredAiRequestError";
-    this.code = code;
-    this.model = model;
-  }
-}
+import type { AiInterviewCategoryDefinition } from "./setup-scenarios";
+import type { AiInterviewFollowUpInput } from "./ai-follow-up";
 
 const {
   requestStructuredAiMock,
@@ -46,22 +37,19 @@ vi.mock("@/lib/ai/model-policy", () => ({
   resolveAiModelPolicy: resolveAiModelPolicyMock
 }));
 
+const FakeStructuredAiRequestError = structuredAiRequestErrorCtorMock;
+
 const category = {
   id: "selfIntro",
   label: "自己紹介",
   durationMinutes: 5,
   questionCount: 2,
-  sampleQuestion: "自己紹介をお願いします"
-};
+  sampleQuestion: "自己紹介をお願いします",
+  fixedQuestions: ["自己紹介をお願いします"],
+  scenarioTypes: ["new-grad", "graduated", "second-new-grad", "career"]
+} satisfies AiInterviewCategoryDefinition;
 
-type FollowUpInput = {
-  category: typeof category;
-  companyName: string;
-  targetRole: string;
-  userId: string;
-  sessionId: string;
-  existingAnswers: Array<{ prompt: string; answerText: string }>;
-};
+type FollowUpInput = AiInterviewFollowUpInput;
 
 function makeInput(overrides: Partial<FollowUpInput> = {}): FollowUpInput {
   return {

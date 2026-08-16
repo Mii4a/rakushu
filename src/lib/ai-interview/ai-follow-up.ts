@@ -1,6 +1,7 @@
 import type { AiInterviewCategoryDefinition } from "@/lib/ai-interview/setup-scenarios";
-import { recordLocalAiFallback, requestStructuredAi } from "@/lib/ai/openai-responses";
+import { recordLocalAiFallback, requestStructuredAi, StructuredAiRequestError } from "@/lib/ai/openai-responses";
 import { resolveAiModelPolicy } from "@/lib/ai/model-policy";
+import type { AiUsageErrorCode } from "@/lib/ai/usage-recorder";
 
 export type AiInterviewFollowUpInput = {
   category: AiInterviewCategoryDefinition;
@@ -38,17 +39,29 @@ function buildFallbackFollowUpQuestion(input: AiInterviewFollowUpInput): AiInter
   };
 }
 
-function resolveFallbackErrorCode(error: unknown): "timeout" | "network_error" | "invalid_json" | "empty_output" | "schema_validation_failed" | "unknown_error" {
+function resolveFallbackErrorCode(error: unknown): AiUsageErrorCode {
   if (error && typeof error === "object") {
     const code = (error as { code?: unknown }).code;
-    if (code === "timeout" || code === "network_error" || code === "invalid_json" || code === "empty_output" || code === "schema_validation_failed" || code === "unknown_error") {
+    if (
+      code === "http_400" ||
+      code === "http_401" ||
+      code === "http_403" ||
+      code === "http_429" ||
+      code === "http_5xx" ||
+      code === "timeout" ||
+      code === "network_error" ||
+      code === "invalid_json" ||
+      code === "empty_output" ||
+      code === "schema_validation_failed" ||
+      code === "unknown_error"
+    ) {
       return code;
     }
   }
   return "unknown_error";
 }
 
-async function recordFallback(input: AiInterviewFollowUpInput, model: string, errorCode: string) {
+async function recordFallback(input: AiInterviewFollowUpInput, model: string, errorCode: AiUsageErrorCode) {
   try {
     await recordLocalAiFallback({
       userId: input.userId,
@@ -56,7 +69,7 @@ async function recordFallback(input: AiInterviewFollowUpInput, model: string, er
       sourceTable: "ai_interview_sessions",
       sourceId: input.sessionId,
       model,
-      errorCode: errorCode as never
+      errorCode
     });
   } catch {
     // fail-open
@@ -64,7 +77,6 @@ async function recordFallback(input: AiInterviewFollowUpInput, model: string, er
 }
 
 export async function buildAiInterviewFollowUpQuestion(input: AiInterviewFollowUpInput): Promise<AiInterviewFollowUpOutput> {
-  const policy = resolveAiModelPolicy("interview_follow_up_generate");
   try {
     const result = await requestStructuredAi<AiInterviewFollowUpOutput>({
       userId: input.userId,
@@ -102,8 +114,9 @@ export async function buildAiInterviewFollowUpQuestion(input: AiInterviewFollowU
     return result.data;
   } catch (error) {
     const fallback = buildFallbackFollowUpQuestion(input);
-    const errorCode = resolveFallbackErrorCode(error);
-    void recordFallback(input, policy.model, errorCode);
+    const errorCode = error instanceof StructuredAiRequestError ? error.code : resolveFallbackErrorCode(error);
+    const model = error instanceof StructuredAiRequestError ? error.model : resolveAiModelPolicy("interview_follow_up_generate").model;
+    await recordFallback(input, model, errorCode);
     return fallback;
   }
 }
