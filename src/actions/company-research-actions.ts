@@ -153,10 +153,10 @@ export async function saveCompanyResearchAction(input: { query: string }) {
   const now = new Date();
   const id = crypto.randomUUID();
   const researchRequest = buildCompanyResearchRequest(websiteUrl);
-  let generatedResult;
+  let generation;
 
   try {
-    generatedResult = await generateCompanyResearchReport({ websiteUrl, researchRequest, now });
+    generation = await generateCompanyResearchReport({ userId: user.id, researchId: id, websiteUrl, researchRequest, now });
   } catch (error) {
     return {
       ok: false as const,
@@ -164,6 +164,7 @@ export async function saveCompanyResearchAction(input: { query: string }) {
     };
   }
 
+  const generatedResult = generation.result;
   const sourceChunks = generatedResult.report.sourceChunks ?? [];
 
   await db.insert(companyResearches).values({
@@ -182,7 +183,7 @@ export async function saveCompanyResearchAction(input: { query: string }) {
     reportJson: JSON.stringify(generatedResult.report),
     sourceChunksJson: JSON.stringify(sourceChunks),
     chatMessagesJson: JSON.stringify(generatedResult.chatMessages.slice(-50)),
-    modelName: researchRequest.model,
+    modelName: generation.model,
     sourceCount: generatedResult.report.sources.length,
     status: "レポート作成済み",
     createdAt: now,
