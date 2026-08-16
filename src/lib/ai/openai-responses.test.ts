@@ -8,7 +8,7 @@ const { recordAiUsageMock, resolveAiModelPolicyMock, fetchMock, abortSignalTimeo
   abortSignalTimeoutMock: vi.fn(),
   nowMock: vi.fn(),
   parseMock: vi.fn(),
-  serverEnvMock: { OPENAI_API_KEY: "test-key" }
+  serverEnvMock: { OPENAI_API_KEY: "test-key" as string | undefined }
 }));
 
 vi.mock("./model-policy", () => ({ resolveAiModelPolicy: resolveAiModelPolicyMock }));
@@ -25,7 +25,19 @@ const basePolicy = {
   maxAttempts: 2 as const
 };
 
-const responseFixture = (overrides: Record<string, unknown> = {}) => ({ ok: true, status: 200, json: vi.fn(), ...overrides });
+const jsonResponse = (body: unknown, overrides: Record<string, unknown> = {}) => ({
+  ok: true,
+  status: 200,
+  json: vi.fn().mockResolvedValue(body),
+  ...overrides
+});
+
+const httpErrorResponse = (status: number, body: unknown, overrides: Record<string, unknown> = {}) => ({
+  ok: false,
+  status,
+  json: vi.fn().mockResolvedValue(body),
+  ...overrides
+});
 
 describe("openai responses client", () => {
   let dateNowSpy: ReturnType<typeof vi.spyOn>;
@@ -33,9 +45,11 @@ describe("openai responses client", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    serverEnvMock.OPENAI_API_KEY = "test-key";
     resolveAiModelPolicyMock.mockReturnValue(basePolicy);
     recordAiUsageMock.mockResolvedValue("usage-1");
     fetchMock.mockReset();
+    parseMock.mockReset();
     parseMock.mockImplementation((value: unknown) => value);
     abortSignalTimeoutMock.mockReset();
     abortSignalTimeoutMock.mockReturnValue({ tag: "timeout-signal" });
@@ -50,87 +64,189 @@ describe("openai responses client", () => {
     vi.unstubAllGlobals();
   });
 
-  it("builds strict requests, omits temperature, and uses the attempt model body", async () => {
+  it("builds strict requests, sends headers, and omits temperature/tools when disabled", async () => {
     resolveAiModelPolicyMock.mockReturnValue({ ...basePolicy, webSearch: false, fallbackModel: null, maxAttempts: 1 });
-    fetchMock.mockResolvedValueOnce(responseFixture({ json: vi.fn().mockResolvedValue({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: '{"ok":true}' }] }], usage: {} }) }));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: '{"ok":true}' }] }], usage: {} }));
 
     const { requestStructuredAi } = await import("./openai-responses");
     await requestStructuredAi({ userId: null, actionKey: "company_research_report_generate", systemPrompt: "sys", userPrompt: "usr", schemaName: "Test", jsonSchema: { type: "object" }, parse: parseMock });
 
     const [, init] = fetchMock.mock.calls[0];
-    const body = JSON.parse(init.body);
+    const body = JSON.parse(init.body as string);
     expect(body.model).toBe("gpt-5.4-mini");
+    expect(body.instructions).toBe("sys");
+    expect(body.input).toBe("usr");
+    expect(body.reasoning).toEqual({ effort: "none" });
     expect(body.temperature).toBeUndefined();
     expect(body.tools).toBeUndefined();
-    expect(body.text.format.strict).toBe(true);
-    expect(init.headers.Authorization).toBe("Bearer test-key");
+    expect(body.text.format).toMatchObject({ type: "json_schema", name: "Test", strict: true, schema: { type: "object" } });
+    expect(init.headers).toMatchObject({ Authorization: "Bearer test-key", "content-type": "application/json" });
   });
 
-  it("uses fallback model in the second request body and records fallback success as success", async () => {
+  it("enables web search, counts calls, and normalizes cached and reasoning tokens", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      status: "completed",
+      output: [
+        { type: "web_search_call" },
+        { type: "message", content: [{ type: "output_text", text: '{"ok":true}' }] }
+      ],
+      usage: { input_tokens: 12, input_tokens_details: { cached_tokens: 99 }, output_tokens: 6, output_tokens_details: { reasoning_tokens: 99 } }
+    }));
+
+    const { requestStructuredAi } = await import("./openai-responses");
+    await requestStructuredAi({ userId: "u1", actionKey: "company_research_report_generate", sourceTable: "jobs", sourceId: "job-1", systemPrompt: "sys", userPrompt: "usr", schemaName: "Test", jsonSchema: { type: "object" }, parse: parseMock });
+
+    expect(recordAiUsageMock).toHaveBeenCalledWith(expect.objectContaining({ requestStatus: "success", inputTokens: 12, cachedInputTokens: 12, outputTokens: 6, reasoningTokens: 6, webSearchCalls: 1 }));
+  });
+
+  it("escalates invalid JSON to fallback with invalid_output metadata", async () => {
     fetchMock
-      .mockResolvedValueOnce({ ok: false, status: 500, json: vi.fn().mockResolvedValue({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: '{"ok":false}' }] }], usage: { input_tokens: 1, input_tokens_details: {}, output_tokens: 1, output_tokens_details: {} } }) })
-      .mockResolvedValueOnce(responseFixture({ json: vi.fn().mockResolvedValue({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: '{"ok":true}' }] }], usage: { input_tokens: 2, input_tokens_details: {}, output_tokens: 2, output_tokens_details: {} } }) }));
+      .mockResolvedValueOnce(jsonResponse({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: "not-json" }] }], usage: { input_tokens: 1, output_tokens: 1 } }))
+      .mockResolvedValueOnce(jsonResponse({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: '{"ok":true}' }] }], usage: { input_tokens: 2, output_tokens: 2 } }));
+    parseMock.mockReset();
     parseMock.mockImplementation((value: unknown) => value);
 
     const { requestStructuredAi } = await import("./openai-responses");
-    const result = await requestStructuredAi({ userId: "u1", actionKey: "company_research_report_generate", sourceTable: "jobs", sourceId: "job-1", systemPrompt: "sys", userPrompt: "usr", schemaName: "Test", jsonSchema: { type: "object" }, parse: parseMock });
-
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body).model).toBe("gpt-5.4-mini");
-    expect(JSON.parse(fetchMock.mock.calls[1][1].body).model).toBe("gpt-5.6-terra");
-    expect(recordAiUsageMock).toHaveBeenNthCalledWith(1, expect.objectContaining({ requestStatus: "error", errorCode: "http_5xx", metadata: { attempt: 1 } }));
-    expect(recordAiUsageMock).toHaveBeenNthCalledWith(2, expect.objectContaining({ requestStatus: "success", metadata: { attempt: 2, fallbackReason: "api_error" } }));
-    expect(result).toEqual({ data: { ok: true }, model: "gpt-5.6-terra", usageEventId: "usage-1" });
+    await expect(requestStructuredAi({ userId: "u1", actionKey: "company_research_report_generate", sourceTable: "jobs", sourceId: "job-1", systemPrompt: "sys", userPrompt: "usr", schemaName: "Test", jsonSchema: { type: "object" }, parse: parseMock })).resolves.toMatchObject({ data: { ok: true }, model: "gpt-5.6-terra" });
+    expect(recordAiUsageMock).toHaveBeenNthCalledWith(1, expect.objectContaining({ requestStatus: "error", errorCode: "invalid_json", metadata: { attempt: 1, fallbackReason: "invalid_output" } }));
+    expect(recordAiUsageMock).toHaveBeenNthCalledWith(2, expect.objectContaining({ requestStatus: "success", metadata: { attempt: 2, fallbackReason: "invalid_output" } }));
   });
 
-  it("maps timeout, network, and HTTP failures without raw errors", async () => {
+  it("escalates schema parse failures to fallback with invalid_output metadata", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: '{"still":true}' }] }], usage: { input_tokens: 3, output_tokens: 3 } }))
+      .mockResolvedValueOnce(jsonResponse({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: '{"fallback":true}' }] }], usage: { input_tokens: 4, output_tokens: 4 } }));
+    parseMock
+      .mockImplementationOnce(() => { throw new Error("schema"); })
+      .mockImplementationOnce((value: unknown) => value);
+
+    const { requestStructuredAi } = await import("./openai-responses");
+    await expect(requestStructuredAi({ userId: "u1", actionKey: "company_research_report_generate", sourceTable: "jobs", sourceId: "job-2", systemPrompt: "sys", userPrompt: "usr", schemaName: "Test", jsonSchema: { type: "object" }, parse: parseMock })).resolves.toMatchObject({ data: { fallback: true }, model: "gpt-5.6-terra" });
+    expect(recordAiUsageMock).toHaveBeenNthCalledWith(1, expect.objectContaining({ requestStatus: "error", errorCode: "schema_validation_failed", metadata: { attempt: 1, fallbackReason: "invalid_output" } }));
+    expect(recordAiUsageMock).toHaveBeenNthCalledWith(2, expect.objectContaining({ requestStatus: "success", metadata: { attempt: 2, fallbackReason: "invalid_output" } }));
+  });
+
+  it("escalates empty and refusal-style outputs and preserves primary usage on failure", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: "" }] }], usage: { input_tokens: 9, input_tokens_details: { cached_tokens: 99 }, output_tokens: 3, output_tokens_details: { reasoning_tokens: 99 } } }))
+      .mockResolvedValueOnce(jsonResponse({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: '{"fallback":true}' }] }], usage: { input_tokens: 4, output_tokens: 1 } }))
+      .mockResolvedValueOnce(jsonResponse({ status: "incomplete", output: [{ type: "message", content: [{ type: "output_text", text: '{"ignored":true}' }] }], usage: { input_tokens: 5, output_tokens: 2 } }))
+      .mockResolvedValueOnce(jsonResponse({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: '{"fallback2":true}' }] }], usage: { input_tokens: 6, output_tokens: 3 } }));
+
+    const { requestStructuredAi } = await import("./openai-responses");
+    await expect(requestStructuredAi({ userId: "u1", actionKey: "company_research_report_generate", sourceTable: "jobs", sourceId: "job-3", systemPrompt: "sys", userPrompt: "usr", schemaName: "Test", jsonSchema: { type: "object" }, parse: parseMock })).resolves.toMatchObject({ data: { fallback: true } });
+    await expect(requestStructuredAi({ userId: "u1", actionKey: "company_research_report_generate", sourceTable: "jobs", sourceId: "job-4", systemPrompt: "sys", userPrompt: "usr", schemaName: "Test", jsonSchema: { type: "object" }, parse: parseMock })).resolves.toMatchObject({ data: { fallback2: true } });
+    expect(recordAiUsageMock).toHaveBeenCalledWith(expect.objectContaining({ errorCode: "empty_output", inputTokens: 9, cachedInputTokens: 9, outputTokens: 3, reasoningTokens: 3 }));
+    expect(recordAiUsageMock).toHaveBeenCalledWith(expect.objectContaining({ requestStatus: "success", metadata: { attempt: 2, fallbackReason: "invalid_output" } }));
+  });
+
+  it("marks both failed attempts with fallback api_error metadata and stops after fallback failure", async () => {
+    fetchMock
+      .mockResolvedValueOnce(httpErrorResponse(500, { status: "failed", output: [], usage: { input_tokens: 7, output_tokens: 2 } }))
+      .mockResolvedValueOnce(jsonResponse({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: "not-json" }] }], usage: { input_tokens: 4, output_tokens: 1 } }));
+
+    const { requestStructuredAi } = await import("./openai-responses");
+    await expect(requestStructuredAi({ userId: "u1", actionKey: "company_research_report_generate", sourceTable: "jobs", sourceId: "job-5", systemPrompt: "sys", userPrompt: "usr", schemaName: "Test", jsonSchema: { type: "object" }, parse: parseMock })).rejects.toMatchObject({ code: "invalid_json" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(recordAiUsageMock).toHaveBeenCalledTimes(2);
+    expect(recordAiUsageMock).toHaveBeenNthCalledWith(1, expect.objectContaining({ requestStatus: "error", errorCode: "http_5xx", metadata: { attempt: 1, fallbackReason: "api_error" } }));
+    expect(recordAiUsageMock).toHaveBeenNthCalledWith(2, expect.objectContaining({ requestStatus: "error", errorCode: "invalid_json", metadata: { attempt: 2, fallbackReason: "api_error" } }));
+  });
+
+  it.each([
+    [400, "http_400"],
+    [401, "http_401"],
+    [403, "http_403"],
+    [429, "http_429"],
+    [500, "http_5xx"],
+    [503, "http_5xx"],
+    [418, "unknown_error"]
+  ])("uses HTTP status priority for status %s even when body is non-JSON or null", async (status, code) => {
     resolveAiModelPolicyMock.mockReturnValue({ ...basePolicy, fallbackModel: null, maxAttempts: 1, webSearch: false });
-    fetchMock.mockRejectedValueOnce({ name: "AbortError", message: "The operation was aborted." });
-    fetchMock.mockRejectedValueOnce(new Error("boom"));
-    fetchMock.mockResolvedValueOnce({ ok: false, status: 429, json: vi.fn().mockRejectedValue(new Error("no json")) });
-    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: vi.fn().mockRejectedValue(new Error("no json")) });
+    fetchMock.mockResolvedValueOnce(httpErrorResponse(status, null));
+
+    const { requestStructuredAi } = await import("./openai-responses");
+    await expect(requestStructuredAi({ userId: null, actionKey: "company_research_chat_generate", systemPrompt: "sys", userPrompt: "usr", schemaName: "Test", jsonSchema: { type: "object" }, parse: parseMock })).rejects.toMatchObject({ code });
+    expect(recordAiUsageMock).toHaveBeenCalledWith(expect.objectContaining({ requestStatus: "error", errorCode: code }));
+  });
+
+  it("classifies timeout and network errors safely without raw message leakage", async () => {
+    resolveAiModelPolicyMock.mockReturnValue({ ...basePolicy, fallbackModel: null, maxAttempts: 1, webSearch: false });
+    fetchMock
+      .mockRejectedValueOnce({ name: "TimeoutError", message: { toString: () => { throw new Error("poison"); } } })
+      .mockRejectedValueOnce(new Error("boom network"));
 
     const { requestStructuredAi } = await import("./openai-responses");
     await expect(requestStructuredAi({ userId: null, actionKey: "company_research_chat_generate", systemPrompt: "sys", userPrompt: "usr", schemaName: "Test", jsonSchema: { type: "object" }, parse: parseMock })).rejects.toMatchObject({ code: "timeout" });
     await expect(requestStructuredAi({ userId: null, actionKey: "company_research_chat_generate", systemPrompt: "sys", userPrompt: "usr", schemaName: "Test", jsonSchema: { type: "object" }, parse: parseMock })).rejects.toMatchObject({ code: "network_error" });
-    await expect(requestStructuredAi({ userId: null, actionKey: "company_research_chat_generate", systemPrompt: "sys", userPrompt: "usr", schemaName: "Test", jsonSchema: { type: "object" }, parse: parseMock })).rejects.toMatchObject({ code: "http_429" });
-    await expect(requestStructuredAi({ userId: null, actionKey: "company_research_chat_generate", systemPrompt: "sys", userPrompt: "usr", schemaName: "Test", jsonSchema: { type: "object" }, parse: parseMock })).rejects.toMatchObject({ code: "invalid_json" });
-    expect(recordAiUsageMock.mock.calls.some(([arg]) => JSON.stringify(arg).includes("abort"))).toBe(false);
+    expect(JSON.stringify(recordAiUsageMock.mock.calls)).not.toContain("boom network");
   });
 
-  it("distinguishes invalid_json, empty_output, and nonobject envelopes", async () => {
-    fetchMock
-      .mockResolvedValueOnce(responseFixture({ json: vi.fn().mockResolvedValue(null) }))
-      .mockResolvedValueOnce(responseFixture({ json: vi.fn().mockResolvedValue({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: "" }] }], usage: { input_tokens: 9, input_tokens_details: { cached_tokens: 99 }, output_tokens: 3, output_tokens_details: { reasoning_tokens: 99 } } }) }))
-      .mockResolvedValueOnce(responseFixture({ json: vi.fn().mockResolvedValue([1, 2, 3]) }));
+  it("treats nonobject JSON on HTTP ok as invalid_json", async () => {
+    resolveAiModelPolicyMock.mockReturnValue({ ...basePolicy, fallbackModel: null, maxAttempts: 1, webSearch: false });
+    fetchMock.mockResolvedValueOnce(jsonResponse([1, 2, 3]));
+    await expect((await import("./openai-responses")).requestStructuredAi({ userId: null, actionKey: "company_research_chat_generate", systemPrompt: "sys", userPrompt: "usr", schemaName: "Test", jsonSchema: { type: "object" }, parse: parseMock })).rejects.toMatchObject({ code: "invalid_json" });
+  });
+
+  it("sends web search requests exactly once and records one usage event", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      status: "completed",
+      output: [
+        { type: "web_search_call" },
+        { type: "message", content: [{ type: "output_text", text: '{"ok":true}' }] }
+      ],
+      usage: { input_tokens: 10, output_tokens: 5 }
+    }));
 
     const { requestStructuredAi } = await import("./openai-responses");
-    await expect(requestStructuredAi({ userId: null, actionKey: "company_research_report_generate", systemPrompt: "sys", userPrompt: "usr", schemaName: "Test", jsonSchema: { type: "object" }, parse: parseMock })).rejects.toMatchObject({ code: "invalid_json" });
-    await expect(requestStructuredAi({ userId: null, actionKey: "company_research_report_generate", systemPrompt: "sys", userPrompt: "usr", schemaName: "Test", jsonSchema: { type: "object" }, parse: parseMock })).rejects.toMatchObject({ code: "empty_output" });
-    await expect(requestStructuredAi({ userId: null, actionKey: "company_research_report_generate", systemPrompt: "sys", userPrompt: "usr", schemaName: "Test", jsonSchema: { type: "object" }, parse: parseMock })).rejects.toMatchObject({ code: "invalid_json" });
-    expect(recordAiUsageMock).toHaveBeenCalledWith(expect.objectContaining({ errorCode: "empty_output", inputTokens: 9, cachedInputTokens: 9, outputTokens: 3, reasoningTokens: 3 }));
+    await requestStructuredAi({ userId: "u1", actionKey: "company_research_report_generate", sourceTable: "jobs", sourceId: "job-6", systemPrompt: "sys", userPrompt: "usr", schemaName: "Test", jsonSchema: { type: "object" }, parse: parseMock });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(recordAiUsageMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://api.openai.com/v1/responses");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toMatchObject({ tools: [{ type: "web_search" }] });
   });
 
-  it("records local fallback and does not expose null usage events when recorder throws", async () => {
+  it("does not lose data when recorder throws after successful provider response", async () => {
+    recordAiUsageMock.mockRejectedValueOnce(new Error("recorder down"));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: '{"ok":true}' }] }], usage: {} }));
+    const { requestStructuredAi } = await import("./openai-responses");
+    await expect(requestStructuredAi({ userId: null, actionKey: "company_research_chat_generate", systemPrompt: "sys", userPrompt: "usr", schemaName: "Test", jsonSchema: { type: "object" }, parse: parseMock })).resolves.toMatchObject({ data: { ok: true }, usageEventId: null });
+  });
+
+  it("records local fallback success with zero usage and nulls when recorder throws", async () => {
     recordAiUsageMock.mockRejectedValueOnce(new Error("db down"));
     const { recordLocalAiFallback } = await import("./openai-responses");
     await expect(recordLocalAiFallback({ userId: "u1", actionKey: "company_research_report_generate", model: "gpt-5.6-terra", sourceTable: "jobs", sourceId: "j1", errorCode: "timeout", latencyMs: 12 })).resolves.toBeNull();
+    expect(recordAiUsageMock).toHaveBeenCalledWith(expect.objectContaining({ requestStatus: "fallback", inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningTokens: 0, webSearchCalls: 0, metadata: { attempt: 1, fallbackReason: "local_fallback" } }));
   });
 
-  it("uses feature-area timeout budgets", async () => {
-    resolveAiModelPolicyMock.mockReturnValueOnce({ ...basePolicy, actionKey: "company_research_chat_generate", maxAttempts: 1, fallbackModel: null, webSearch: false });
-    fetchMock.mockResolvedValueOnce(responseFixture({ json: vi.fn().mockResolvedValue({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: '{"ok":true}' }] }], usage: {} }) }));
-    const { requestStructuredAi } = await import("./openai-responses");
-    await requestStructuredAi({ userId: null, actionKey: "company_research_chat_generate", systemPrompt: "sys", userPrompt: "usr", schemaName: "Test", jsonSchema: { type: "object" }, parse: parseMock });
-    expect(abortSignalTimeoutMock).toHaveBeenCalledWith(90000);
+  it("records local fallback success with the expected zeroed accounting", async () => {
+    const { recordLocalAiFallback } = await import("./openai-responses");
+    await expect(recordLocalAiFallback({ userId: "u2", actionKey: "company_research_report_generate", model: "gpt-5.6-terra", sourceTable: "jobs", sourceId: "j2", errorCode: "http_5xx", latencyMs: 0 })).resolves.toBe("usage-1");
+    expect(recordAiUsageMock).toHaveBeenCalledWith(expect.objectContaining({ requestStatus: "fallback", errorCode: "http_5xx", inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningTokens: 0, webSearchCalls: 0, metadata: { attempt: 1, fallbackReason: "local_fallback" } }));
   });
 
-  it("does not fetch when API key is missing and records one safe error", async () => {
-    serverEnvMock.OPENAI_API_KEY = "";
+  it.each([undefined, "   "])("does not fetch when API key is %p and records one safe error", async (apiKey) => {
+    serverEnvMock.OPENAI_API_KEY = apiKey;
     const { requestStructuredAi } = await import("./openai-responses");
     await expect(requestStructuredAi({ userId: null, actionKey: "company_research_report_generate", systemPrompt: "sys", userPrompt: "usr", schemaName: "Test", jsonSchema: { type: "object" }, parse: parseMock })).rejects.toMatchObject({ code: "unknown_error" });
     expect(fetchMock).not.toHaveBeenCalled();
     expect(recordAiUsageMock).toHaveBeenCalledTimes(1);
-    serverEnvMock.OPENAI_API_KEY = "test-key";
+  });
+
+  it.each([
+    { actionKey: "company_research_report_generate" as AiActionKey, featureArea: "company_research" as const, timeout: 90000 },
+    { actionKey: "company_research_chat_generate" as AiActionKey, featureArea: "company_research" as const, timeout: 90000 },
+    { actionKey: "resume_interview_generate" as AiActionKey, featureArea: "resume" as const, timeout: 30000 },
+    { actionKey: "resume_generator_generate" as AiActionKey, featureArea: "resume" as const, timeout: 30000 }
+  ])("uses the configured timeout budget for $actionKey", async ({ actionKey, featureArea, timeout }) => {
+    resolveAiModelPolicyMock.mockReturnValue({ ...basePolicy, actionKey, featureArea, fallbackModel: null, maxAttempts: 1, webSearch: false });
+    fetchMock.mockResolvedValueOnce(jsonResponse({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: '{"ok":true}' }] }], usage: {} }));
+    const { requestStructuredAi } = await import("./openai-responses");
+    await requestStructuredAi({ userId: null, actionKey, systemPrompt: "sys", userPrompt: "usr", schemaName: "Test", jsonSchema: { type: "object" }, parse: parseMock });
+    expect(abortSignalTimeoutMock).toHaveBeenCalledWith(timeout);
   });
 });

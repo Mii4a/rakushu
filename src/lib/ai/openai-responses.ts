@@ -92,7 +92,34 @@ function normalizeUsage(usage: Record<string, unknown> | undefined, webSearchCal
   return { inputTokens, cachedInputTokens, outputTokens, reasoningTokens, webSearchCalls };
 }
 
-function httpCode(status: number): AiUsageErrorCode {
+function safeErrorName(error: unknown): string {
+  if (typeof error !== "object" || error === null) return "";
+  try {
+    const candidate = error as { name?: unknown; constructor?: { name?: unknown } };
+    return [candidate.name, candidate.constructor?.name].map((value) => (typeof value === "string" ? value : "")).find(Boolean) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function isTimeoutError(error: unknown): boolean {
+  const name = safeErrorName(error);
+  return name === "AbortError" || name === "TimeoutError";
+}
+
+function requestFailureCode(error: unknown): AiUsageErrorCode {
+  return isTimeoutError(error) ? "timeout" : "network_error";
+}
+
+function shouldFallback(code: AiUsageErrorCode): boolean {
+  return code === "invalid_json" || code === "schema_validation_failed" || code === "empty_output" || code === "http_400" || code === "http_401" || code === "http_403" || code === "http_429" || code === "http_5xx" || code === "timeout" || code === "network_error" || code === "unknown_error";
+}
+
+function fallbackReasonFor(code: AiUsageErrorCode): NonNullable<AiUsageMetadata["fallbackReason"]> {
+  return code === "invalid_json" || code === "schema_validation_failed" || code === "empty_output" ? "invalid_output" : "api_error";
+}
+
+function statusErrorCode(status: number): AiUsageErrorCode {
   if (status === 400) return "http_400";
   if (status === 401) return "http_401";
   if (status === 403) return "http_403";
@@ -101,24 +128,17 @@ function httpCode(status: number): AiUsageErrorCode {
   return "unknown_error";
 }
 
-function isTimeoutError(error: unknown): boolean {
-  if (typeof error !== "object" || error === null) return false;
-  const name = String((error as { name?: unknown }).name ?? "");
-  const ctorName = String((error as { constructor?: { name?: unknown } }).constructor?.name ?? "");
-  const message = String((error as { message?: unknown }).message ?? "");
-  return [name, ctorName, message].some((value) => value === "AbortError" || value === "TimeoutError" || value.includes("AbortError") || value.includes("TimeoutError") || value.toLowerCase().includes("abort") || value.toLowerCase().includes("timeout"));
+function responseUsage(envelope: Envelope): UsageShape {
+  const { webSearchCalls } = extract(envelope);
+  return normalizeUsage(envelope.usage, webSearchCalls);
 }
 
-function requestFailureCode(error: unknown): AiUsageErrorCode {
-  return isTimeoutError(error) ? "timeout" : "network_error";
+function eventMetadata(attemptNumber: 1 | 2, fallbackReason?: NonNullable<AiUsageMetadata["fallbackReason"]>): AiUsageMetadata {
+  return fallbackReason ? { attempt: attemptNumber, fallbackReason } : { attempt: attemptNumber };
 }
 
-function shouldFallback(code: AiUsageErrorCode): boolean {
-  return code === "http_400" || code === "http_401" || code === "http_403" || code === "http_429" || code === "http_5xx" || code === "timeout" || code === "network_error" || code === "unknown_error";
-}
-
-function fallbackReasonFor(code: AiUsageErrorCode): NonNullable<AiUsageMetadata["fallbackReason"]> {
-  return "api_error";
+function failureMetadata(attemptNumber: 1 | 2, code: AiUsageErrorCode, fallbackReason?: NonNullable<AiUsageMetadata["fallbackReason"]>): AiUsageMetadata {
+  return { attempt: attemptNumber, fallbackReason: fallbackReason ?? fallbackReasonFor(code) };
 }
 
 async function recordEvent(input: {
@@ -157,48 +177,51 @@ async function recordEvent(input: {
   }
 }
 
-async function fetchResponses(model: string, body: Record<string, unknown>, ms: number): Promise<Response> {
+async function fetchResponses(apiKey: string, body: Record<string, unknown>, ms: number): Promise<Response> {
   return fetch("https://api.openai.com/v1/responses", {
     method: "POST",
-    headers: { "content-type": "application/json", Authorization: `Bearer ${serverEnv.OPENAI_API_KEY}` },
+    headers: { "content-type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify(body),
     signal: timeoutSignal(ms)
   });
 }
 
-async function attempt<T>(input: StructuredAiRequestInput<T>, policy: ReturnType<typeof resolveAiModelPolicy>, model: string, attemptNumber: 1 | 2, fallbackReason?: NonNullable<AiUsageMetadata["fallbackReason"]>) {
+async function attempt<T>(input: StructuredAiRequestInput<T>, policy: ReturnType<typeof resolveAiModelPolicy>, model: string, attemptNumber: 1 | 2, fallbackReason?: NonNullable<AiUsageMetadata["fallbackReason"]>, apiKey?: string) {
   const started = Date.now();
-  const baseMetadata: AiUsageMetadata = { attempt: attemptNumber, ...(fallbackReason ? { fallbackReason } : {}) };
+  const metadata = eventMetadata(attemptNumber, fallbackReason);
   try {
-    const response = await fetchResponses(model, buildBody(input, model, policy), timeoutMs(policy.featureArea));
-    let envelope: Envelope | null;
+    const response = await fetchResponses(apiKey ?? "", buildBody(input, model, policy), timeoutMs(policy.featureArea));
+    let envelope: unknown;
     try {
-      envelope = (await response.json()) as Envelope;
+      envelope = await response.json();
     } catch {
-      const usageEventId = await recordEvent({ userId: input.userId, actionKey: input.actionKey, featureArea: policy.featureArea, sourceTable: input.sourceTable, sourceId: input.sourceId, model, requestStatus: "error", usage: ZERO_USAGE, latencyMs: Math.max(0, Date.now() - started), errorCode: response.ok ? "invalid_json" : httpCode(response.status), metadata: baseMetadata });
-      return { ok: false as const, error: new StructuredAiRequestError(response.ok ? "invalid_json" : httpCode(response.status), model), usageEventId };
-    }
-
-    if (envelope === null || Array.isArray(envelope) || typeof envelope !== "object") {
-      const usageEventId = await recordEvent({ userId: input.userId, actionKey: input.actionKey, featureArea: policy.featureArea, sourceTable: input.sourceTable, sourceId: input.sourceId, model, requestStatus: "error", usage: ZERO_USAGE, latencyMs: Math.max(0, Date.now() - started), errorCode: "invalid_json", metadata: baseMetadata });
-      return { ok: false as const, error: new StructuredAiRequestError("invalid_json", model), usageEventId };
-    }
-
-    if (!response.ok) {
-      const code = httpCode(response.status);
-      const usageEventId = await recordEvent({ userId: input.userId, actionKey: input.actionKey, featureArea: policy.featureArea, sourceTable: input.sourceTable, sourceId: input.sourceId, model, requestStatus: "error", usage: normalizeUsage(envelope.usage, extract(envelope).webSearchCalls), latencyMs: Math.max(0, Date.now() - started), errorCode: code, metadata: baseMetadata });
+      const code = response.ok ? "invalid_json" : statusErrorCode(response.status);
+      const usageEventId = await recordEvent({ userId: input.userId, actionKey: input.actionKey, featureArea: policy.featureArea, sourceTable: input.sourceTable, sourceId: input.sourceId, model, requestStatus: "error", usage: ZERO_USAGE, latencyMs: Math.max(0, Date.now() - started), errorCode: code, metadata: failureMetadata(attemptNumber, code, fallbackReason) });
       return { ok: false as const, error: new StructuredAiRequestError(code, model), usageEventId };
     }
 
-    if (envelope.status !== "completed") {
-      const usageEventId = await recordEvent({ userId: input.userId, actionKey: input.actionKey, featureArea: policy.featureArea, sourceTable: input.sourceTable, sourceId: input.sourceId, model, requestStatus: "error", usage: normalizeUsage(envelope.usage, extract(envelope).webSearchCalls), latencyMs: Math.max(0, Date.now() - started), errorCode: "empty_output", metadata: baseMetadata });
+    if (!response.ok) {
+      const code = statusErrorCode(response.status);
+      const usage = envelope && typeof envelope === "object" && !Array.isArray(envelope) ? responseUsage(envelope as Envelope) : ZERO_USAGE;
+      const usageEventId = await recordEvent({ userId: input.userId, actionKey: input.actionKey, featureArea: policy.featureArea, sourceTable: input.sourceTable, sourceId: input.sourceId, model, requestStatus: "error", usage, latencyMs: Math.max(0, Date.now() - started), errorCode: code, metadata: failureMetadata(attemptNumber, code, fallbackReason) });
+      return { ok: false as const, error: new StructuredAiRequestError(code, model), usageEventId };
+    }
+
+    if (envelope === null || Array.isArray(envelope) || typeof envelope !== "object") {
+      const usageEventId = await recordEvent({ userId: input.userId, actionKey: input.actionKey, featureArea: policy.featureArea, sourceTable: input.sourceTable, sourceId: input.sourceId, model, requestStatus: "error", usage: ZERO_USAGE, latencyMs: Math.max(0, Date.now() - started), errorCode: "invalid_json", metadata: failureMetadata(attemptNumber, "invalid_json", fallbackReason) });
+      return { ok: false as const, error: new StructuredAiRequestError("invalid_json", model), usageEventId };
+    }
+
+    const envelopeObject = envelope as Envelope;
+    if (envelopeObject.status !== "completed") {
+      const usageEventId = await recordEvent({ userId: input.userId, actionKey: input.actionKey, featureArea: policy.featureArea, sourceTable: input.sourceTable, sourceId: input.sourceId, model, requestStatus: "error", usage: responseUsage(envelopeObject), latencyMs: Math.max(0, Date.now() - started), errorCode: "empty_output", metadata: failureMetadata(attemptNumber, "empty_output", fallbackReason) });
       return { ok: false as const, error: new StructuredAiRequestError("empty_output", model), usageEventId };
     }
 
-    const { text, webSearchCalls } = extract(envelope);
-    const usage = normalizeUsage(envelope.usage, webSearchCalls);
+    const { text, webSearchCalls } = extract(envelopeObject);
+    const usage = normalizeUsage(envelopeObject.usage, webSearchCalls);
     if (!text.trim()) {
-      const usageEventId = await recordEvent({ userId: input.userId, actionKey: input.actionKey, featureArea: policy.featureArea, sourceTable: input.sourceTable, sourceId: input.sourceId, model, requestStatus: "error", usage, latencyMs: Math.max(0, Date.now() - started), errorCode: "empty_output", metadata: baseMetadata });
+      const usageEventId = await recordEvent({ userId: input.userId, actionKey: input.actionKey, featureArea: policy.featureArea, sourceTable: input.sourceTable, sourceId: input.sourceId, model, requestStatus: "error", usage, latencyMs: Math.max(0, Date.now() - started), errorCode: "empty_output", metadata: failureMetadata(attemptNumber, "empty_output", fallbackReason) });
       return { ok: false as const, error: new StructuredAiRequestError("empty_output", model), usageEventId };
     }
 
@@ -206,36 +229,37 @@ async function attempt<T>(input: StructuredAiRequestInput<T>, policy: ReturnType
     try {
       parsed = JSON.parse(text);
     } catch {
-      const usageEventId = await recordEvent({ userId: input.userId, actionKey: input.actionKey, featureArea: policy.featureArea, sourceTable: input.sourceTable, sourceId: input.sourceId, model, requestStatus: "error", usage, latencyMs: Math.max(0, Date.now() - started), errorCode: "invalid_json", metadata: baseMetadata });
+      const usageEventId = await recordEvent({ userId: input.userId, actionKey: input.actionKey, featureArea: policy.featureArea, sourceTable: input.sourceTable, sourceId: input.sourceId, model, requestStatus: "error", usage, latencyMs: Math.max(0, Date.now() - started), errorCode: "invalid_json", metadata: failureMetadata(attemptNumber, "invalid_json", fallbackReason) });
       return { ok: false as const, error: new StructuredAiRequestError("invalid_json", model), usageEventId };
     }
 
     try {
       const data = input.parse(parsed);
-      const usageEventId = await recordEvent({ userId: input.userId, actionKey: input.actionKey, featureArea: policy.featureArea, sourceTable: input.sourceTable, sourceId: input.sourceId, model, requestStatus: "success", usage, latencyMs: Math.max(0, Date.now() - started), metadata: baseMetadata });
+      const usageEventId = await recordEvent({ userId: input.userId, actionKey: input.actionKey, featureArea: policy.featureArea, sourceTable: input.sourceTable, sourceId: input.sourceId, model, requestStatus: "success", usage, latencyMs: Math.max(0, Date.now() - started), metadata });
       return { ok: true as const, data, usageEventId };
     } catch {
-      const usageEventId = await recordEvent({ userId: input.userId, actionKey: input.actionKey, featureArea: policy.featureArea, sourceTable: input.sourceTable, sourceId: input.sourceId, model, requestStatus: "error", usage, latencyMs: Math.max(0, Date.now() - started), errorCode: "schema_validation_failed", metadata: baseMetadata });
+      const usageEventId = await recordEvent({ userId: input.userId, actionKey: input.actionKey, featureArea: policy.featureArea, sourceTable: input.sourceTable, sourceId: input.sourceId, model, requestStatus: "error", usage, latencyMs: Math.max(0, Date.now() - started), errorCode: "schema_validation_failed", metadata: failureMetadata(attemptNumber, "schema_validation_failed", fallbackReason) });
       return { ok: false as const, error: new StructuredAiRequestError("schema_validation_failed", model), usageEventId };
     }
   } catch (error) {
     const code = requestFailureCode(error);
-    const usageEventId = await recordEvent({ userId: input.userId, actionKey: input.actionKey, featureArea: policy.featureArea, sourceTable: input.sourceTable, sourceId: input.sourceId, model, requestStatus: "error", usage: ZERO_USAGE, latencyMs: Math.max(0, Date.now() - started), errorCode: code, metadata: baseMetadata });
+    const usageEventId = await recordEvent({ userId: input.userId, actionKey: input.actionKey, featureArea: policy.featureArea, sourceTable: input.sourceTable, sourceId: input.sourceId, model, requestStatus: "error", usage: ZERO_USAGE, latencyMs: Math.max(0, Date.now() - started), errorCode: code, metadata: failureMetadata(attemptNumber, code, fallbackReason) });
     return { ok: false as const, error: new StructuredAiRequestError(code, model), usageEventId };
   }
 }
 
 export async function requestStructuredAi<T>(input: StructuredAiRequestInput<T>): Promise<StructuredAiResult<T>> {
   const policy = resolveAiModelPolicy(input.actionKey);
-  if (!serverEnv.OPENAI_API_KEY) {
+  const apiKey = serverEnv.OPENAI_API_KEY?.trim();
+  if (!apiKey) {
     await recordEvent({ userId: input.userId, actionKey: input.actionKey, featureArea: policy.featureArea, sourceTable: input.sourceTable, sourceId: input.sourceId, model: policy.model, requestStatus: "error", usage: ZERO_USAGE, latencyMs: 0, errorCode: "unknown_error", metadata: { attempt: 1 } });
     throw new StructuredAiRequestError("unknown_error", policy.model);
   }
 
-  const primary = await attempt(input, policy, policy.model, 1);
+  const primary = await attempt(input, policy, policy.model, 1, undefined, apiKey);
   if (primary.ok) return { data: primary.data, model: policy.model, usageEventId: primary.usageEventId };
   if (policy.fallbackModel && policy.maxAttempts === 2 && shouldFallback(primary.error.code)) {
-    const fallback = await attempt(input, policy, policy.fallbackModel, 2, fallbackReasonFor(primary.error.code));
+    const fallback = await attempt(input, policy, policy.fallbackModel, 2, fallbackReasonFor(primary.error.code), apiKey);
     if (fallback.ok) return { data: fallback.data, model: policy.fallbackModel, usageEventId: fallback.usageEventId };
     throw fallback.error;
   }
