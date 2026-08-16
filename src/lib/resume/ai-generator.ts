@@ -185,11 +185,11 @@ function validateInput(input: GenerateResumeAiProposalInput): void {
       normalizeId(section.id);
       trimToPrompt(section.title, 200);
       if (section.summary) trimToPrompt(section.summary, 500);
-      if (section.subsections.length > 20) fail();
+      if (!section.subsections.length || section.subsections.length > 20) fail();
       for (const subsection of section.subsections) {
         normalizeId(subsection.id);
         trimToPrompt(subsection.title, 200);
-        if (subsection.content.length > 4 || subsection.citations.length > 8) fail();
+        if (!subsection.content.length || subsection.content.length > 10 || !subsection.citations.length || subsection.citations.length > 10) fail();
         subsection.content.forEach((line) => trimToPrompt(line, 1000));
         for (const citation of subsection.citations) {
           if (!sourceIds.has(normalizeId(citation.sourceId))) fail();

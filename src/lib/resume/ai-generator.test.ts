@@ -92,6 +92,23 @@ describe("generateResumeAiProposal", () => {
     expect(input.parse({ motivation: "m", selfPr: "s", changeSummary: "c", evidenceSourceIds: ["src-1"] })).toEqual({ motivation: "m", selfPr: "s", changeSummary: "c", evidenceSourceIds: ["src-1"] });
   });
 
+  it("accepts the persisted report contract maximum of ten content lines and citations", async () => {
+    const report = {
+      ...baseReport,
+      sections: [{
+        ...baseReport.sections[0],
+        subsections: [{
+          ...baseReport.sections[0].subsections[0],
+          content: Array.from({ length: 10 }, (_, index) => `line-${index}`),
+          citations: Array.from({ length: 10 }, (_, index) => ({ sourceId: "src-1", label: `citation-${index}` }))
+        }]
+      }]
+    };
+    mockResponse({ motivation: "m", selfPr: "s", changeSummary: "c", evidenceSourceIds: ["src-1"] });
+    const { generateResumeAiProposal } = await import("./ai-generator");
+    await expect(generateResumeAiProposal({ ...baseInput, mode: "company", targetJob: { id: "job-1", companyName: "Target Co", title: "Engineer" }, companyResearch: { id: "research-1", report } })).resolves.toMatchObject({ motivation: "m" });
+  });
+
   it("bounds serialized company report sections to 30000 characters", async () => {
     const largeSections = Array.from({ length: 12 }, (_, sectionIndex) => ({
       ...baseReport.sections[0],
