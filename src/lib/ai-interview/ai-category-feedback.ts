@@ -49,6 +49,9 @@ function parseCategoryFeedback(value: unknown): AiInterviewCategoryFeedbackOutpu
     throw new Error("invalid payload");
   }
 
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) throw new Error("invalid payload");
+
   const keys = Object.keys(value as Record<string, unknown>);
   const allowedKeys = ["overallScore", "summary", "strengths", "improvements", "nextFocus", "nextQuestions"];
   if (keys.some((key) => !allowedKeys.includes(key))) {
@@ -67,7 +70,7 @@ function parseCategoryFeedback(value: unknown): AiInterviewCategoryFeedbackOutpu
   const summary = typeof payload.summary === "string" ? payload.summary.trim() : "";
   if (!summary || summary.length > 400) throw new Error("invalid payload");
 
-  const parseItems = (items: unknown, label: string) => {
+  const parseItems = (items: unknown) => {
     if (!Array.isArray(items) || items.length < 1 || items.length > 3) throw new Error("invalid payload");
     return items.map((item) => {
       if (typeof item !== "string") throw new Error("invalid payload");
@@ -75,10 +78,10 @@ function parseCategoryFeedback(value: unknown): AiInterviewCategoryFeedbackOutpu
     });
   };
 
-  const strengths = parseItems(payload.strengths, "strengths");
-  const improvements = parseItems(payload.improvements, "improvements");
+  const strengths = parseItems(payload.strengths);
+  const improvements = parseItems(payload.improvements);
   const nextFocus = trimSingleLine(typeof payload.nextFocus === "string" ? payload.nextFocus : "", 200);
-  const nextQuestions = parseItems(payload.nextQuestions, "nextQuestions");
+  const nextQuestions = parseItems(payload.nextQuestions);
 
   return { overallScore, summary, strengths, improvements, nextFocus, nextQuestions };
 }

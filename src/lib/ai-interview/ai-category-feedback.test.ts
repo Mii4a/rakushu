@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AiInterviewCategoryDefinition } from "./setup-scenarios";
+import type { AiInterviewCategoryFeedbackInput } from "./ai-category-feedback";
 
 const {
   requestStructuredAiMock,
@@ -63,7 +64,7 @@ beforeEach(() => {
   recordLocalAiFallbackMock.mockResolvedValue("fallback-1");
 });
 
-function makeInput(overrides: Record<string, unknown> = {}) {
+function makeInput(overrides: Partial<AiInterviewCategoryFeedbackInput> = {}): AiInterviewCategoryFeedbackInput {
   return {
     userId: "user-1",
     sessionId: "session-1",
@@ -134,46 +135,63 @@ describe("buildAiInterviewCategoryFeedback", () => {
     expect(resolveAiModelPolicyMock).not.toHaveBeenCalled();
   });
 
-  it("rejects invalid parsed shapes and falls back deterministically with telemetry", async () => {
+  it("accepts a null-prototype payload and reconstructs it into a normal output", async () => {
+    requestStructuredAiMock.mockImplementationOnce(async ({ parse }) => {
+      const payload = Object.create(null) as AiInterviewCategoryFeedbackInput & Record<string, unknown>;
+      payload.overallScore = 4.2;
+      payload.summary = "  要点は伝わっています。  ";
+      payload.strengths = ["  結論が明確  "];
+      payload.improvements = ["  数字を足す  "];
+      payload.nextFocus = "  結論のあとに一言補足する  ";
+      payload.nextQuestions = ["  具体例を1つ教えてください  "];
+
+      const parsed = parse(payload);
+      expect(Object.getPrototypeOf(parsed)).toBe(Object.prototype);
+      expect(parsed).toEqual({
+        overallScore: 4.2,
+        summary: "要点は伝わっています。",
+        strengths: ["結論が明確"],
+        improvements: ["数字を足す"],
+        nextFocus: "結論のあとに一言補足する",
+        nextQuestions: ["具体例を1つ教えてください"]
+      });
+      return { data: parsed, model: "gpt-5.4-mini", usageEventId: "usage-1" };
+    });
+
     const { buildAiInterviewCategoryFeedback } = await import("./ai-category-feedback");
-    const invalidValues = [
-      null,
-      [],
-      { overallScore: 4.2, summary: "a", strengths: ["x"], improvements: ["y"], nextFocus: "z", nextQuestions: ["q"], extra: true },
-      { overallScore: 0.9, summary: "a", strengths: ["x"], improvements: ["y"], nextFocus: "z", nextQuestions: ["q"] },
-      { overallScore: 5.1, summary: "a", strengths: ["x"], improvements: ["y"], nextFocus: "z", nextQuestions: ["q"] },
-      { overallScore: 4.55, summary: "a", strengths: ["x"], improvements: ["y"], nextFocus: "z", nextQuestions: ["q"] },
-      { overallScore: Number.NaN, summary: "a", strengths: ["x"], improvements: ["y"], nextFocus: "z", nextQuestions: ["q"] },
-      { overallScore: 4.2, summary: "", strengths: ["x"], improvements: ["y"], nextFocus: "z", nextQuestions: ["q"] },
-      { overallScore: 4.2, summary: "a".repeat(401), strengths: ["x"], improvements: ["y"], nextFocus: "z", nextQuestions: ["q"] },
-      { overallScore: 4.2, summary: "a", strengths: [], improvements: ["y"], nextFocus: "z", nextQuestions: ["q"] },
-      { overallScore: 4.2, summary: "a", strengths: ["x", "y", "z", "w"], improvements: ["y"], nextFocus: "z", nextQuestions: ["q"] },
-      { overallScore: 4.2, summary: "a", strengths: [""] , improvements: ["y"], nextFocus: "z", nextQuestions: ["q"] },
-      { overallScore: 4.2, summary: "a", strengths: ["x"], improvements: ["line1\nline2"], nextFocus: "z", nextQuestions: ["q"] },
-      { overallScore: 4.2, summary: "a", strengths: ["x"], improvements: ["y"], nextFocus: "", nextQuestions: ["q"] },
-      { overallScore: 4.2, summary: "a", strengths: ["x"], improvements: ["y"], nextFocus: "a".repeat(201), nextQuestions: ["q"] },
-      { overallScore: 4.2, summary: "a", strengths: ["x"], improvements: ["y"], nextFocus: "z", nextQuestions: [] },
-      { overallScore: 4.2, summary: "a", strengths: ["x"], improvements: ["y"], nextFocus: "z", nextQuestions: ["", "ok"] },
-      { overallScore: 4.2, summary: "a", strengths: ["x"], improvements: ["y"], nextFocus: "z", nextQuestions: ["line1\nline2"] }
-    ];
+    await expect(buildAiInterviewCategoryFeedback(makeInput())).resolves.toEqual({
+      overallScore: 4.2,
+      summary: "要点は伝わっています。",
+      strengths: ["結論が明確"],
+      improvements: ["数字を足す"],
+      nextFocus: "結論のあとに一言補足する",
+      nextQuestions: ["具体例を1つ教えてください"]
+    });
+  });
 
-    for (const value of invalidValues) {
-      requestStructuredAiMock.mockImplementationOnce(async ({ parse }) => {
-        expect(() => parse(value)).toThrow();
-        throw new FakeStructuredAiRequestError("schema_validation_failed", "gpt-5.4-mini");
-      });
-      await expect(buildAiInterviewCategoryFeedback(makeInput())).resolves.toEqual({
-        overallScore: 4.0,
-        summary: "自己紹介として要点は伝わっています。次は具体性を足すと評価が安定します。",
-        strengths: ["自己紹介の主題から大きく逸れずに回答できています"],
-        improvements: ["数字・役割・結果のどれかを一段具体化する"],
-        nextFocus: "結論のあとに具体例を一言で足す",
-        nextQuestions: ["自己紹介について、成果が伝わる具体例を1つ追加するとしたら何ですか？"]
-      });
-    }
+  it("rejects custom-prototype payloads and falls back deterministically with telemetry", async () => {
+    requestStructuredAiMock.mockImplementationOnce(async ({ parse }) => {
+      const payload = Object.create({ inherited: true }) as AiInterviewCategoryFeedbackInput & Record<string, unknown>;
+      payload.overallScore = 4.2;
+      payload.summary = "要点は伝わっています。";
+      payload.strengths = ["結論が明確"];
+      payload.improvements = ["数字を足す"];
+      payload.nextFocus = "結論のあとに一言補足する";
+      payload.nextQuestions = ["具体例を1つ教えてください"];
+      expect(() => parse(payload)).toThrow();
+      throw new FakeStructuredAiRequestError("schema_validation_failed", "gpt-5.4-mini");
+    });
 
-    expect(recordLocalAiFallbackMock).toHaveBeenCalledTimes(invalidValues.length);
-    expect(recordLocalAiFallbackMock).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-1", actionKey: "interview_category_feedback_generate", sourceTable: "ai_interview_sessions", sourceId: "session-1", model: "gpt-5.4-mini", errorCode: "schema_validation_failed" }));
+    const { buildAiInterviewCategoryFeedback } = await import("./ai-category-feedback");
+    await expect(buildAiInterviewCategoryFeedback(makeInput())).resolves.toEqual({
+      overallScore: 4.0,
+      summary: "自己紹介として要点は伝わっています。次は具体性を足すと評価が安定します。",
+      strengths: ["自己紹介の主題から大きく逸れずに回答できています"],
+      improvements: ["数字・役割・結果のどれかを一段具体化する"],
+      nextFocus: "結論のあとに具体例を一言で足す",
+      nextQuestions: ["自己紹介について、成果が伝わる具体例を1つ追加するとしたら何ですか？"]
+    });
+    expect(recordLocalAiFallbackMock).toHaveBeenCalledWith(expect.objectContaining({ errorCode: "schema_validation_failed" }));
   });
 
   it("preserves structured http_429 custom model failures without consulting policy", async () => {
