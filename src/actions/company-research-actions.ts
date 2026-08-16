@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, gte, lt } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, lt } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -285,7 +285,8 @@ export async function askCompanyResearchQuestionAction(input: { researchId: stri
   const fallback = buildCompanyResearchResultFromQuery(research.query);
   const now = new Date();
   const report = parseJsonOr<CompanyResearchReport>(research.reportJson, fallback.report);
-  const previousMessages = parseChatMessagesOrFallback(research.chatMessagesJson, fallback.chatMessages);
+  const originalChatMessagesJson = research.chatMessagesJson;
+  const previousMessages = parseChatMessagesOrFallback(originalChatMessagesJson, fallback.chatMessages);
   const parsedPreviousMessages = parsePersistedCompanyResearchChatMessages(previousMessages);
 
   if (parsedPreviousMessages === null) {
@@ -334,7 +335,18 @@ export async function askCompanyResearchQuestionAction(input: { researchId: stri
       updatedAt: now
     });
 
-  await updateSet.where(and(eq(companyResearches.id, parsed.data.researchId), eq(companyResearches.userId, user.id)));
+  const optimisticHistoryCondition =
+    originalChatMessagesJson == null ? isNull(companyResearches.chatMessagesJson) : eq(companyResearches.chatMessagesJson, originalChatMessagesJson);
+  const updateResult = await updateSet.where(
+    and(eq(companyResearches.id, parsed.data.researchId), eq(companyResearches.userId, user.id), optimisticHistoryCondition)
+  );
+
+  if ((updateResult as { rowsAffected?: number }).rowsAffected === 0) {
+    return {
+      ok: false as const,
+      message: "別の質問が先に送信されました。履歴を更新してから再度お試しください"
+    };
+  }
 
   revalidatePath("/company-research");
 

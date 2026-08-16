@@ -21,7 +21,7 @@ const {
   const select = vi.fn(() => ({ from: selectFrom }));
   const insertValues = vi.fn();
   const insert = vi.fn(() => ({ values: insertValues }));
-  const updateWhere = vi.fn();
+  const updateWhere = vi.fn().mockResolvedValue({ rowsAffected: 1 });
   const updateSet = vi.fn((values: unknown) => {
     void values;
     return { where: updateWhere };
@@ -44,7 +44,7 @@ const {
   };
 });
 
-vi.mock("drizzle-orm", () => ({ and: vi.fn((...args: unknown[]) => ({ args })), desc: vi.fn(), eq: vi.fn((left: unknown, right: unknown) => ({ left, right })), gte: vi.fn((left: unknown, right: unknown) => ({ left, right })), lt: vi.fn((left: unknown, right: unknown) => ({ left, right })) }));
+vi.mock("drizzle-orm", () => ({ and: vi.fn((...args: unknown[]) => ({ args })), desc: vi.fn(), eq: vi.fn((left: unknown, right: unknown) => ({ left, right })), gte: vi.fn((left: unknown, right: unknown) => ({ left, right })), isNull: vi.fn((value: unknown) => ({ value })), lt: vi.fn((left: unknown, right: unknown) => ({ left, right })) }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 vi.mock("@/lib/auth/require-user", () => ({ requireUser: requireUserMock }));
 vi.mock("@/lib/db/schema", () => ({ companyResearches: { id: "id", userId: "userId", createdAt: "createdAt", updatedAt: "updatedAt", query: "query", websiteUrl: "websiteUrl", reportJson: "reportJson", chatMessagesJson: "chatMessagesJson" } }));
@@ -187,16 +187,43 @@ describe("askCompanyResearchQuestionAction", () => {
       expect.objectContaining({ role: "assistant", content: "回答" })
     ]);
     expect(updateWhereMock).toHaveBeenCalledTimes(1);
+    const updateWhereArg = updateWhereMock.mock.calls[0]?.[0] as { args: unknown[] };
+    expect(updateWhereArg.args).toHaveLength(3);
+    expect(updateWhereArg.args[0]).toMatchObject({ left: "id", right: "research-1" });
+    expect(updateWhereArg.args[1]).toMatchObject({ left: "userId", right: "user-1" });
+    expect(updateWhereArg.args[2]).toMatchObject({ value: "chatMessagesJson" });
     expect(revalidatePathMock).toHaveBeenCalledWith("/company-research");
   });
 
-  it("returns a safe error and skips persistence when generation fails", async () => {
+  it("uses the original history string in the optimistic update when history is non-null", async () => {
     const report = buildMockCompanyResearchReport("テスト株式会社");
-    selectLimitMock.mockResolvedValueOnce([{ id: "research-1", userId: "user-1", query: "https://example.com", reportJson: JSON.stringify(report), chatMessagesJson: JSON.stringify([]), createdAt: new Date(), updatedAt: new Date() }]);
-    generateCompanyResearchChatAnswerMock.mockRejectedValueOnce(new Error("provider down"));
-    await expect(askCompanyResearchQuestionAction({ researchId: "research-1", question: "質問" })).resolves.toEqual({ ok: false, message: expect.stringContaining("生成") });
-    expect(updateMock).not.toHaveBeenCalled();
+    const originalHistory = JSON.stringify([
+      { id: "m1", role: "user", content: "q1", createdAt: "2026-01-01T00:00:00.000Z" }
+    ]);
+    selectLimitMock.mockResolvedValueOnce([{ id: "research-1", userId: "user-1", query: "https://example.com", reportJson: JSON.stringify(report), chatMessagesJson: originalHistory, createdAt: new Date(), updatedAt: new Date() }]);
+    generateCompanyResearchChatAnswerMock.mockResolvedValueOnce({ id: "assistant-1", role: "assistant", content: "回答", createdAt: "2026-01-01T00:01:00.000Z", citations: [] });
+
+    await askCompanyResearchQuestionAction({ researchId: "research-1", question: "質問" });
+
+    const updateWhereArg = updateWhereMock.mock.calls[0]?.[0] as { args: unknown[] };
+    expect(updateWhereArg.args[2]).toMatchObject({ right: originalHistory });
   });
+
+  it("returns a safe conflict message when another tab wins the update", async () => {
+    const report = buildMockCompanyResearchReport("テスト株式会社");
+    selectLimitMock.mockResolvedValueOnce([{ id: "research-1", userId: "user-1", query: "https://example.com", reportJson: JSON.stringify(report), chatMessagesJson: JSON.stringify([
+      { id: "m1", role: "user", content: "q1", createdAt: "2026-01-01T00:00:00.000Z" },
+      { id: "m2", role: "assistant", content: "a1", createdAt: "2026-01-01T00:01:00.000Z" }
+    ]), createdAt: new Date(), updatedAt: new Date() }]);
+    updateWhereMock.mockResolvedValueOnce({ rowsAffected: 0 });
+    generateCompanyResearchChatAnswerMock.mockResolvedValueOnce({ id: "assistant-1", role: "assistant", content: "回答", createdAt: "2026-01-01T00:01:00.000Z", citations: [] });
+
+    await expect(askCompanyResearchQuestionAction({ researchId: "research-1", question: "質問" })).resolves.toEqual({ ok: false, message: "別の質問が先に送信されました。履歴を更新してから再度お試しください" });
+    expect(generateCompanyResearchChatAnswerMock).toHaveBeenCalledTimes(1);
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    expect(revalidatePathMock).not.toHaveBeenCalled();
+  });
+
 
   it("falls back to parsed seed history when stored history is null", async () => {
     const report = buildMockCompanyResearchReport("テスト株式会社");
