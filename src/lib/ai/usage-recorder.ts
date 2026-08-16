@@ -98,35 +98,48 @@ function normalizeErrorCode(errorCode: RecordAiUsageInput["errorCode"]): AiUsage
   }
 }
 
-function validateMetadata(metadata: unknown): metadata is AiUsageMetadata {
-  if (metadata == null) return true;
-  if (Array.isArray(metadata) || typeof metadata !== "object") return false;
-  const entries = Object.entries(metadata as Record<string, unknown>);
-  for (const [key, value] of entries) {
-    if (!SAFE_METADATA_KEYS.includes(key as (typeof SAFE_METADATA_KEYS)[number])) return false;
-    switch (key) {
-      case "attempt":
-      case "citationCount":
-      case "groundedSourceCount":
-      case "chatQuestionNumber":
-        if (!isSafeNonNegativeInteger(value)) return false;
-        break;
-      case "fallbackReason":
-        if (
-          value !== "api_error" &&
-          value !== "invalid_output" &&
-          value !== "insufficient_evidence" &&
-          value !== "local_fallback"
-        ) {
-          return false;
-        }
-        break;
-      case "creditSettled":
-        if (typeof value !== "boolean") return false;
-        break;
+function sanitizeMetadata(metadata: unknown): AiUsageMetadata | null {
+  if (metadata == null) return {};
+  if (Array.isArray(metadata) || typeof metadata !== "object") return null;
+
+  try {
+    const prototype = Object.getPrototypeOf(metadata);
+    if (prototype !== Object.prototype && prototype !== null) return null;
+
+    const safeMetadata: AiUsageMetadata = {};
+    for (const key of Object.keys(metadata as Record<string, unknown>)) {
+      if (!SAFE_METADATA_KEYS.includes(key as (typeof SAFE_METADATA_KEYS)[number])) return null;
+      const value = (metadata as Record<string, unknown>)[key];
+      switch (key) {
+        case "attempt":
+        case "citationCount":
+        case "groundedSourceCount":
+        case "chatQuestionNumber":
+          if (!isSafeNonNegativeInteger(value)) return null;
+          safeMetadata[key] = value;
+          break;
+        case "fallbackReason":
+          if (
+            value !== "api_error" &&
+            value !== "invalid_output" &&
+            value !== "insufficient_evidence" &&
+            value !== "local_fallback"
+          ) {
+            return null;
+          }
+          safeMetadata[key] = value;
+          break;
+        case "creditSettled":
+          if (typeof value !== "boolean") return null;
+          safeMetadata[key] = value;
+          break;
+      }
     }
+
+    return safeMetadata;
+  } catch {
+    return null;
   }
-  return true;
 }
 
 function isValidUsageBoundary(input: RecordAiUsageInput): boolean {
@@ -145,14 +158,19 @@ function isValidUsageBoundary(input: RecordAiUsageInput): boolean {
 
 export async function recordAiUsage(input: RecordAiUsageInput): Promise<string | null> {
   const fxYenPerUsdMilli = resolveFxYenPerUsdMilli(input.actionKey);
-  const safeMetadata = input.metadata ?? {};
 
-  if (!isValidUsageBoundary(input) || !validateMetadata(safeMetadata)) {
+  if (!isValidUsageBoundary(input)) {
     warnRecordFailed(input);
     return null;
   }
 
   try {
+    const safeMetadata = sanitizeMetadata(input.metadata);
+    if (safeMetadata == null) {
+      warnRecordFailed(input);
+      return null;
+    }
+
     const pricing = estimateAiCost({
       model: input.model,
       inputTokens: input.inputTokens,

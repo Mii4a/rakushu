@@ -273,6 +273,58 @@ describe("recordAiUsage", () => {
     expect(consoleWarnSpy.mock.calls.flat().join(" ")).not.toContain("PROMPT: user SSN 123-45-6789");
   });
 
+  it("rejects inherited toJSON metadata without persisting or leaking secrets", async () => {
+    estimateAiCostMock.mockReturnValue(makePricingResult());
+    const secret = "PROMPT: private data";
+    const metadata = Object.create({ toJSON() { return { prompt: secret }; } });
+
+    await expect(recordAiUsage(baseInput({ metadata }))).resolves.toBeNull();
+
+    expect(insertValuesMock).not.toHaveBeenCalled();
+    expect(consoleWarnSpy.mock.calls.flat().join(" ")).not.toContain(secret);
+  });
+
+  it("rejects custom prototype metadata and inherited toJSON helpers", async () => {
+    estimateAiCostMock.mockReturnValue(makePricingResult());
+    const proto = { toJSON() { return { fallbackReason: "local_fallback" }; } };
+    const metadata = Object.create(proto);
+    metadata.attempt = 1;
+
+    await expect(recordAiUsage(baseInput({ metadata }))).resolves.toBeNull();
+
+    expect(insertValuesMock).not.toHaveBeenCalled();
+  });
+
+  it("returns null for metadata with throwing getters without leaking the thrown secret", async () => {
+    estimateAiCostMock.mockReturnValue(makePricingResult());
+    const metadata = Object.create(null);
+    Object.defineProperty(metadata, "fallbackReason", {
+      enumerable: true,
+      get() {
+        throw new Error("SECRET getter blew up");
+      }
+    });
+
+    await expect(recordAiUsage(baseInput({ metadata }))).resolves.toBeNull();
+
+    expect(insertValuesMock).not.toHaveBeenCalled();
+    expect(consoleWarnSpy.mock.calls.flat().join(" ")).not.toContain("SECRET getter blew up");
+  });
+
+  it("accepts null-prototype metadata and serializes a reconstructed plain object", async () => {
+    estimateAiCostMock.mockReturnValue(makePricingResult());
+    insertValuesMock.mockResolvedValueOnce(undefined);
+    const metadata = Object.create(null);
+    metadata.attempt = 2;
+    metadata.fallbackReason = "api_error";
+
+    await expect(recordAiUsage(baseInput({ metadata }))).resolves.toBe("event-1");
+
+    expect(insertValuesMock).toHaveBeenCalledWith(expect.objectContaining({
+      metadataJson: JSON.stringify({ attempt: 2, fallbackReason: "api_error" })
+    }));
+  });
+
   it.each([
     ["negative attempt", { attempt: -1 }],
     ["noninteger citationCount", { citationCount: 1.5 }],
@@ -280,7 +332,8 @@ describe("recordAiUsage", () => {
     ["unsafe chatQuestionNumber", { chatQuestionNumber: Number.MAX_SAFE_INTEGER + 1 }],
     ["invalid creditSettled type", { creditSettled: "yes" }],
     ["unknown key", { extra: true }],
-    ["array metadata", []]
+    ["array metadata", []],
+    ["custom prototype", Object.create({ attempt: 1 })]
   ])("rejects malformed metadata: %s", async (_label, metadata) => {
     estimateAiCostMock.mockReturnValue(makePricingResult());
 
