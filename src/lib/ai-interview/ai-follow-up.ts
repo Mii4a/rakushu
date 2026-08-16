@@ -39,28 +39,6 @@ function buildFallbackFollowUpQuestion(input: AiInterviewFollowUpInput): AiInter
   };
 }
 
-function resolveFallbackErrorCode(error: unknown): AiUsageErrorCode {
-  if (error && typeof error === "object") {
-    const code = (error as { code?: unknown }).code;
-    if (
-      code === "http_400" ||
-      code === "http_401" ||
-      code === "http_403" ||
-      code === "http_429" ||
-      code === "http_5xx" ||
-      code === "timeout" ||
-      code === "network_error" ||
-      code === "invalid_json" ||
-      code === "empty_output" ||
-      code === "schema_validation_failed" ||
-      code === "unknown_error"
-    ) {
-      return code;
-    }
-  }
-  return "unknown_error";
-}
-
 async function recordFallback(input: AiInterviewFollowUpInput, model: string, errorCode: AiUsageErrorCode) {
   try {
     await recordLocalAiFallback({
@@ -114,7 +92,7 @@ export async function buildAiInterviewFollowUpQuestion(input: AiInterviewFollowU
     return result.data;
   } catch (error) {
     const fallback = buildFallbackFollowUpQuestion(input);
-    const errorCode = error instanceof StructuredAiRequestError ? error.code : resolveFallbackErrorCode(error);
+    const errorCode: AiUsageErrorCode = error instanceof StructuredAiRequestError ? error.code : "unknown_error";
     const model = error instanceof StructuredAiRequestError ? error.model : resolveAiModelPolicy("interview_follow_up_generate").model;
     await recordFallback(input, model, errorCode);
     return fallback;

@@ -138,6 +138,59 @@ describe("buildAiInterviewFollowUpQuestion", () => {
     expect(recordLocalAiFallbackMock).toHaveBeenCalledWith(expect.objectContaining({ model: "gpt-5.6-luna", errorCode: "unknown_error" }));
   });
 
+  it("preserves the exact provider code and model for a structured timeout error", async () => {
+    requestStructuredAiMock.mockRejectedValueOnce(new FakeStructuredAiRequestError("http_429", "custom-luna-model"));
+
+    const { buildAiInterviewFollowUpQuestion } = await import("./ai-follow-up");
+    await expect(buildAiInterviewFollowUpQuestion(makeInput())).resolves.toEqual({ prompt: "自己紹介の中で、周囲からどんな役割を期待されることが多いですか？" });
+
+    expect(resolveAiModelPolicyMock).not.toHaveBeenCalled();
+    expect(recordLocalAiFallbackMock).toHaveBeenCalledWith(expect.objectContaining({ model: "custom-luna-model", errorCode: "http_429" }));
+  });
+
+  it("ignores spoofed code and model properties on unexpected error objects", async () => {
+    requestStructuredAiMock.mockRejectedValueOnce({ code: "http_429", model: "evil" });
+
+    const { buildAiInterviewFollowUpQuestion } = await import("./ai-follow-up");
+    await expect(buildAiInterviewFollowUpQuestion(makeInput())).resolves.toEqual({ prompt: "自己紹介の中で、周囲からどんな役割を期待されることが多いですか？" });
+
+    expect(resolveAiModelPolicyMock).toHaveBeenCalledWith("interview_follow_up_generate");
+    expect(recordLocalAiFallbackMock).toHaveBeenCalledWith(expect.objectContaining({ model: "gpt-5.6-luna", errorCode: "unknown_error" }));
+  });
+
+  it("awaits fallback telemetry before resolving the deterministic fallback", async () => {
+    requestStructuredAiMock.mockRejectedValueOnce(new FakeStructuredAiRequestError("timeout", "gpt-5.6-luna"));
+    let releaseTelemetry!: () => void;
+    const telemetryStarted: Array<string> = [];
+    let telemetrySettled = false;
+    recordLocalAiFallbackMock.mockImplementationOnce(async () => {
+      telemetryStarted.push("called");
+      await new Promise<void>((resolve) => {
+        releaseTelemetry = resolve;
+      });
+      telemetrySettled = true;
+    });
+
+    const { buildAiInterviewFollowUpQuestion } = await import("./ai-follow-up");
+    const resultPromise = buildAiInterviewFollowUpQuestion(makeInput());
+
+    await vi.waitFor(() => {
+      expect(telemetryStarted).toHaveLength(1);
+    });
+    expect(telemetrySettled).toBe(false);
+
+    let settled = false;
+    resultPromise.then(() => {
+      settled = true;
+    });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    releaseTelemetry!();
+    await expect(resultPromise).resolves.toEqual({ prompt: "自己紹介の中で、周囲からどんな役割を期待されることが多いですか？" });
+    expect(telemetrySettled).toBe(true);
+  });
+
   it("swallows local fallback recorder failures and still returns a deterministic question", async () => {
     recordLocalAiFallbackMock.mockRejectedValueOnce(new Error("telemetry down"));
     requestStructuredAiMock.mockRejectedValueOnce(new FakeStructuredAiRequestError("timeout", "gpt-5.6-luna"));
