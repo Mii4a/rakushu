@@ -1,9 +1,7 @@
 import { z } from "zod";
 
 import type { CompanyResearchChatMessage } from "./types";
-
-export const MAX_COMPANY_RESEARCH_CHAT_QUESTIONS = 3;
-export const MAX_COMPANY_RESEARCH_QUESTION_LENGTH = 200;
+export { MAX_COMPANY_RESEARCH_CHAT_QUESTIONS, MAX_COMPANY_RESEARCH_QUESTION_LENGTH, countCompanyResearchUserQuestions } from "./chat-limits";
 
 const MAX_MESSAGES = 50;
 const MAX_MESSAGE_ID_LENGTH = 120;
@@ -104,6 +102,4 @@ export function parsePersistedCompanyResearchChatMessages(value: unknown): Compa
   }
 }
 
-export function countCompanyResearchUserQuestions(messages: readonly CompanyResearchChatMessage[]): number {
-  return messages.reduce((count, message) => count + (message.role === "user" ? 1 : 0), 0);
-}
+export type { CompanyResearchChatMessage } from "./types";

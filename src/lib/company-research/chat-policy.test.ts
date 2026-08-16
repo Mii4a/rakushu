@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
-import { countCompanyResearchUserQuestions, MAX_COMPANY_RESEARCH_CHAT_QUESTIONS, MAX_COMPANY_RESEARCH_QUESTION_LENGTH, parsePersistedCompanyResearchChatMessages } from "./chat-policy";
+import { MAX_COMPANY_RESEARCH_CHAT_QUESTIONS, MAX_COMPANY_RESEARCH_QUESTION_LENGTH, countCompanyResearchUserQuestions } from "./chat-limits";
+import { parsePersistedCompanyResearchChatMessages } from "./chat-policy";
 import type { CompanyResearchChatMessage } from "./types";
 
 function buildMessage(overrides: Partial<CompanyResearchChatMessage> = {}): CompanyResearchChatMessage {
