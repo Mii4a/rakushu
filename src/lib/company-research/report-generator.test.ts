@@ -21,7 +21,7 @@ type StrictInput = {
   schemaName: string;
   systemPrompt: string;
   userPrompt: string;
-  jsonSchema: { properties?: { report?: { properties?: { sections?: { items?: { properties?: { subsections?: { items?: { properties?: { content?: { maxItems?: number } } } } } } } } } } };
+  jsonSchema: { properties?: { report?: { properties?: { sections?: { items?: { properties?: { subsections?: { maxItems?: number; items?: { properties?: { content?: { maxItems?: number } } } } } } } } } } };
   parse: (value: unknown) => CompanyResearchResult;
 };
 
@@ -95,6 +95,8 @@ const mockInputCheck = (input: StrictInput) => {
     schemaName: "company_research_report"
   });
   expect(input.jsonSchema.properties?.report?.properties?.sections?.items?.properties?.subsections?.items?.properties?.content?.maxItems).toBe(10);
+  expect(input.jsonSchema.properties?.report?.properties?.sections?.items?.properties?.subsections?.maxItems).toBe(20);
+  expect(JSON.stringify(input.jsonSchema)).not.toMatch(/generatedAt|fetchedAt|sourceChunks|chatMessages/);
 };
 
 const request = (): { userId: string; researchId: string; websiteUrl: string; researchRequest: CompanyResearchRequest; now: Date } => ({
@@ -156,6 +158,7 @@ describe("generateCompanyResearchReport", () => {
     expect(result.result.report.generatedAt).toBe("2026-07-20T00:00:00.000Z");
     expect(result.result.report.sources[0]?.fetchedAt).toBe("2026-07-20T00:00:00.000Z");
     expect(result.result.report.sourceChunks).toEqual([]);
+    expect(result.result.report.sections.some((section) => section.title === "引用サイト・文献")).toBe(true);
     expect(result.result.chatMessages).toEqual([
       expect.objectContaining({ role: "assistant", createdAt: "2026-07-20T00:00:00.000Z" })
     ]);
@@ -217,6 +220,7 @@ describe("generateCompanyResearchReport", () => {
     ["unknown top key", (draft: Payload) => { (draft as Payload & { extraTop?: boolean }).extraTop = true; }],
     ["unknown nested key", (draft: Payload) => { (draft.report.sections[0]!.subsections[0] as Subsection & { extra?: boolean }).extra = true; }],
     ["11 content items", (draft: Payload) => { draft.report.sections[0]!.subsections[0]!.content = Array.from({ length: 11 }, () => "x"); }],
+    ["overlong trimmed URL", (draft: Payload) => { draft.report.sources[0]!.url = ` ${"https://example.com/" + "a".repeat(2030)} `; }],
     ["overlong string", (draft: Payload) => { draft.report.sources[0]!.excerpt = "x".repeat(4001); }]
   ])("rejects strict invalid input: %s", async (_label, mutate) => {
     const payload = makePayload(mutate);

@@ -9,11 +9,11 @@ import type { CompanyResearchReport, CompanyResearchResult, ResearchSection, Res
 const requiredSectionTitles = REQUIRED_RESEARCH_SECTION_TITLES;
 
 const boundedTrimmedString = (maxLength: number) => z.string().transform((value) => value.trim()).pipe(z.string().min(1).max(maxLength));
-const boundedTrimmedUrl = z.string().transform((value) => value.trim()).pipe(z.string().url());
+const boundedTrimmedUrl = z.string().transform((value) => value.trim()).pipe(z.string().min(1).max(2048).url());
 
 const citationSchema = z.object({ sourceId: boundedTrimmedString(100), label: boundedTrimmedString(100) }).strict();
 const subsectionSchema = z.object({ id: boundedTrimmedString(100), title: boundedTrimmedString(200), content: z.array(boundedTrimmedString(4000)).min(1).max(10), citations: z.array(citationSchema).min(1).max(10) }).strict();
-const sectionSchema = z.object({ id: boundedTrimmedString(100), title: boundedTrimmedString(200), subsections: z.array(subsectionSchema).min(1).max(10) }).strict();
+const sectionSchema = z.object({ id: boundedTrimmedString(100), title: boundedTrimmedString(200), subsections: z.array(subsectionSchema).min(1).max(20) }).strict();
 const sourceSchema = z.object({ id: boundedTrimmedString(100), kind: z.enum(["official", "ir", "recruit", "review", "news", "other"]), title: boundedTrimmedString(200), url: boundedTrimmedUrl, excerpt: boundedTrimmedString(4000), reliability: z.enum(["high", "medium", "low"]) }).strict();
 const providerReportSchema = z.object({ companyName: boundedTrimmedString(200), estimatedPages: z.number().int().min(0).max(200), estimatedFigures: z.number().int().min(0).max(200), sections: z.array(sectionSchema).min(9).max(12), sources: z.array(sourceSchema).min(1).max(20), suggestedQuestions: z.array(boundedTrimmedString(500)).min(1).max(6) }).strict();
 const providerPayloadSchema = z.object({ companyName: boundedTrimmedString(200), industry: boundedTrimmedString(4000), location: boundedTrimmedString(4000), size: boundedTrimmedString(4000), summary: boundedTrimmedString(4000), keyPoints: z.array(boundedTrimmedString(500)).min(1).max(5), interviewHints: z.array(boundedTrimmedString(500)).min(1).max(5), nextActions: z.array(boundedTrimmedString(500)).min(1).max(5), report: providerReportSchema }).strict();
@@ -55,7 +55,7 @@ const requestJsonSchema = {
               subsections: {
                 type: "array",
                 minItems: 1,
-                maxItems: 10,
+                maxItems: 20,
                 items: {
                   type: "object",
                   additionalProperties: false,

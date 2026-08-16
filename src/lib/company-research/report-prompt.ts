@@ -13,9 +13,9 @@ export function buildCompanyResearchReportUserPrompt(request: CompanyResearchReq
 - URL未取得、架空URL、架空文献、存在しない参照先を入れないでください。
 - 取得できない情報は推測で断定せず、未確認として本文に明記してください。
 - 各小項目の citations には、根拠にした sources の id と [1] のような label を入れてください。
-- report.sections には、アプリ側で reader 向けの source list を別途組み立てる前提で、実在する sources / citations / fetchedAt / generatedAt を返してください。
-- sourceChunks と chatMessages は返却しないでください。
-- generatedAt と fetchedAt は返却しないでください。
+- provider は 9 個の実質的な必須セクションを返してください。
+- アプリ側で reader 向けの「引用サイト・文献」一覧を別途組み立てます。
+- provider は generatedAt, fetchedAt, sourceChunks, chatMessages を返してはいけません。
 
 必須大項目:
 ${request.requiredSections.map((section) => `- ${section}`).join("\n")}
