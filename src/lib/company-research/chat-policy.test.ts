@@ -35,7 +35,7 @@ describe("company research chat policy", () => {
     expect(parsePersistedCompanyResearchChatMessages([])).toEqual([]);
   });
 
-  test.each([null, undefined, 1, "x", { messages: [] }, [{ id: "", role: "user", content: "x", createdAt: "now" }]])(
+  test.each([null, undefined, 1, "x", { messages: [] }, [{ id: "", role: "user", content: "x", createdAt: "now" }], [{ id: "m", role: "assistant", content: "x", createdAt: "now", citations: null }], [{ id: "m", role: "assistant", content: "x", createdAt: "now", citations: {} }], [{ id: "m", role: "assistant", content: "x", createdAt: "now", citations: Array.from({ length: 21 }, () => ({ sourceId: "s", label: "[1]" })) }]])(
     "malformed input %s returns null",
     (value) => {
       expect(() => parsePersistedCompanyResearchChatMessages(value)).not.toThrow();
@@ -44,16 +44,15 @@ describe("company research chat policy", () => {
   );
 
   test("drops unknown keys and reconstructs safe objects", () => {
-    const parsed = parsePersistedCompanyResearchChatMessages([
-      {
-        id: "message-1",
-        role: "user",
-        content: " hello ",
-        createdAt: "2026-01-01T00:00:00.000Z",
-        citations: [{ sourceId: "source-1", label: "[1]", extra: true }],
-        extra: "nope"
-      }
-    ]);
+    const input = [{
+      id: "message-1",
+      role: "user",
+      content: " hello ",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      citations: [{ sourceId: "source-1", label: "[1]", extra: true }],
+      extra: "nope"
+    }];
+    const parsed = parsePersistedCompanyResearchChatMessages(input);
 
     expect(parsed).toEqual([
       {
@@ -65,6 +64,7 @@ describe("company research chat policy", () => {
       }
     ]);
     expect(Object.getPrototypeOf(parsed?.[0] ?? null)).toBe(Object.prototype);
+    expect(input[0]).toHaveProperty("extra");
   });
 
   test("accepts old assistant content up to 4000 characters", () => {

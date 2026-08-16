@@ -15,23 +15,21 @@ const MAX_CITATION_LABEL_LENGTH = 100;
 const citationSchema = z.object({
   sourceId: z.string().trim().min(1).max(MAX_CITATION_SOURCE_ID_LENGTH),
   label: z.string().trim().min(1).max(MAX_CITATION_LABEL_LENGTH)
-}).strict();
+}).strip();
 
-const userMessageSchema = z.object({
+const persistedUserMessageSchema = z.object({
   id: z.string().trim().min(1).max(MAX_MESSAGE_ID_LENGTH),
   role: z.literal("user"),
   content: z.string().min(1).max(200).refine((value) => value.trim().length > 0, { message: "content must not be blank" }),
-  createdAt: z.string().trim().min(1),
-  citations: z.array(citationSchema).max(MAX_CITATIONS).optional()
-}).strict();
+  createdAt: z.string().trim().min(1)
+}).strip();
 
-const assistantMessageSchema = z.object({
+const persistedAssistantMessageSchema = z.object({
   id: z.string().trim().min(1).max(MAX_MESSAGE_ID_LENGTH),
   role: z.literal("assistant"),
   content: z.string().min(1).max(MAX_MESSAGE_CONTENT_LENGTH).refine((value) => value.trim().length > 0, { message: "content must not be blank" }),
-  createdAt: z.string().trim().min(1),
-  citations: z.array(citationSchema).max(MAX_CITATIONS).optional()
-}).strict();
+  createdAt: z.string().trim().min(1)
+}).strip();
 
 function safePlainObject(value: unknown): Record<string, unknown> | null {
   if (typeof value !== "object" || value === null) return null;
@@ -63,22 +61,31 @@ function parsePersistedCitation(value: unknown): { sourceId: string; label: stri
 function parsePersistedMessage(value: unknown): CompanyResearchChatMessage | null {
   const plain = safePlainObject(value);
   if (!plain) return null;
-  const base = {
-    id: plain.id,
-    content: plain.content,
-    createdAt: plain.createdAt
-  };
-  const parsed = plain.role === "user" ? userMessageSchema.safeParse({ role: "user", ...base }) : plain.role === "assistant" ? assistantMessageSchema.safeParse({ role: "assistant", ...base }) : null;
+  const parsed = plain.role === "user" ? persistedUserMessageSchema.safeParse(plain) : plain.role === "assistant" ? persistedAssistantMessageSchema.safeParse(plain) : null;
   if (!parsed || !parsed.success) return null;
-  const citations = safeArray(plain.citations)?.map(parsePersistedCitation).filter((citation): citation is { sourceId: string; label: string } => citation !== null);
-  const message: CompanyResearchChatMessage = {
+  if (Object.prototype.hasOwnProperty.call(plain, "citations")) {
+    const citationsValue = safeArray(plain.citations);
+    if (!citationsValue || citationsValue.length > MAX_CITATIONS) return null;
+    const citations: { sourceId: string; label: string }[] = [];
+    for (const citation of citationsValue) {
+      const parsedCitation = parsePersistedCitation(citation);
+      if (!parsedCitation) return null;
+      citations.push(parsedCitation);
+    }
+    return {
+      id: parsed.data.id,
+      role: parsed.data.role,
+      content: parsed.data.content,
+      createdAt: parsed.data.createdAt,
+      citations
+    };
+  }
+  return {
     id: parsed.data.id,
     role: parsed.data.role,
     content: parsed.data.content,
-    createdAt: parsed.data.createdAt,
-    ...(citations && citations.length > 0 ? { citations } : {})
+    createdAt: parsed.data.createdAt
   };
-  return message;
 }
 
 export function parsePersistedCompanyResearchChatMessages(value: unknown): CompanyResearchChatMessage[] | null {

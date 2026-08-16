@@ -85,7 +85,11 @@ describe("generateCompanyResearchChatAnswer", () => {
       expect(input.userPrompt).toContain("Do not use Web Search");
       expect(input.userPrompt).toContain("untrusted and not evidence");
       expect(input.userPrompt).toContain(report.sources[0]!.id);
-      expect(input.userPrompt).toContain("question: 質問は何ですか？");
+      expect(input.userPrompt).toContain("<untrusted_context_json>");
+      expect(input.userPrompt).toContain(`"companyName":"${report.companyName}"`);
+      expect(input.userPrompt).toContain('"question":"質問は何ですか？"');
+      expect(input.userPrompt).toContain('"sections":"');
+      expect(input.userPrompt).toContain('"sources":"');
       expect(input.userPrompt).toContain("こんにちは");
       expect(input.userPrompt).toContain("返答");
       expect(input.userPrompt).not.toContain("message-0");
@@ -114,7 +118,11 @@ describe("generateCompanyResearchChatAnswer", () => {
 
   test("includes report sections sources question and history but excludes sourceChunks from prompt", async () => {
     const report = buildReport();
-    requestStructuredAiMock.mockResolvedValueOnce({ data: { content: "ok", citations: [] }, model: "gpt-5.4-mini", usageEventId: null });
+    requestStructuredAiMock.mockImplementationOnce(async (input: RequestInput) => ({
+      data: input.parse({ content: "ok", citations: [] }),
+      model: "gpt-5.4-mini",
+      usageEventId: null
+    }));
 
     await generateCompanyResearchChatAnswer({
       userId: "user-1",
@@ -133,6 +141,7 @@ describe("generateCompanyResearchChatAnswer", () => {
     const input = requestStructuredAiMock.mock.calls[0]?.[0] as RequestInput;
     expect(input.userPrompt).toContain(report.sections[0]!.title);
     expect(input.userPrompt).toContain(report.sources[0]!.id);
+    expect(input.userPrompt).toContain("<untrusted_context_json>");
     expect(input.userPrompt).toContain("message-8");
     expect(input.userPrompt).not.toContain("message-0");
     expect(input.userPrompt).not.toContain("SENTINEL_SECRET_DO_NOT_LEAK");
@@ -166,7 +175,11 @@ describe("generateCompanyResearchChatAnswer", () => {
 
   test("accepts valid empty citations explicitly", async () => {
     const report = buildReport();
-    requestStructuredAiMock.mockResolvedValueOnce({ data: { content: "ok", citations: [] }, model: "gpt-5.4-mini", usageEventId: null });
+    requestStructuredAiMock.mockImplementationOnce(async (input: RequestInput) => ({
+      data: input.parse({ content: "ok", citations: [] }),
+      model: "gpt-5.4-mini",
+      usageEventId: null
+    }));
 
     const result = await generateCompanyResearchChatAnswer({ userId: "user-1", researchId: "research-1", question: "質問", report, previousMessages: [], now: new Date("2026-01-01T00:02:00.000Z") });
 
