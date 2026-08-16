@@ -186,11 +186,11 @@ async function fetchResponses(apiKey: string, body: Record<string, unknown>, ms:
   });
 }
 
-async function attempt<T>(input: StructuredAiRequestInput<T>, policy: ReturnType<typeof resolveAiModelPolicy>, model: string, attemptNumber: 1 | 2, fallbackReason?: NonNullable<AiUsageMetadata["fallbackReason"]>, apiKey?: string) {
+async function attempt<T>(input: StructuredAiRequestInput<T>, policy: ReturnType<typeof resolveAiModelPolicy>, model: string, attemptNumber: 1 | 2, apiKey: string, fallbackReason?: NonNullable<AiUsageMetadata["fallbackReason"]>) {
   const started = Date.now();
   const metadata = eventMetadata(attemptNumber, fallbackReason);
   try {
-    const response = await fetchResponses(apiKey ?? "", buildBody(input, model, policy), timeoutMs(policy.featureArea));
+    const response = await fetchResponses(apiKey, buildBody(input, model, policy), timeoutMs(policy.featureArea));
     let envelope: unknown;
     try {
       envelope = await response.json();
@@ -256,10 +256,10 @@ export async function requestStructuredAi<T>(input: StructuredAiRequestInput<T>)
     throw new StructuredAiRequestError("unknown_error", policy.model);
   }
 
-  const primary = await attempt(input, policy, policy.model, 1, undefined, apiKey);
+  const primary = await attempt(input, policy, policy.model, 1, apiKey);
   if (primary.ok) return { data: primary.data, model: policy.model, usageEventId: primary.usageEventId };
   if (policy.fallbackModel && policy.maxAttempts === 2 && shouldFallback(primary.error.code)) {
-    const fallback = await attempt(input, policy, policy.fallbackModel, 2, fallbackReasonFor(primary.error.code), apiKey);
+    const fallback = await attempt(input, policy, policy.fallbackModel, 2, apiKey, fallbackReasonFor(primary.error.code));
     if (fallback.ok) return { data: fallback.data, model: policy.fallbackModel, usageEventId: fallback.usageEventId };
     throw fallback.error;
   }

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AiActionKey } from "./model-policy";
+import type { AiActionKey, AiFeatureArea } from "./model-policy";
 
 const { recordAiUsageMock, resolveAiModelPolicyMock, fetchMock, abortSignalTimeoutMock, nowMock, parseMock, serverEnvMock } = vi.hoisted(() => ({
   recordAiUsageMock: vi.fn(),
@@ -108,6 +108,8 @@ describe("openai responses client", () => {
 
     const { requestStructuredAi } = await import("./openai-responses");
     await expect(requestStructuredAi({ userId: "u1", actionKey: "company_research_report_generate", sourceTable: "jobs", sourceId: "job-1", systemPrompt: "sys", userPrompt: "usr", schemaName: "Test", jsonSchema: { type: "object" }, parse: parseMock })).resolves.toMatchObject({ data: { ok: true }, model: "gpt-5.6-terra" });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string)).toMatchObject({ model: "gpt-5.4-mini" });
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body as string)).toMatchObject({ model: "gpt-5.6-terra" });
     expect(recordAiUsageMock).toHaveBeenNthCalledWith(1, expect.objectContaining({ requestStatus: "error", errorCode: "invalid_json", metadata: { attempt: 1, fallbackReason: "invalid_output" } }));
     expect(recordAiUsageMock).toHaveBeenNthCalledWith(2, expect.objectContaining({ requestStatus: "success", metadata: { attempt: 2, fallbackReason: "invalid_output" } }));
   });
@@ -238,11 +240,11 @@ describe("openai responses client", () => {
   });
 
   it.each([
-    { actionKey: "company_research_report_generate" as AiActionKey, featureArea: "company_research" as const, timeout: 90000 },
-    { actionKey: "company_research_chat_generate" as AiActionKey, featureArea: "company_research" as const, timeout: 90000 },
-    { actionKey: "resume_interview_generate" as AiActionKey, featureArea: "resume" as const, timeout: 30000 },
-    { actionKey: "resume_generator_generate" as AiActionKey, featureArea: "resume" as const, timeout: 30000 }
-  ])("uses the configured timeout budget for $actionKey", async ({ actionKey, featureArea, timeout }) => {
+    { actionKey: "company_research_report_generate", featureArea: "company_research", timeout: 90000 },
+    { actionKey: "company_research_chat_generate", featureArea: "company_research", timeout: 90000 },
+    { actionKey: "interview_follow_up_generate", featureArea: "ai_interview", timeout: 30000 },
+    { actionKey: "resume_draft_generate", featureArea: "resume", timeout: 30000 }
+  ] satisfies ReadonlyArray<{ actionKey: AiActionKey; featureArea: AiFeatureArea; timeout: number }>)("uses the configured timeout budget for $actionKey", async ({ actionKey, featureArea, timeout }) => {
     resolveAiModelPolicyMock.mockReturnValue({ ...basePolicy, actionKey, featureArea, fallbackModel: null, maxAttempts: 1, webSearch: false });
     fetchMock.mockResolvedValueOnce(jsonResponse({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: '{"ok":true}' }] }], usage: {} }));
     const { requestStructuredAi } = await import("./openai-responses");
