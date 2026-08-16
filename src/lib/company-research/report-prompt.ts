@@ -1,6 +1,6 @@
 import type { CompanyResearchRequest } from "@/lib/company-research/research-request";
 
-export const companyResearchReportSystemPrompt = `あなたは就職活動向けの企業研究AIです。公開情報を材料に、広範囲な総合企業調査レポートを日本語で作成します。出力は必ずJSONのみです。参照した情報は、実際に確認できる http(s) URL のみを使ってください。URL未取得、架空URL、架空文献、推測した参照先、未対応の取得手段は使わないでください。確認できない点は断定せず未確認と書きつつ、必ず実在する情報源の citations を付けてください。`;
+export const companyResearchReportSystemPrompt = `あなたは就職活動向けの企業研究AIです。公開情報を材料に、広範囲な総合企業調査レポートを日本語で作成します。出力は必ずJSONのみです。参照した情報は、実際に確認できる http(s) URL のみを使ってください。URL未取得、架空URL、架空文献、推測した参照先、未対応の取得手段は使わないでください。確認できない点は断定せず未確認と書いてください。`;
 
 export function buildCompanyResearchReportUserPrompt(request: CompanyResearchRequest) {
   return `企業公式サイトURL: ${request.websiteUrl}
@@ -13,7 +13,7 @@ export function buildCompanyResearchReportUserPrompt(request: CompanyResearchReq
 - URL未取得、架空URL、架空文献、存在しない参照先を入れないでください。
 - 取得できない情報は推測で断定せず、未確認として本文に明記してください。
 - 各小項目の citations には、根拠にした sources の id と [1] のような label を入れてください。
-- report.sections には必ず title が "引用サイト・文献" のセクションを含め、読者が確認できる実在URLを表示してください。
+- report.sections には、アプリ側で reader 向けの source list を別途組み立てる前提で、実在する sources / citations / fetchedAt / generatedAt を返してください。
 - sourceChunks と chatMessages は返却しないでください。
 - generatedAt と fetchedAt は返却しないでください。
 

@@ -1,29 +1,22 @@
 import { z } from "zod";
 
 import { requestStructuredAi } from "@/lib/ai/openai-responses";
-import { validateCompanyResearchEvidence } from "@/lib/company-research/evidence-validator";
+import { REQUIRED_RESEARCH_SECTION_TITLES, validateCompanyResearchEvidence } from "@/lib/company-research/evidence-validator";
 import { buildCompanyResearchReportUserPrompt, companyResearchReportSystemPrompt } from "@/lib/company-research/report-prompt";
 import type { CompanyResearchRequest } from "@/lib/company-research/research-request";
 import type { CompanyResearchReport, CompanyResearchResult, ResearchSection, ResearchSource } from "@/lib/company-research/types";
 
-const requiredSectionTitles = [
-  "エグゼクティブサマリー",
-  "企業基本情報と設立背景",
-  "事業内容",
-  "業界・競争環境",
-  "組織・人材",
-  "財務・業績",
-  "成長戦略",
-  "従業員評価",
-  "就活への応用"
-] as const;
+const requiredSectionTitles = REQUIRED_RESEARCH_SECTION_TITLES;
 
-const citationSchema = z.object({ sourceId: z.string().min(1).max(100), label: z.string().min(1).max(100) }).strict();
-const subsectionSchema = z.object({ id: z.string().min(1).max(100), title: z.string().min(1).max(200), content: z.array(z.string().min(1).max(4000)).min(1).max(20), citations: z.array(citationSchema).min(1).max(10) }).strict();
-const sectionSchema = z.object({ id: z.string().min(1).max(100), title: z.string().min(1).max(200), subsections: z.array(subsectionSchema).min(1).max(20) }).strict();
-const sourceSchema = z.object({ id: z.string().min(1).max(100), kind: z.enum(["official", "ir", "recruit", "review", "news", "other"]), title: z.string().min(1).max(200), url: z.string().url().max(2048), excerpt: z.string().min(1).max(4000), reliability: z.enum(["high", "medium", "low"]) }).strict();
-const providerReportSchema = z.object({ companyName: z.string().min(1).max(200), estimatedPages: z.number().int().min(0).max(200), estimatedFigures: z.number().int().min(0).max(200), sections: z.array(sectionSchema).min(9).max(12), sources: z.array(sourceSchema).min(1).max(20), suggestedQuestions: z.array(z.string().min(1).max(500)).min(1).max(6) }).strict();
-const providerPayloadSchema = z.object({ companyName: z.string().min(1).max(200), industry: z.string().min(1).max(4000), location: z.string().min(1).max(4000), size: z.string().min(1).max(4000), summary: z.string().min(1).max(4000), keyPoints: z.array(z.string().min(1).max(500)).min(1).max(5), interviewHints: z.array(z.string().min(1).max(500)).min(1).max(5), nextActions: z.array(z.string().min(1).max(500)).min(1).max(5), report: providerReportSchema }).strict();
+const boundedTrimmedString = (maxLength: number) => z.string().transform((value) => value.trim()).pipe(z.string().min(1).max(maxLength));
+const boundedTrimmedUrl = z.string().transform((value) => value.trim()).pipe(z.string().url());
+
+const citationSchema = z.object({ sourceId: boundedTrimmedString(100), label: boundedTrimmedString(100) }).strict();
+const subsectionSchema = z.object({ id: boundedTrimmedString(100), title: boundedTrimmedString(200), content: z.array(boundedTrimmedString(4000)).min(1).max(10), citations: z.array(citationSchema).min(1).max(10) }).strict();
+const sectionSchema = z.object({ id: boundedTrimmedString(100), title: boundedTrimmedString(200), subsections: z.array(subsectionSchema).min(1).max(10) }).strict();
+const sourceSchema = z.object({ id: boundedTrimmedString(100), kind: z.enum(["official", "ir", "recruit", "review", "news", "other"]), title: boundedTrimmedString(200), url: boundedTrimmedUrl, excerpt: boundedTrimmedString(4000), reliability: z.enum(["high", "medium", "low"]) }).strict();
+const providerReportSchema = z.object({ companyName: boundedTrimmedString(200), estimatedPages: z.number().int().min(0).max(200), estimatedFigures: z.number().int().min(0).max(200), sections: z.array(sectionSchema).min(9).max(12), sources: z.array(sourceSchema).min(1).max(20), suggestedQuestions: z.array(boundedTrimmedString(500)).min(1).max(6) }).strict();
+const providerPayloadSchema = z.object({ companyName: boundedTrimmedString(200), industry: boundedTrimmedString(4000), location: boundedTrimmedString(4000), size: boundedTrimmedString(4000), summary: boundedTrimmedString(4000), keyPoints: z.array(boundedTrimmedString(500)).min(1).max(5), interviewHints: z.array(boundedTrimmedString(500)).min(1).max(5), nextActions: z.array(boundedTrimmedString(500)).min(1).max(5), report: providerReportSchema }).strict();
 
 type ProviderPayload = z.infer<typeof providerPayloadSchema>;
 
@@ -62,7 +55,7 @@ const requestJsonSchema = {
               subsections: {
                 type: "array",
                 minItems: 1,
-                maxItems: 20,
+                maxItems: 10,
                 items: {
                   type: "object",
                   additionalProperties: false,
@@ -70,7 +63,7 @@ const requestJsonSchema = {
                   properties: {
                     id: { type: "string", minLength: 1, maxLength: 100 },
                     title: { type: "string", minLength: 1, maxLength: 200 },
-                    content: { type: "array", minItems: 1, maxItems: 20, items: { type: "string", minLength: 1, maxLength: 4000 } },
+                    content: { type: "array", minItems: 1, maxItems: 10, items: { type: "string", minLength: 1, maxLength: 4000 } },
                     citations: {
                       type: "array",
                       minItems: 1,
@@ -115,7 +108,7 @@ const requestJsonSchema = {
   }
 } as const;
 
-function buildCitationSection(sources: ResearchSource[]): ResearchSection {
+function buildDerivedCitationSection(sources: ResearchSource[]): ResearchSection {
   return {
     id: "quoted-sites-and-literature",
     title: "引用サイト・文献",
@@ -130,26 +123,28 @@ function buildCitationSection(sources: ResearchSource[]): ResearchSection {
   };
 }
 
-function ensureCitation(section: ResearchSection, sourceId: string): ResearchSection {
-  return { ...section, subsections: section.subsections.map((subsection) => ({ ...subsection, citations: subsection.citations.length > 0 ? subsection.citations : [{ sourceId, label: "[1]" }] })) };
-}
-
 function finalizeResult(payload: ProviderPayload, now: Date): CompanyResearchResult {
-  const sources: ResearchSource[] = payload.report.sources.map((source) => ({ ...source, fetchedAt: now.toISOString() }));
-  const report: CompanyResearchReport = {
+  const timestamp = now.toISOString();
+  const sources: ResearchSource[] = payload.report.sources.map((source) => ({ ...source, fetchedAt: timestamp }));
+  const evidenceReport: CompanyResearchReport = {
     companyName: payload.report.companyName,
-    generatedAt: now.toISOString(),
+    generatedAt: timestamp,
     estimatedPages: payload.report.estimatedPages,
     estimatedFigures: payload.report.estimatedFigures,
-    sections: payload.report.sections.filter((section) => section.title !== "引用サイト・文献").map((section) => ensureCitation(section, sources[0]!.id)).concat(buildCitationSection(sources)),
+    sections: payload.report.sections,
     sources,
     sourceChunks: [],
     suggestedQuestions: payload.report.suggestedQuestions
   };
 
-  if (validateCompanyResearchEvidence(report).ok !== true) {
+  if (validateCompanyResearchEvidence(evidenceReport).ok !== true) {
     throw new Error("Company research report generation failed");
   }
+
+  const report: CompanyResearchReport = {
+    ...evidenceReport,
+    sections: evidenceReport.sections.filter((section) => section.title !== "引用サイト・文献").concat(buildDerivedCitationSection(sources))
+  };
 
   return {
     companyName: payload.companyName,
@@ -161,11 +156,12 @@ function finalizeResult(payload: ProviderPayload, now: Date): CompanyResearchRes
     interviewHints: payload.interviewHints,
     nextActions: payload.nextActions,
     report,
-    chatMessages: [{ id: crypto.randomUUID(), role: "assistant", content: `${payload.companyName}について、公開情報をもとに調査を行い、レポートを作成しました。\n以下のレポートをご確認ください。`, createdAt: now.toISOString() }]
+    chatMessages: [{ id: crypto.randomUUID(), role: "assistant", content: `${payload.companyName}について、公開情報をもとに調査を行い、レポートを作成しました。\n以下のレポートをご確認ください。`, createdAt: timestamp }]
   };
 }
 
-export async function generateCompanyResearchReport({ userId, researchId, websiteUrl, researchRequest, now }: { userId: string; researchId: string; websiteUrl: string; researchRequest: CompanyResearchRequest; now: Date; }): Promise<{ result: CompanyResearchResult; model: string; usageEventId: string | null }> {
+export async function generateCompanyResearchReport(input: { userId: string; researchId: string; websiteUrl: string; researchRequest: CompanyResearchRequest; now: Date; }): Promise<{ result: CompanyResearchResult; model: string; usageEventId: string | null }> {
+  const { userId, researchId, researchRequest, now } = input;
   const generation = await requestStructuredAi({
     userId,
     actionKey: "company_research_report_generate",
