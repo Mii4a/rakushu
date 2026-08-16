@@ -122,6 +122,46 @@ export const jobAnalyses = sqliteTable(
   (table) => [index("job_analyses_job_id_idx").on(table.jobId)]
 );
 
+export const aiUsageEvents = sqliteTable(
+  "ai_usage_events",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+    provider: text("provider").notNull().default("openai"),
+    model: text("model").notNull(),
+    featureArea: text("feature_area").notNull(),
+    actionKey: text("action_key").notNull(),
+    sourceTable: text("source_table"),
+    sourceId: text("source_id"),
+    requestStatus: text("request_status").notNull(),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    cachedInputTokens: integer("cached_input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    reasoningTokens: integer("reasoning_tokens").notNull().default(0),
+    totalTokens: integer("total_tokens").notNull().default(0),
+    webSearchCalls: integer("web_search_calls").notNull().default(0),
+    inputUnitPriceMicroUsdPer1m: integer("input_unit_price_micro_usd_per_1m"),
+    outputUnitPriceMicroUsdPer1m: integer("output_unit_price_micro_usd_per_1m"),
+    toolCostMicroUsd: integer("tool_cost_micro_usd"),
+    totalCostMicroUsd: integer("total_cost_micro_usd"),
+    fxYenPerUsdMilli: integer("fx_yen_per_usd_milli"),
+    totalCostMilliYen: integer("total_cost_milli_yen"),
+    latencyMs: integer("latency_ms").notNull().default(0),
+    priceVersion: text("price_version"),
+    errorCode: text("error_code"),
+    metadataJson: text("metadata_json").notNull().default("{}"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`)
+  },
+  (table) => [
+    index("ai_usage_events_created_at_idx").on(table.createdAt),
+    index("ai_usage_events_user_created_at_idx").on(table.userId, table.createdAt),
+    index("ai_usage_events_feature_created_at_idx").on(table.featureArea, table.createdAt),
+    index("ai_usage_events_action_created_at_idx").on(table.actionKey, table.createdAt),
+    index("ai_usage_events_model_created_at_idx").on(table.model, table.createdAt),
+    index("ai_usage_events_status_created_at_idx").on(table.requestStatus, table.createdAt)
+  ]
+);
+
 export const jobAnalysisFeedback = sqliteTable(
   "job_analysis_feedback",
   {
