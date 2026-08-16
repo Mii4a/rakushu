@@ -15,10 +15,11 @@ const buildAiInterviewFollowUpQuestionMock = vi.fn();
 const dbMock = {
   eventLog: [] as string[],
   sessions: [] as Array<{
-
     id: string;
     userId: string;
     scenarioType: string;
+    targetCompany?: string;
+    targetRole?: string;
     startedAt: Date;
   }>,
   answers: [] as Array<{
@@ -168,6 +169,8 @@ describe("submitConfirmedInterviewAnswer", () => {
       id: "session-1",
       userId: "user-1",
       scenarioType: "new-grad",
+      targetCompany: "らくしゅう株式会社",
+      targetRole: "営業職",
       startedAt: new Date("2026-06-17T00:00:00.000Z")
     });
   });
@@ -263,6 +266,7 @@ describe("submitConfirmedInterviewAnswer", () => {
     expect(response.ok).toBe(true);
     expect(buildAiInterviewFollowUpQuestionMock).not.toHaveBeenCalled();
     expect(buildAiInterviewCategoryFeedbackMock).toHaveBeenCalledTimes(1);
+    expect(buildAiInterviewCategoryFeedbackMock).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-1", sessionId: "session-1", category: expect.objectContaining({ id: "selfIntro" }), companyName: expect.any(String), targetRole: expect.any(String), answers: [{ prompt: "自己紹介してください", answerText: "大学では情報工学を学びました。" }, { prompt: "自己紹介の中で、周囲からどんな役割を期待されることが多いですか？", answerText: "リーダー役を任されることが多く、役割整理が得意です。" }] }));
     expect(dbMock.eventLog).toEqual([
       "insert confirmed answer",
       "insert session answer",
