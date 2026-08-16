@@ -1,84 +1,163 @@
-import { describe, expect, it } from "vitest";
+import { expectTypeOf, describe, expect, it } from "vitest";
 import {
-  getAiModelPolicy,
+  resolveAiModelPolicy,
   type AiActionKey,
   type AiFeatureArea,
+  type AiModelPolicy,
 } from "./model-policy";
 
-describe("getAiModelPolicy", () => {
-  it("returns the default policy for interview follow-up", () => {
-    expect(getAiModelPolicy("interview_follow_up_generate")).toEqual({
-      actionKey: "interview_follow_up_generate",
+describe("resolveAiModelPolicy", () => {
+  it.each([
+    ["interview_follow_up_generate", {
       featureArea: "ai_interview",
       model: "gpt-5.6-luna",
-      fallbackModel: undefined,
+      fallbackModel: null,
       reasoningEffort: "none",
       webSearch: false,
       maxAttempts: 1,
-    });
-  });
-
-  it("returns the default policy for company research report with fallback and web search", () => {
-    expect(getAiModelPolicy("company_research_report_generate")).toEqual({
-      actionKey: "company_research_report_generate",
+    }],
+    ["interview_category_feedback_generate", {
+      featureArea: "ai_interview",
+      model: "gpt-5.4-mini",
+      fallbackModel: null,
+      reasoningEffort: "none",
+      webSearch: false,
+      maxAttempts: 1,
+    }],
+    ["resume_draft_generate", {
+      featureArea: "resume",
+      model: "gpt-5.4-mini",
+      fallbackModel: null,
+      reasoningEffort: "none",
+      webSearch: false,
+      maxAttempts: 1,
+    }],
+    ["resume_review_generate", {
+      featureArea: "resume",
+      model: "gpt-5.4-mini",
+      fallbackModel: null,
+      reasoningEffort: "none",
+      webSearch: false,
+      maxAttempts: 1,
+    }],
+    ["resume_company_adjust_generate", {
+      featureArea: "resume",
+      model: "gpt-5.4-mini",
+      fallbackModel: null,
+      reasoningEffort: "none",
+      webSearch: false,
+      maxAttempts: 1,
+    }],
+    ["company_research_report_generate", {
       featureArea: "company_research",
       model: "gpt-5.4-mini",
       fallbackModel: "gpt-5.6-terra",
       reasoningEffort: "none",
       webSearch: true,
       maxAttempts: 2,
-    });
-  });
-
-  it("uses the feature-specific override before the shared resume fallback", () => {
-    const previous = process.env.OPENAI_RESUME_MODEL;
-    process.env.OPENAI_RESUME_MODEL = "resume-override";
-
-    try {
-      expect(getAiModelPolicy("resume_review_generate")).toMatchObject({
-        actionKey: "resume_review_generate",
-        featureArea: "resume",
-        model: "resume-override",
-        fallbackModel: undefined,
-        webSearch: false,
-        maxAttempts: 1,
-      });
-    } finally {
-      process.env.OPENAI_RESUME_MODEL = previous;
-    }
-  });
-
-  it("keeps company chat on the main model without web search", () => {
-    expect(getAiModelPolicy("company_research_chat_generate")).toMatchObject({
-      actionKey: "company_research_chat_generate",
+    }],
+    ["company_research_chat_generate", {
       featureArea: "company_research",
       model: "gpt-5.4-mini",
-      fallbackModel: undefined,
+      fallbackModel: null,
       reasoningEffort: "none",
       webSearch: false,
       maxAttempts: 1,
+    }],
+  ] as const)("returns the default policy for %s", (actionKey, expected) => {
+    expect(resolveAiModelPolicy(actionKey, {})).toEqual({ actionKey, ...expected });
+  });
+
+  it("normalizes absent fallback model to null", () => {
+    const policy = resolveAiModelPolicy("resume_review_generate", {});
+    expect(policy.fallbackModel).toBeNull();
+  });
+
+  it("trims whitespace-only env values and falls back to defaults", () => {
+    const env = {
+      OPENAI_RESUME_MODEL: "   ",
+      OPENAI_LIGHT_MODEL: "   ",
+      OPENAI_ESCALATION_MODEL: "\t\n ",
+    };
+
+    expect(resolveAiModelPolicy("resume_review_generate", env)).toMatchObject({
+      model: "gpt-5.4-mini",
+      fallbackModel: null,
+    });
+    expect(resolveAiModelPolicy("company_research_report_generate", env)).toMatchObject({
+      fallbackModel: "gpt-5.6-terra",
+    });
+    expect(env).toEqual({
+      OPENAI_RESUME_MODEL: "   ",
+      OPENAI_LIGHT_MODEL: "   ",
+      OPENAI_ESCALATION_MODEL: "\t\n ",
     });
   });
 
-  it("uses backward compatible light and main model overrides when present", () => {
-    const previousLight = process.env.OPENAI_LIGHT_MODEL;
-    const previousMain = process.env.OPENAI_MAIN_MODEL;
-    process.env.OPENAI_LIGHT_MODEL = "light-compat";
-    process.env.OPENAI_MAIN_MODEL = "main-compat";
+  it("trims meaningful env values before returning them", () => {
+    const env = {
+      OPENAI_INTERVIEW_FEEDBACK_MODEL: "  light-trimmed  ",
+      OPENAI_MAIN_MODEL: "\tinjected-main\n",
+      OPENAI_ESCALATION_MODEL: " injected-fallback ",
+    };
 
+    expect(resolveAiModelPolicy("interview_category_feedback_generate", env)).toMatchObject({
+      model: "light-trimmed",
+    });
+    expect(resolveAiModelPolicy("company_research_report_generate", env)).toMatchObject({
+      model: "injected-main",
+      fallbackModel: "injected-fallback",
+    });
+  });
+
+  it("uses an injected env object without reading process.env", () => {
+    const env = {
+      OPENAI_INTERVIEW_FOLLOWUP_MODEL: "  injected-followup  ",
+      OPENAI_INTERVIEW_FEEDBACK_MODEL: "",
+      OPENAI_LIGHT_MODEL: "injected-light",
+      OPENAI_COMPANY_RESEARCH_MODEL: " ",
+      OPENAI_MAIN_MODEL: "injected-main",
+      OPENAI_ESCALATION_MODEL: " injected-fallback ",
+      OPENAI_RESUME_MODEL: " injected-resume ",
+    };
+
+    expect(resolveAiModelPolicy("interview_follow_up_generate", env)).toMatchObject({
+      model: "injected-followup",
+    });
+    expect(resolveAiModelPolicy("interview_category_feedback_generate", env)).toMatchObject({
+      model: "injected-light",
+    });
+    expect(resolveAiModelPolicy("resume_company_adjust_generate", env)).toMatchObject({
+      model: "injected-resume",
+    });
+    expect(resolveAiModelPolicy("company_research_report_generate", env)).toMatchObject({
+      model: "injected-main",
+      fallbackModel: "injected-fallback",
+    });
+    expect(env.OPENAI_INTERVIEW_FOLLOWUP_MODEL).toBe("  injected-followup  ");
+  });
+
+  it("reads process.env safely when no env object is provided", () => {
+    const original = { ...process.env };
     try {
-      expect(getAiModelPolicy("interview_category_feedback_generate")).toMatchObject({
-        model: "light-compat",
-      });
-      expect(getAiModelPolicy("company_research_report_generate")).toMatchObject({
-        model: "main-compat",
+      process.env.OPENAI_INTERVIEW_FOLLOWUP_MODEL = "ambient-followup";
+      expect(resolveAiModelPolicy("interview_follow_up_generate")).toMatchObject({
+        model: "ambient-followup",
       });
     } finally {
-      process.env.OPENAI_LIGHT_MODEL = previousLight;
-      process.env.OPENAI_MAIN_MODEL = previousMain;
+      process.env = original;
     }
   });
 });
 
-const _assertActionKey: AiActionKey = "resume_draft_generate";
-const _assertFeatureArea: AiFeatureArea = "resume";
+expectTypeOf<AiActionKey>().toEqualTypeOf<
+  | "interview_follow_up_generate"
+  | "interview_category_feedback_generate"
+  | "resume_draft_generate"
+  | "resume_review_generate"
+  | "resume_company_adjust_generate"
+  | "company_research_report_generate"
+  | "company_research_chat_generate"
+>();
+expectTypeOf<AiFeatureArea>().toEqualTypeOf<"ai_interview" | "resume" | "company_research">();
+expectTypeOf<AiModelPolicy["fallbackModel"]>().toEqualTypeOf<string | null>();

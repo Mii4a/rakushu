@@ -15,11 +15,13 @@ export type AiModelPolicy = {
   actionKey: AiActionKey;
   featureArea: AiFeatureArea;
   model: string;
-  fallbackModel?: string;
+  fallbackModel: string | null;
   reasoningEffort: AiReasoningEffort;
   webSearch: boolean;
   maxAttempts: 1 | 2;
 };
+
+type EnvLike = Record<string, string | undefined>;
 
 type AiModelPolicyConfig = Omit<AiModelPolicy, "model" | "fallbackModel"> & {
   modelEnvKeys?: string[];
@@ -96,10 +98,13 @@ const POLICY_BY_ACTION: Record<AiActionKey, AiModelPolicyConfig> = {
   },
 };
 
-export function getAiModelPolicy(actionKey: AiActionKey): AiModelPolicy {
+/**
+ * Resolves model policy from the provided env map; defaults to process.env for Next/server runtime.
+ */
+export function resolveAiModelPolicy(actionKey: AiActionKey, env: EnvLike = process.env): AiModelPolicy {
   const config = POLICY_BY_ACTION[actionKey];
-  const model = resolveEnvModel(config.modelEnvKeys, config.defaultModel);
-  const fallbackModel = resolveFallbackModel(config);
+  const model = resolveEnvModel(env, config.modelEnvKeys, config.defaultModel);
+  const fallbackModel = resolveFallbackModel(env, config);
 
   return {
     actionKey: config.actionKey,
@@ -112,16 +117,21 @@ export function getAiModelPolicy(actionKey: AiActionKey): AiModelPolicy {
   };
 }
 
-function resolveEnvModel(envKeys: string[] | undefined, defaultModel: string): string {
+function resolveEnvModel(env: EnvLike, envKeys: string[] | undefined, defaultModel: string): string {
   for (const envKey of envKeys ?? []) {
-    const value = process.env[envKey];
+    const value = normalizeEnvValue(env[envKey]);
     if (value) return value;
   }
   return defaultModel;
 }
 
-function resolveFallbackModel(config: AiModelPolicyConfig): string | undefined {
-  if (!config.defaultFallbackModel && !config.fallbackModelEnvKey) return undefined;
-  const fallbackEnv = config.fallbackModelEnvKey ? process.env[config.fallbackModelEnvKey] : undefined;
-  return fallbackEnv || config.defaultFallbackModel;
+function resolveFallbackModel(env: EnvLike, config: AiModelPolicyConfig): string | null {
+  if (!config.defaultFallbackModel && !config.fallbackModelEnvKey) return null;
+  const fallbackEnv = config.fallbackModelEnvKey ? normalizeEnvValue(env[config.fallbackModelEnvKey]) : undefined;
+  return fallbackEnv ?? config.defaultFallbackModel ?? null;
+}
+
+function normalizeEnvValue(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
 }
