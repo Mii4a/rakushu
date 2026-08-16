@@ -15,6 +15,7 @@ describe("aiUsageEvents schema", () => {
     expect(columnNames()).toEqual([
       "actionKey",
       "cachedInputTokens",
+      "cachedInputUnitPriceMicroUsdPer1m",
       "createdAt",
       "errorCode",
       "featureArea",
@@ -50,6 +51,8 @@ describe("aiUsageEvents schema", () => {
     expect(columns.provider.default).toBeDefined();
     expect(columns.inputTokens.default).toBeDefined();
     expect(columns.cachedInputTokens.default).toBeDefined();
+    expect(columns.inputUnitPriceMicroUsdPer1m.default).toBeUndefined();
+    expect(columns.cachedInputUnitPriceMicroUsdPer1m.default).toBeUndefined();
     expect(columns.totalTokens.default).toBeDefined();
     expect(columns.metadataJson.default).toBeDefined();
     expect(columns.createdAt.default).toBeDefined();

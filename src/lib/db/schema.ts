@@ -141,6 +141,7 @@ export const aiUsageEvents = sqliteTable(
     totalTokens: integer("total_tokens").notNull().default(0),
     webSearchCalls: integer("web_search_calls").notNull().default(0),
     inputUnitPriceMicroUsdPer1m: integer("input_unit_price_micro_usd_per_1m"),
+    cachedInputUnitPriceMicroUsdPer1m: integer("cached_input_unit_price_micro_usd_per_1m"),
     outputUnitPriceMicroUsdPer1m: integer("output_unit_price_micro_usd_per_1m"),
     toolCostMicroUsd: integer("tool_cost_micro_usd"),
     totalCostMicroUsd: integer("total_cost_micro_usd"),
