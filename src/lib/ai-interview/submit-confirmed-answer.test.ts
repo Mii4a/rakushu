@@ -171,6 +171,7 @@ describe("submitConfirmedInterviewAnswer", () => {
 
     expect(response.ok).toBe(true);
     expect(buildAiInterviewFollowUpQuestionMock).toHaveBeenCalledTimes(1);
+    expect(buildAiInterviewFollowUpQuestionMock).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-1", sessionId: "session-1" }));
     expect(buildAiInterviewCategoryFeedbackMock).not.toHaveBeenCalled();
     expect(response.nextQuestion).toMatchObject({
       questionId: "new-grad-selfIntro-2",

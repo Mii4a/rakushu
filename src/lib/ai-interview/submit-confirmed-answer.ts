@@ -266,6 +266,8 @@ export async function submitConfirmedInterviewAnswer(input: SubmitConfirmedInter
         category: categoryDefinition,
         companyName: session.targetCompany,
         targetRole: session.targetRole,
+        userId: input.userId,
+        sessionId: session.id,
         existingAnswers: categoryAnswers
       });
 
