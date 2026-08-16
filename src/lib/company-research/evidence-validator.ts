@@ -1,4 +1,4 @@
-import type { CompanyResearchReport, ResearchCitation, ResearchSection, ResearchSource } from "./types";
+
 
 export const REQUIRED_RESEARCH_SECTION_TITLES = [
   "エグゼクティブサマリー",
@@ -24,6 +24,8 @@ export type EvidenceFailureReason =
 
 export type EvidenceValidationResult = { ok: true } | { ok: false; reason: EvidenceFailureReason };
 
+type RecordLike = Record<PropertyKey, unknown>;
+
 const REQUIRED_SECTION_CANONICALS = new Set(REQUIRED_RESEARCH_SECTION_TITLES.map(canonicalizeTitle));
 
 function canonicalizeTitle(value: string): string {
@@ -41,78 +43,112 @@ function isNonEmptyTrimmedString(value: unknown): value is string {
   return typeof value === "string" && normalizeText(value).length > 0;
 }
 
-function isValidHttpUrl(value: string): boolean {
+function isRecordLike(value: unknown): value is RecordLike {
+  return typeof value === "object" && value !== null;
+}
+
+function safeGet(value: unknown, key: PropertyKey): unknown {
+  if (!isRecordLike(value)) return undefined;
   try {
-    const parsed = new URL(value);
-    return parsed.protocol === "http:" || parsed.protocol === "https:";
+    return Reflect.get(value, key);
+  } catch {
+    return undefined;
+  }
+}
+
+function safeArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function getSections(report: unknown): unknown[] {
+  return safeArray(safeGet(report, "sections"));
+}
+
+function getSources(report: unknown): unknown[] {
+  return safeArray(safeGet(report, "sources"));
+}
+
+function sectionHasRequiredTitle(section: unknown): boolean {
+  const title = safeGet(section, "title");
+  return isNonEmptyTrimmedString(title) && REQUIRED_SECTION_CANONICALS.has(canonicalizeTitle(title));
+}
+
+function hasClaimContent(subsection: unknown): boolean {
+  const content = safeGet(subsection, "content");
+  return Array.isArray(content) && content.some(isNonEmptyTrimmedString);
+}
+
+function isValidHttpUrl(value: string): boolean {
+  const normalized = normalizeText(value);
+  if (!/^https?:\/\//i.test(normalized)) return false;
+  try {
+    const parsed = new URL(normalized);
+    return (parsed.protocol === "http:" || parsed.protocol === "https:") && parsed.hostname.trim().length > 0;
   } catch {
     return false;
   }
 }
 
-function getSections(report: CompanyResearchReport): ResearchSection[] {
-  return Array.isArray(report.sections) ? report.sections : [];
-}
-
-function getSources(report: CompanyResearchReport): ResearchSource[] {
-  return Array.isArray(report.sources) ? report.sources : [];
-}
-
-function sectionHasRequiredTitle(section: ResearchSection): boolean {
-  return REQUIRED_SECTION_CANONICALS.has(canonicalizeTitle(section.title));
-}
-
-function hasClaimContent(subsection: { content?: unknown }): boolean {
-  return Array.isArray(subsection.content) && subsection.content.some(isNonEmptyTrimmedString);
+function sourceIdFromCitation(citation: unknown): string {
+  const sourceId = safeGet(citation, "sourceId");
+  return isNonEmptyTrimmedString(sourceId) ? sourceId.trim() : "";
 }
 
 function hasValidCitations(citations: unknown, sourceIds: Set<string>): boolean {
   if (!Array.isArray(citations) || citations.length === 0) return false;
   return citations.every((citation) => {
-    if (!citation || typeof citation !== "object") return false;
-    const entry = citation as Partial<ResearchCitation>;
-    return isNonEmptyTrimmedString(entry.sourceId) && sourceIds.has(entry.sourceId.trim());
+    const sourceId = sourceIdFromCitation(citation);
+    return sourceId.length > 0 && sourceIds.has(sourceId);
   });
 }
 
-export function validateCompanyResearchEvidence(report: CompanyResearchReport): EvidenceValidationResult {
+function result(reason: EvidenceFailureReason): EvidenceValidationResult {
+  return { ok: false, reason };
+}
+
+function validateCompanyResearchEvidenceInternal(report: unknown): EvidenceValidationResult {
   const sections = getSections(report);
-  if (REQUIRED_RESEARCH_SECTION_TITLES.some((title) => !sections.some((section) => canonicalizeTitle(section.title) === canonicalizeTitle(title)))) {
-    return { ok: false, reason: "missing_required_sections" };
+  if (
+    REQUIRED_RESEARCH_SECTION_TITLES.some(
+      (title) => !sections.some((section) => sectionHasRequiredTitle(section) && canonicalizeTitle(String(safeGet(section, "title"))) === canonicalizeTitle(title))
+    )
+  ) {
+    return result("missing_required_sections");
   }
 
   const sources = getSources(report);
   if (sources.length === 0) {
-    return { ok: false, reason: "missing_sources" };
+    return result("missing_sources");
   }
 
   const sourceIds = new Set<string>();
   for (const source of sources) {
-    if (!isNonEmptyTrimmedString(source?.id)) {
-      return { ok: false, reason: "invalid_source_id" };
+    const id = safeGet(source, "id");
+    if (!isNonEmptyTrimmedString(id)) {
+      return result("invalid_source_id");
     }
-    const id = source.id.trim();
-    if (sourceIds.has(id)) {
-      return { ok: false, reason: "duplicate_source_id" };
+    const trimmedId = id.trim();
+    if (sourceIds.has(trimmedId)) {
+      return result("duplicate_source_id");
     }
-    sourceIds.add(id);
+    sourceIds.add(trimmedId);
   }
 
   for (const source of sources) {
-    const url = normalizeText(source.url ?? "");
-    if (url === "" || url === "URL未取得" || !isValidHttpUrl(url)) {
-      return { ok: false, reason: "unusable_source_url" };
+    const url = safeGet(source, "url");
+    if (!isNonEmptyTrimmedString(url) || !isValidHttpUrl(url)) {
+      return result("unusable_source_url");
     }
   }
 
   for (const section of sections) {
-    if (!Array.isArray(section.subsections)) continue;
-    for (const subsection of section.subsections) {
-      if (!Array.isArray(subsection?.citations)) continue;
-      for (const citation of subsection.citations) {
-        const sourceId = typeof citation?.sourceId === "string" ? citation.sourceId.trim() : "";
+    const subsections = safeArray(safeGet(section, "subsections"));
+    for (const subsection of subsections) {
+      const citations = safeArray(safeGet(subsection, "citations"));
+      for (const citation of citations) {
+        const sourceId = sourceIdFromCitation(citation);
         if (!sourceId || !sourceIds.has(sourceId)) {
-          return { ok: false, reason: "unknown_citation_source" };
+          return result("unknown_citation_source");
         }
       }
     }
@@ -120,16 +156,24 @@ export function validateCompanyResearchEvidence(report: CompanyResearchReport): 
 
   for (const section of sections) {
     if (!sectionHasRequiredTitle(section)) continue;
-    const subsections = Array.isArray(section.subsections) ? section.subsections : [];
+    const subsections = safeArray(safeGet(section, "subsections"));
     if (!subsections.some((subsection) => hasClaimContent(subsection))) {
-      return { ok: false, reason: "missing_critical_content" };
+      return result("missing_critical_content");
     }
     for (const subsection of subsections) {
-      if (hasClaimContent(subsection) && !hasValidCitations(subsection.citations, sourceIds)) {
-        return { ok: false, reason: "uncited_critical_claim" };
+      if (hasClaimContent(subsection) && !hasValidCitations(safeGet(subsection, "citations"), sourceIds)) {
+        return result("uncited_critical_claim");
       }
     }
   }
 
   return { ok: true };
+}
+
+export function validateCompanyResearchEvidence(report: unknown): EvidenceValidationResult {
+  try {
+    return validateCompanyResearchEvidenceInternal(report);
+  } catch {
+    return result("missing_required_sections");
+  }
 }
