@@ -1,20 +1,20 @@
-export type AIPricingModel =
+export type AiPricingModel =
   | "gpt-4.1-mini"
   | "gpt-5.6-luna"
   | "gpt-5.4-mini"
   | "gpt-5.6-terra"
   | (string & {});
 
-export type AIPricingInput = {
-  model: AIPricingModel;
+export type AiPricingInput = {
+  model: AiPricingModel;
   inputTokens: number;
   outputTokens: number;
-  webSearchCount: number;
+  webSearchCalls: number;
   fxYenPerUsdMilli: number;
 };
 
-export type AIPricingResult = AIPricingInput & {
-  priceVersion: "openai-2026-08-15";
+export type AiPricingResult = AiPricingInput & {
+  priceVersion: typeof PRICE_VERSION;
   priced: boolean;
   tokenCostMicroUsd: number | null;
   toolCostMicroUsd: number | null;
@@ -22,7 +22,7 @@ export type AIPricingResult = AIPricingInput & {
   totalCostMilliYen: number | null;
 };
 
-const PRICE_VERSION = "openai-2026-08-15" as const;
+export const PRICE_VERSION = "openai-2026-08-15" as const;
 const WEB_SEARCH_COST_MICRO_USD = 10_000;
 
 const MODEL_PRICES: Record<string, { input: number; output: number }> = {
@@ -38,14 +38,14 @@ function assertNonNegativeFiniteInteger(value: number, name: string): void {
   }
 }
 
-export function calculateAIPricing(input: AIPricingInput): AIPricingResult {
+export function estimateAiCost(input: AiPricingInput): AiPricingResult {
   assertNonNegativeFiniteInteger(input.inputTokens, "inputTokens");
   assertNonNegativeFiniteInteger(input.outputTokens, "outputTokens");
-  assertNonNegativeFiniteInteger(input.webSearchCount, "webSearchCount");
+  assertNonNegativeFiniteInteger(input.webSearchCalls, "webSearchCalls");
   assertNonNegativeFiniteInteger(input.fxYenPerUsdMilli, "fxYenPerUsdMilli");
 
   const price = MODEL_PRICES[input.model];
-  const toolCostMicroUsd = input.webSearchCount * WEB_SEARCH_COST_MICRO_USD;
+  const toolCostMicroUsd = input.webSearchCalls * WEB_SEARCH_COST_MICRO_USD;
 
   if (!price) {
     return {

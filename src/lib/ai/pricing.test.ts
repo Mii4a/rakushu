@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
 
-import { calculateAIPricing } from "./pricing";
+import { PRICE_VERSION, estimateAiCost } from "./pricing";
 
-describe("calculateAIPricing", () => {
+describe("estimateAiCost", () => {
   it("calculates versioned integer-only AI pricing for known models", () => {
-    const result = calculateAIPricing({
+    const result = estimateAiCost({
       model: "gpt-5.4-mini",
       inputTokens: 50_000,
       outputTokens: 10_000,
-      webSearchCount: 3,
+      webSearchCalls: 3,
       fxYenPerUsdMilli: 150_000
     });
 
     expect(result).toEqual({
-      priceVersion: "openai-2026-08-15",
+      priceVersion: PRICE_VERSION,
       priced: true,
       tokenCostMicroUsd: 82_500,
       toolCostMicroUsd: 30_000,
@@ -22,22 +22,22 @@ describe("calculateAIPricing", () => {
       model: "gpt-5.4-mini",
       inputTokens: 50_000,
       outputTokens: 10_000,
-      webSearchCount: 3,
+      webSearchCalls: 3,
       fxYenPerUsdMilli: 150_000
     });
   });
 
-  it("returns unpriced null costs for unknown models without guessing", () => {
-    const result = calculateAIPricing({
+  it("keeps Web Search cost truthful even when token pricing stays unknown", () => {
+    const result = estimateAiCost({
       model: "gpt-unknown",
       inputTokens: 1,
       outputTokens: 2,
-      webSearchCount: 1,
+      webSearchCalls: 1,
       fxYenPerUsdMilli: 150_000
     });
 
     expect(result).toEqual({
-      priceVersion: "openai-2026-08-15",
+      priceVersion: PRICE_VERSION,
       priced: false,
       tokenCostMicroUsd: null,
       toolCostMicroUsd: 10_000,
@@ -46,30 +46,34 @@ describe("calculateAIPricing", () => {
       model: "gpt-unknown",
       inputTokens: 1,
       outputTokens: 2,
-      webSearchCount: 1,
+      webSearchCalls: 1,
       fxYenPerUsdMilli: 150_000
     });
   });
 
-  it("rejects negative and non-finite usage counts with RangeError", () => {
+  it.each([
+    ["inputTokens", "inputTokens", -1],
+    ["inputTokens non-finite", "inputTokens", Number.POSITIVE_INFINITY],
+    ["inputTokens non-integer", "inputTokens", 1.5],
+    ["outputTokens", "outputTokens", -1],
+    ["outputTokens non-finite", "outputTokens", Number.NEGATIVE_INFINITY],
+    ["outputTokens non-integer", "outputTokens", 2.25],
+    ["webSearchCalls", "webSearchCalls", -1],
+    ["webSearchCalls non-finite", "webSearchCalls", Number.NaN],
+    ["webSearchCalls non-integer", "webSearchCalls", 1.1],
+    ["fxYenPerUsdMilli", "fxYenPerUsdMilli", -1],
+    ["fxYenPerUsdMilli non-finite", "fxYenPerUsdMilli", Number.POSITIVE_INFINITY],
+    ["fxYenPerUsdMilli non-integer", "fxYenPerUsdMilli", 1.2]
+  ])("rejects %s with RangeError", (_label, field, value) => {
     expect(() => {
-      calculateAIPricing({
+      estimateAiCost({
         model: "gpt-5.4-mini",
-        inputTokens: -1,
+        inputTokens: 0,
         outputTokens: 0,
-        webSearchCount: 0,
-        fxYenPerUsdMilli: 150_000
-      });
-    }).toThrow(RangeError);
-
-    expect(() => {
-      calculateAIPricing({
-        model: "gpt-5.4-mini",
-        inputTokens: Number.POSITIVE_INFINITY,
-        outputTokens: 0,
-        webSearchCount: 0,
-        fxYenPerUsdMilli: 150_000
-      });
+        webSearchCalls: 0,
+        fxYenPerUsdMilli: 150_000,
+        [field]: value
+      } as never);
     }).toThrow(RangeError);
   });
 });
