@@ -47,9 +47,19 @@ export type RecordAiUsageInput = {
 };
 
 const DEFAULT_FX_YEN_PER_USD_MILLI = 150000;
+const SAFE_METADATA_KEYS = ["attempt", "fallbackReason", "citationCount", "groundedSourceCount", "chatQuestionNumber", "creditSettled"] as const;
 
-function isNonNegativeFiniteInteger(value: number): boolean {
-  return Number.isFinite(value) && Number.isInteger(value) && value >= 0;
+function warnRecordFailed(input: Pick<RecordAiUsageInput, "actionKey" | "featureArea" | "model" | "requestStatus">): void {
+  console.warn("ai_usage_record_failed", {
+    actionKey: input.actionKey,
+    featureArea: input.featureArea,
+    model: input.model,
+    requestStatus: input.requestStatus
+  });
+}
+
+function isSafeNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
 
 function resolveFxYenPerUsdMilli(actionKey: AiActionKey): number {
@@ -68,10 +78,68 @@ function resolveFxYenPerUsdMilli(actionKey: AiActionKey): number {
   return value;
 }
 
-function isAllowedMetadata(metadata: AiUsageMetadata | undefined): boolean {
-  if (!metadata) return true;
-  return Object.keys(metadata).every((key) =>
-    ["attempt", "fallbackReason", "citationCount", "groundedSourceCount", "chatQuestionNumber", "creditSettled"].includes(key)
+function normalizeErrorCode(errorCode: RecordAiUsageInput["errorCode"]): AiUsageErrorCode | null {
+  if (errorCode == null) return null;
+  switch (errorCode) {
+    case "http_400":
+    case "http_401":
+    case "http_403":
+    case "http_429":
+    case "http_5xx":
+    case "timeout":
+    case "network_error":
+    case "empty_output":
+    case "invalid_json":
+    case "schema_validation_failed":
+    case "unknown_error":
+      return errorCode;
+    default:
+      return "unknown_error";
+  }
+}
+
+function validateMetadata(metadata: unknown): metadata is AiUsageMetadata {
+  if (metadata == null) return true;
+  if (Array.isArray(metadata) || typeof metadata !== "object") return false;
+  const entries = Object.entries(metadata as Record<string, unknown>);
+  for (const [key, value] of entries) {
+    if (!SAFE_METADATA_KEYS.includes(key as (typeof SAFE_METADATA_KEYS)[number])) return false;
+    switch (key) {
+      case "attempt":
+      case "citationCount":
+      case "groundedSourceCount":
+      case "chatQuestionNumber":
+        if (!isSafeNonNegativeInteger(value)) return false;
+        break;
+      case "fallbackReason":
+        if (
+          value !== "api_error" &&
+          value !== "invalid_output" &&
+          value !== "insufficient_evidence" &&
+          value !== "local_fallback"
+        ) {
+          return false;
+        }
+        break;
+      case "creditSettled":
+        if (typeof value !== "boolean") return false;
+        break;
+    }
+  }
+  return true;
+}
+
+function isValidUsageBoundary(input: RecordAiUsageInput): boolean {
+  return (
+    isSafeNonNegativeInteger(input.inputTokens) &&
+    isSafeNonNegativeInteger(input.cachedInputTokens) &&
+    isSafeNonNegativeInteger(input.outputTokens) &&
+    isSafeNonNegativeInteger(input.reasoningTokens) &&
+    isSafeNonNegativeInteger(input.webSearchCalls) &&
+    isSafeNonNegativeInteger(input.latencyMs) &&
+    input.cachedInputTokens <= input.inputTokens &&
+    input.reasoningTokens <= input.outputTokens &&
+    Number.isSafeInteger(input.inputTokens + input.outputTokens)
   );
 }
 
@@ -79,18 +147,8 @@ export async function recordAiUsage(input: RecordAiUsageInput): Promise<string |
   const fxYenPerUsdMilli = resolveFxYenPerUsdMilli(input.actionKey);
   const safeMetadata = input.metadata ?? {};
 
-  if (
-    !isNonNegativeFiniteInteger(input.reasoningTokens) ||
-    !isNonNegativeFiniteInteger(input.latencyMs) ||
-    input.reasoningTokens > input.outputTokens ||
-    !isAllowedMetadata(safeMetadata)
-  ) {
-    console.warn("ai_usage_record_failed", {
-      actionKey: input.actionKey,
-      featureArea: input.featureArea,
-      model: input.model,
-      requestStatus: input.requestStatus
-    });
+  if (!isValidUsageBoundary(input) || !validateMetadata(safeMetadata)) {
+    warnRecordFailed(input);
     return null;
   }
 
@@ -104,6 +162,7 @@ export async function recordAiUsage(input: RecordAiUsageInput): Promise<string |
       fxYenPerUsdMilli
     });
 
+    const totalTokens = input.inputTokens + input.outputTokens;
     const id = randomUUID();
     await db.insert(aiUsageEvents).values({
       id,
@@ -119,7 +178,7 @@ export async function recordAiUsage(input: RecordAiUsageInput): Promise<string |
       cachedInputTokens: input.cachedInputTokens,
       outputTokens: input.outputTokens,
       reasoningTokens: input.reasoningTokens,
-      totalTokens: input.inputTokens + input.outputTokens,
+      totalTokens,
       webSearchCalls: input.webSearchCalls,
       inputUnitPriceMicroUsdPer1m: pricing.inputUnitPriceMicroUsdPer1m,
       cachedInputUnitPriceMicroUsdPer1m: pricing.cachedInputUnitPriceMicroUsdPer1m,
@@ -130,18 +189,13 @@ export async function recordAiUsage(input: RecordAiUsageInput): Promise<string |
       totalCostMilliYen: pricing.totalCostMilliYen,
       latencyMs: input.latencyMs,
       priceVersion: pricing.priceVersion,
-      errorCode: input.errorCode ?? null,
+      errorCode: normalizeErrorCode(input.errorCode),
       metadataJson: JSON.stringify(safeMetadata)
     });
 
     return id;
   } catch {
-    console.warn("ai_usage_record_failed", {
-      actionKey: input.actionKey,
-      featureArea: input.featureArea,
-      model: input.model,
-      requestStatus: input.requestStatus
-    });
+    warnRecordFailed(input);
     return null;
   }
 }
