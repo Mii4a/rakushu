@@ -241,12 +241,16 @@ export function assessSuiteOutput(fixture, rawText) {
         };
     }
     if (f.suite === "interview-follow-up") {
-        const p = o.prompt.trim(), normal = p.normalize("NFKC").replace(/\s+/g, " ").toLowerCase(), previous = (f.input.existingAnswers || []).map((x => trim(x?.prompt).normalize("NFKC").replace(/\s+/g, " ").toLowerCase()));
+        const p = o.prompt.trim();
+        const normal = p.normalize("NFKC").replace(/\s+/g, " ").toLowerCase();
+        const previous = (f.input.existingAnswers || []).map((x => trim(x?.prompt).normalize("NFKC").replace(/\s+/g, " ").toLowerCase()));
+        const sentenceTerminatorCount = (p.match(/[。?？！!]/g) || []).length;
+        const hasQuestionEnding = /[?？]$/.test(p) || /(?:(?:教えて|聞かせて|説明して|挙げて)ください|(?:です|ます|でしょう)か)。$/.test(p);
         return {
             ...base,
             output: o,
             schemaSuccess: true,
-            instructionAdherent: !forbidden && !/[\r\n]/.test(p) && (p.match(/[?？]/g) || []).length === 1 && /[?？]$/.test(p) && !previous.includes(normal),
+            instructionAdherent: !forbidden && !/[\r\n]/.test(p) && sentenceTerminatorCount === 1 && hasQuestionEnding && !previous.includes(normal),
             unsupportedClaim: false
         };
     }

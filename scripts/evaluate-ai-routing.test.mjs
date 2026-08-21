@@ -149,7 +149,8 @@ describe("suite request builders and output assessors", () => {
     expect(assessSuiteOutput(company, "x".repeat(20_001)).boundedOutput).toHaveLength(20_000);
     const follow = { id: "f", suite: "interview-follow-up", input: { existingAnswers: [{ prompt: "以前の質問は？" }] }, expectations: { maxCharacters: 20, forbiddenPhrases: ["禁止"] } };
     expect(assessSuiteOutput(follow, '{"prompt":"次に何をしましたか？"}').instructionAdherent).toBe(true);
-    for (const prompt of ["以前の質問は？", "一行？\n二行", "二つ？本当？", "禁止です？", "a".repeat(21) + "？"]) expect(assessSuiteOutput(follow, JSON.stringify({ prompt })).instructionAdherent).toBe(false);
+    expect(assessSuiteOutput(follow, '{"prompt":"その判断基準を教えてください。"}').instructionAdherent).toBe(true);
+    for (const prompt of ["以前の質問は？", "一行？\n二行", "二つ？本当？", "これは説明です。", "一文です。二文です。", "禁止です？", "a".repeat(21) + "？"]) expect(assessSuiteOutput(follow, JSON.stringify({ prompt })).instructionAdherent).toBe(false);
     const feedback = { id: "i", suite: "interview-feedback", input: {}, expectations: { scoreMin: 1, scoreMax: 5, listMin: 1, listMax: 2, forbiddenPhrases: ["禁止"] } };
     const goodFeedback = { overallScore: 3, summary: "総評", strengths: ["強み"], improvements: ["改善"], nextFocus: "次", nextQuestions: ["質問"] };
     expect(assessSuiteOutput(feedback, JSON.stringify(goodFeedback)).unsupportedClaim).toBeNull();
