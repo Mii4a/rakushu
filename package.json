@@ -28,6 +28,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:ai-routing": "vitest run scripts/evaluate-ai-routing.test.mjs",
+    "eval:ai-routing": "node scripts/evaluate-ai-routing.mjs",
     "test:local-jobs-smoke": "playwright test -c playwright.local-jobs-smoke.config.ts",
     "test:prod-smoke": "playwright test -c playwright.prod-smoke.config.ts"
   },
