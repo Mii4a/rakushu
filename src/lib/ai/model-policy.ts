@@ -23,12 +23,17 @@ export type AiModelPolicy = {
 
 type EnvLike = Record<string, string | undefined>;
 
+type RoutingMode = "legacy" | "standard";
+
 type AiModelPolicyConfig = Omit<AiModelPolicy, "model" | "fallbackModel"> & {
   modelEnvKeys?: string[];
   fallbackModelEnvKey?: string;
   defaultModel: string;
   defaultFallbackModel?: string;
 };
+
+const DEFAULT_MAIN_MODEL = "gpt-4.1-mini";
+const DEFAULT_LIGHT_MODEL = "gpt-4.1-nano";
 
 const POLICY_BY_ACTION: Record<AiActionKey, AiModelPolicyConfig> = {
   interview_follow_up_generate: {
@@ -98,11 +103,14 @@ const POLICY_BY_ACTION: Record<AiActionKey, AiModelPolicyConfig> = {
   },
 };
 
-/**
- * Resolves model policy from the provided env map; defaults to process.env for Next/server runtime.
- */
 export function resolveAiModelPolicy(actionKey: AiActionKey, env: EnvLike = process.env): AiModelPolicy {
   const config = POLICY_BY_ACTION[actionKey];
+  const routingMode = resolveRoutingMode(env.OPENAI_MODEL_ROUTING_MODE);
+
+  if (routingMode === "legacy") {
+    return resolveLegacyAiModelPolicy(env, config);
+  }
+
   const model = resolveEnvModel(env, config.modelEnvKeys, config.defaultModel);
   const fallbackModel = resolveFallbackModel(env, config);
 
@@ -115,6 +123,27 @@ export function resolveAiModelPolicy(actionKey: AiActionKey, env: EnvLike = proc
     webSearch: config.webSearch,
     maxAttempts: config.maxAttempts,
   };
+}
+
+function resolveLegacyAiModelPolicy(env: EnvLike, config: AiModelPolicyConfig): AiModelPolicy {
+  const [modelEnvKey, defaultModel] =
+    config.featureArea === "resume"
+      ? ["OPENAI_LIGHT_MODEL", DEFAULT_LIGHT_MODEL]
+      : ["OPENAI_MAIN_MODEL", DEFAULT_MAIN_MODEL];
+
+  return {
+    actionKey: config.actionKey,
+    featureArea: config.featureArea,
+    model: resolveEnvModel(env, [modelEnvKey], defaultModel),
+    fallbackModel: null,
+    reasoningEffort: config.reasoningEffort,
+    webSearch: config.webSearch,
+    maxAttempts: 1,
+  };
+}
+
+function resolveRoutingMode(rawMode: string | undefined): RoutingMode {
+  return normalizeEnvValue(rawMode) === "standard" ? "standard" : "legacy";
 }
 
 function resolveEnvModel(env: EnvLike, envKeys: string[] | undefined, defaultModel: string): string {

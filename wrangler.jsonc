@@ -7,7 +7,14 @@
     "BETTER_AUTH_URL": "https://rakushu.mii4a.workers.dev",
     "STRIPE_ALLOW_PROMOTION_CODES": "true",
     "OPENAI_MAIN_MODEL": "gpt-4.1-mini",
-    "OPENAI_LIGHT_MODEL": "gpt-4.1-nano"
+    "OPENAI_LIGHT_MODEL": "gpt-4.1-nano",
+    "OPENAI_INTERVIEW_FOLLOWUP_MODEL": "gpt-5.6-luna",
+    "OPENAI_INTERVIEW_FEEDBACK_MODEL": "gpt-5.4-mini",
+    "OPENAI_RESUME_MODEL": "gpt-5.4-mini",
+    "OPENAI_COMPANY_RESEARCH_MODEL": "gpt-5.4-mini",
+    "OPENAI_ESCALATION_MODEL": "gpt-5.6-terra",
+    "OPENAI_MODEL_ROUTING_MODE": "legacy",
+    "FX_YEN_PER_USD_MILLI": "150000"
   },
   "compatibility_date": "2025-03-25",
   "compatibility_flags": [
