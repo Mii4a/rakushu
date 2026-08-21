@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PLAN_LIMITS, PLAN_MARKETING } from "./plans";
+import { AI_CREDIT_COSTS, PLAN_LIMITS, PLAN_MARKETING } from "./plans";
 
 describe("plans", () => {
   it("uses the revised paid prices", () => {
@@ -29,5 +29,9 @@ describe("plans", () => {
     expect(PLAN_LIMITS.plus.features.aiInterview).toBe(true);
     expect(PLAN_LIMITS.plus.maxAiInterviewSessions).toBeGreaterThan(PLAN_LIMITS.starter.maxAiInterviewSessions);
     expect(PLAN_LIMITS.plus.maxCompanyResearches).toBeGreaterThan(PLAN_LIMITS.starter.maxCompanyResearches);
+  });
+
+  it("charges one credit for resume AI", () => {
+    expect(AI_CREDIT_COSTS.resume_ai).toBe(1);
   });
 });

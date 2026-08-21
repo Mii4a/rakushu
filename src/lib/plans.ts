@@ -152,13 +152,14 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   }
 };
 
-export type AiCreditFeature = "job_summary" | "job_feature_extraction" | "company_research" | "ai_interview_session";
+export type AiCreditFeature = "job_summary" | "job_feature_extraction" | "company_research" | "ai_interview_session" | "resume_ai";
 
 export const AI_CREDIT_COSTS: Record<AiCreditFeature, number> = {
   job_summary: 1,
   job_feature_extraction: 1,
   company_research: 1,
-  ai_interview_session: 1
+  ai_interview_session: 1,
+  resume_ai: 1
 };
 
 export const CREDIT_PACKS = [
