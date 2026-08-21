@@ -986,7 +986,7 @@ export function ResumeGeneratorForm({ defaults, targetJob }: { defaults?: Resume
                       </div>
 
                       <FieldLabel required>現住所</FieldLabel>
-                      <input value={values.currentAddress} onChange={(event) => updateField("currentAddress", event.target.value)} className={inputClassName()} placeholder="東京都新宿区四谷1-6-1 コモレ四谷ビル5階" />
+                      <input value={values.currentAddress} onChange={(event) => updateField("currentAddress", event.target.value)} className={inputClassName()} placeholder="東京都〇〇区1-1-1 △△ビル101" />
 
                       <FieldLabel>連絡先</FieldLabel>
                       <input value={values.contactAddress} onChange={(event) => updateField("contactAddress", event.target.value)} className={inputClassName()} placeholder="現住所以外への連絡先があれば入力" />
