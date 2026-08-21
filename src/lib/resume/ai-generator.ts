@@ -92,7 +92,6 @@ function buildReportContext(report: CompanyResearchReport) {
   const sources = report.sources.map((source) => ({
     id: normalizeId(source.id),
     title: trimToPrompt(source.title, 200),
-    url: trimToPrompt(source.url, 500),
     excerpt: trimToPrompt(source.excerpt, SOURCE_EXCERPT_LIMIT)
   }));
 

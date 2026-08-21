@@ -92,6 +92,24 @@ describe("generateResumeAiProposal", () => {
     expect(input.parse({ motivation: "m", selfPr: "s", changeSummary: "c", evidenceSourceIds: ["src-1"] })).toEqual({ motivation: "m", selfPr: "s", changeSummary: "c", evidenceSourceIds: ["src-1"] });
   });
 
+  it("does not serialize saved source URLs into the provider prompt", async () => {
+    const privateSourceUrl = "https://resume-source-url.invalid/private-path";
+    const report = {
+      ...baseReport,
+      sources: [{ ...baseReport.sources[0], url: privateSourceUrl }]
+    };
+    mockResponse({ motivation: "m", selfPr: "s", changeSummary: "c", evidenceSourceIds: ["src-1"] });
+    const { generateResumeAiProposal } = await import("./ai-generator");
+    await generateResumeAiProposal({
+      ...baseInput,
+      mode: "company",
+      targetJob: { id: "job-1", companyName: "Target Co", title: "Engineer" },
+      companyResearch: { id: "research-1", report }
+    });
+    const input = requestStructuredAiMock.mock.calls[0][0];
+    expect(input.userPrompt).not.toContain(privateSourceUrl);
+  });
+
   it("accepts the persisted report contract maximum of ten content lines and citations", async () => {
     const report = {
       ...baseReport,
