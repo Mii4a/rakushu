@@ -45,6 +45,7 @@ describe("generateResumeAiProposal", () => {
     expect(input.schemaName).toBe("resume_ai_proposal");
     expect(input.jsonSchema.additionalProperties).toBe(false);
     expect(input.jsonSchema.properties.evidenceSourceIds.maxItems).toBe(0);
+    expect(input.jsonSchema.properties.evidenceSourceIds).not.toHaveProperty("uniqueItems");
     expect(input.systemPrompt).toContain("Web Search");
     expect(input.systemPrompt).toContain("適用・書き換え・永続化しない");
     expect(JSON.stringify(input)).not.toContain("sourceChunks");

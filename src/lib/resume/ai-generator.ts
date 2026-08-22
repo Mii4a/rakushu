@@ -267,8 +267,7 @@ export async function generateResumeAiProposal(input: GenerateResumeAiProposalIn
             type: "array",
             minItems: input.mode === "company" ? 1 : 0,
             maxItems: input.mode === "company" ? MAX_EVIDENCE_IDS : 0,
-            items: { type: "string", minLength: 1, maxLength: MAX_ID_LEN },
-            uniqueItems: true
+            items: { type: "string", minLength: 1, maxLength: MAX_ID_LEN }
           }
         }
       },
