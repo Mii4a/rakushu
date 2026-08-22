@@ -50,6 +50,7 @@ describe("suite request builders and output assessors", () => {
     expect(body.model).toBe("gpt-5.4-mini");
     expect(body.instructions).toContain("sourcePackets");
     expect(body.instructions).toContain("Webアクセスは禁止");
+    expect(body.instructions).toContain("claimsとsourcesを空配列");
     expect(body.input).toContain("ミドリソフト株式会社");
     expect(body.input).toContain("src-001");
     expect(body.input).not.toContain("OPENAI_API_KEY");
@@ -143,6 +144,8 @@ describe("suite request builders and output assessors", () => {
     const company = { id: "c", suite: "company-research", input: { sourcePackets: [{ sourceId: "s", url: "https://ok.example" }] }, expectations: { allowedSourceUrls: ["https://ok.example"], requiredSourceIds: ["s"], mustAcknowledgeInsufficientEvidence: false, mustDisambiguateByOfficialUrl: false, forbiddenClaims: [] } };
     const goodCompany = { summary: "概要", claims: [{ text: "根拠あり", sourceIds: ["s"] }], sources: [{ sourceId: "s", url: "https://ok.example" }], insufficientEvidence: false, disambiguatedByOfficialUrl: false };
     expect(assessSuiteOutput(company, JSON.stringify(goodCompany)).citationSourceValid).toBe(true);
+    const negativeCompany = { ...goodCompany, claims: [{ text: "売上の断定はできません", sourceIds: ["s"] }] };
+    expect(assessSuiteOutput({ ...company, expectations: { ...company.expectations, forbiddenClaims: ["売上の断定"] } }, JSON.stringify(negativeCompany)).instructionAdherent).toBe(true);
     expect(assessSuiteOutput(company, JSON.stringify({ ...goodCompany, sources: [{ sourceId: "s", url: "https://evil.example" }] })).citationSourceValid).toBe(false);
     expect(assessSuiteOutput(company, JSON.stringify({ ...goodCompany, claims: [{ text: "x", sourceIds: [] }] })).schemaSuccess).toBe(false);
     expect(assessSuiteOutput(company, JSON.stringify({ ...goodCompany, sources: [goodCompany.sources[0], goodCompany.sources[0]] })).citationSourceValid).toBe(false);
@@ -150,6 +153,7 @@ describe("suite request builders and output assessors", () => {
     const follow = { id: "f", suite: "interview-follow-up", input: { existingAnswers: [{ prompt: "以前の質問は？" }] }, expectations: { maxCharacters: 20, forbiddenPhrases: ["禁止"] } };
     expect(assessSuiteOutput(follow, '{"prompt":"次に何をしましたか？"}').instructionAdherent).toBe(true);
     expect(assessSuiteOutput(follow, '{"prompt":"その判断基準を教えてください。"}').instructionAdherent).toBe(true);
+    expect(assessSuiteOutput(follow, '{"prompt":"何を改善しましたか。"}').instructionAdherent).toBe(true);
     for (const prompt of ["以前の質問は？", "一行？\n二行", "二つ？本当？", "これは説明です。", "一文です。二文です。", "禁止です？", "a".repeat(21) + "？"]) expect(assessSuiteOutput(follow, JSON.stringify({ prompt })).instructionAdherent).toBe(false);
     const feedback = { id: "i", suite: "interview-feedback", input: {}, expectations: { scoreMin: 1, scoreMax: 5, listMin: 1, listMax: 2, forbiddenPhrases: ["禁止"] } };
     const goodFeedback = { overallScore: 3, summary: "総評", strengths: ["強み"], improvements: ["改善"], nextFocus: "次", nextQuestions: ["質問"] };
@@ -159,6 +163,9 @@ describe("suite request builders and output assessors", () => {
     const resume = { id: "r", suite: "resume", input: {}, expectations: { requiredFields: ["motivation", "selfPr"], forbiddenClaims: ["捏造"] } };
     const goodResume = { motivation: "動機", selfPr: "PR", changeSummary: ["変更"], evidenceSourceIds: [] };
     expect(assessSuiteOutput(resume, JSON.stringify(goodResume)).instructionAdherent).toBe(true);
+    const guardedResume = { ...goodResume, changeSummary: ["受賞歴の追加はしていません"] };
+    expect(assessSuiteOutput({ ...resume, expectations: { ...resume.expectations, forbiddenClaims: ["受賞歴の追加"] } }, JSON.stringify(guardedResume)).instructionAdherent).toBe(true);
+    expect(assessSuiteOutput({ ...resume, expectations: { ...resume.expectations, forbiddenClaims: ["受賞歴の追加"] } }, JSON.stringify({ ...goodResume, changeSummary: ["受賞歴の追加"] })).instructionAdherent).toBe(false);
     expect(assessSuiteOutput(resume, JSON.stringify({ ...goodResume, motivation: "" })).schemaSuccess).toBe(false);
     expect(assessSuiteOutput(resume, JSON.stringify({ ...goodResume, extra: true })).schemaSuccess).toBe(false);
   });

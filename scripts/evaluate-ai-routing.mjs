@@ -161,7 +161,7 @@ function requestInput(f) {
 
 export function buildSuiteRequest(fixture, model) {
     if (!str(model, 200)) throw new Error("Invalid AI routing model");
-    const f = safeFixture(fixture), instructions = f.suite === "company-research" ? "あなたは企業研究支援者です。与えられたsourcePacketsだけを根拠に日本語で回答してください。Webアクセスは禁止です。事実・URLを創作しないでください。根拠不足と公式URLによる識別はfixtureの期待に従って明示してください。" : f.suite === "interview-follow-up" ? "日本語で、回答を深掘りする質問を一行だけ生成してください。既出質問と禁止表現を避けてください。" : f.suite === "interview-feedback" ? "日本語の面接総評を、指定スコアと配列制約に従って生成してください。" : "与えられた事実だけを使い、日本語の提案文を生成してください。未記載の事実は追加しないでください。";
+    const f = safeFixture(fixture), instructions = f.suite === "company-research" ? "あなたは企業研究支援者です。与えられたsourcePacketsだけを根拠に日本語で回答してください。Webアクセスは禁止です。事実・URLを創作しないでください。sourcePacketsが空ならclaimsとsourcesを空配列にし、none等の架空sourceIdを出さないでください。根拠不足と公式URLによる識別はfixtureの期待に従って明示してください。" : f.suite === "interview-follow-up" ? "日本語で、回答を深掘りする質問を一行だけ生成してください。既出質問と禁止表現を避けてください。" : f.suite === "interview-feedback" ? "日本語の面接総評を、指定スコアと配列制約に従って生成してください。" : "与えられた事実だけを使い、日本語の提案文を生成してください。未記載の事実は追加しないでください。";
     return {
         model: trim(model),
         instructions: instructions,
@@ -209,6 +209,15 @@ function strictFor(f, o) {
     return exact(o, [ "motivation", "selfPr", "changeSummary", "evidenceSourceIds" ]) && str(o.motivation) && str(o.selfPr) && strs(o.changeSummary, 1, 6) && strs(o.evidenceSourceIds, 0, MAX_ITEMS, 64) && req.every((k => [ "motivation", "selfPr", "changeSummary", "evidenceSourceIds" ].includes(k) && (typeof o[k] === "string" && str(o[k]) || Array.isArray(o[k]) && o[k].length)));
 }
 
+function hasUnnegatedForbiddenClaim(text, phrases) {
+    const clauses = text.split(/[。！？\r\n]/).filter(Boolean);
+    const negation = /(?:でき(?:ない|ず|ません)|し(?:ない|ていない|ません|ていません)|せず|足さない|不可|避け|控え|根拠(?:は|が)?ありません)/;
+    return phrases.some((phrase => clauses.some((clause => {
+        const index = clause.indexOf(phrase);
+        return index >= 0 && !negation.test(clause.slice(index + phrase.length));
+    }))));
+}
+
 export function assessSuiteOutput(fixture, rawText) {
     const f = safeFixture(fixture), review = bounded(rawText), empty = review === null, base = {
         output: null,
@@ -227,7 +236,9 @@ export function assessSuiteOutput(fixture, rawText) {
         return base;
     }
     if (!strictFor(f, o)) return base;
-    const forbidden = (Array.isArray(f.expectations.forbiddenClaims) ? f.expectations.forbiddenClaims : Array.isArray(f.expectations.forbiddenPhrases) ? f.expectations.forbiddenPhrases : []).some((x => str(x) && rawText.includes(x)));
+    const forbiddenClaims = Array.isArray(f.expectations.forbiddenClaims) ? f.expectations.forbiddenClaims.filter((x => str(x))) : [];
+    const forbiddenPhrases = Array.isArray(f.expectations.forbiddenPhrases) ? f.expectations.forbiddenPhrases.filter((x => str(x))) : [];
+    const forbidden = hasUnnegatedForbiddenClaim(rawText, forbiddenClaims) || forbiddenPhrases.some((phrase => rawText.includes(phrase)));
     if (f.suite === "company-research") {
         const c = companyCitations(f, o);
         return {
@@ -245,7 +256,7 @@ export function assessSuiteOutput(fixture, rawText) {
         const normal = p.normalize("NFKC").replace(/\s+/g, " ").toLowerCase();
         const previous = (f.input.existingAnswers || []).map((x => trim(x?.prompt).normalize("NFKC").replace(/\s+/g, " ").toLowerCase()));
         const sentenceTerminatorCount = (p.match(/[。?？！!]/g) || []).length;
-        const hasQuestionEnding = /[?？]$/.test(p) || /(?:(?:教えて|聞かせて|説明して|挙げて)ください|(?:です|ます|でしょう)か)。$/.test(p);
+        const hasQuestionEnding = /[?？]$/.test(p) || /(?:(?:教えて|聞かせて|説明して|挙げて)ください|か)。$/.test(p);
         return {
             ...base,
             output: o,
