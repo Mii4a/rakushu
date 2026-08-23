@@ -263,3 +263,8 @@
 - 独立pre-commit reviewはsecurity concern 0、logic error 0、suggestion 0でPASS。hardening 14 filesを`f116b01 [verified] fix: bound production AI report costs`として限定commitした。criteriaの既存dirty 2 filesは除外した。
 - clean detached worktree `f116b01`、独立node_modules、routing legacyでtypecheck、full 505/505、production buildを再確認後にdeploy。Cloudflare versionは`b69aa43f-ac0e-487f-ad78-b0cb877a2a24`。
 - deploy後のproduction専用authenticated smokeは7/7 PASS。AI生成call 0、temporary `.env.production`削除、deploy worktree tracked cleanを確認した。standard再切替／有料canary／git pushは未実行。
+- 最大2 attempts・承認上限50円の明示承認後、同commitをstandard version `4eb783c9-f4f1-449c-bba0-9524a8fe4baf`としてdeploy。standard bindingをdeploy outputで確認し、production smoke 7/7 PASS後にcompany-only canaryを1回実行した。
+- canaryはprimary `gpt-5.4-mini` 1 attemptで成功。provider 9 sections＋derived citation sectionの合計10 sections、sources 13、citations 66、HTTP URL／citation参照整合ともPASS。fallbackと追加retryは0。
+- usageはinput 10,491／output 4,822／reasoning 130／7.435円。6,000 output cap、50円上限、metadata allowlistはPASSした。
+- request policyとdeployed app chunkには`max_tool_calls=1`が含まれることを確認したが、responseから集計したledgerはWeb Search 2回を記録した。provider capとapp usage countの意味が一致せず、canary helperはfail-closedで失敗扱いにした。
+- 追加有料callは行わず、legacy version `b69aa43f-ac0e-487f-ad78-b0cb877a2a24`へrollback。rollback後production smoke 7/7 PASS、local config legacy復元、temporary envなしを確認した。

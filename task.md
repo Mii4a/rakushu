@@ -79,3 +79,4 @@
 - rollout gateに従ってhealthy legacy version `7fc3ba6a-cd5f-4664-aec4-51205c5e6821`へrollbackし、production専用7-route smoke 7/7 PASS。24h standard monitor cronは削除済み。
 - 再rollout前のhardeningとして、action別output/tool cap、transient error限定fallback、privacy-safe validation reason、企業研究9-section compact schemaをTDD実装。full 505/505、typecheck、lint error 0、build PASS。独立reviewと限定commit後に、追加料金を再承認してcanaryをやり直す。
 - hardening commit `f116b01`をlegacy routingのままproductionへdeploy。Cloudflare version `b69aa43f-ac0e-487f-ad78-b0cb877a2a24`、production専用authenticated smoke 7/7 PASS。standard再切替と有料canaryは未実行。
+- 承認後、standard version `4eb783c9-f4f1-449c-bba0-9524a8fe4baf`へ切替し7/7 smoke PASS。企業研究canaryはprimary 1 attemptで生成・schema・citationに成功し7.435円だったが、request `max_tool_calls=1`に対してledgerがWeb Search 2回を記録したためsign-off失敗。追加retryなしでlegacy `b69aa43f...`へrollbackし7/7 recovery PASS。

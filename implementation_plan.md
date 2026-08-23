@@ -52,3 +52,4 @@
 7. 再rollout前に、`max_output_tokens`／`max_tool_calls`、transient error限定fallback、safe validation reason、企業研究9-section compact schemaをTDDで追加する。
 8. full test、typecheck、lint、build、独立review、限定commitを通過するまでstandardへ再deployしない。再canaryはcall数と新しい概算上限を提示し、追加の有料実行承認を取ってから行う。
 9. hardening commit `f116b01`はlegacy routingのままproduction deployし、version `b69aa43f-ac0e-487f-ad78-b0cb877a2a24`とauthenticated 7-route smoke 7/7 PASSを確認した。次はstandard切替前の新しいcost ceiling承認。
+10. 承認後のcompany-only canaryはprimary 1 attempt・7.435円でreport品質gateをPASSしたが、`max_tool_calls=1`送信に対してusage ledgerがWeb Search 2回を記録した。provider capの意味とledger countの不一致を未解決のまま合格扱いせず、legacyへrollbackした。
