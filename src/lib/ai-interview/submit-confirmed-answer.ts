@@ -216,6 +216,8 @@ export async function submitConfirmedInterviewAnswer(input: SubmitConfirmedInter
       .map((answer) => ({ prompt: answer.prompt, answerText: answer.answerText }));
 
     const categoryFeedback = await buildAiInterviewCategoryFeedback({
+      userId: input.userId,
+      sessionId: session.id,
       category: categoryBounds.category,
       companyName: session.targetCompany,
       targetRole: session.targetRole,
@@ -266,6 +268,8 @@ export async function submitConfirmedInterviewAnswer(input: SubmitConfirmedInter
         category: categoryDefinition,
         companyName: session.targetCompany,
         targetRole: session.targetRole,
+        userId: input.userId,
+        sessionId: session.id,
         existingAnswers: categoryAnswers
       });
 

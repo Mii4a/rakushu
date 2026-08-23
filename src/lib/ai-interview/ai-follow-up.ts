@@ -1,11 +1,14 @@
 import type { AiInterviewCategoryDefinition } from "@/lib/ai-interview/setup-scenarios";
-
-import { requestAiInterviewJson } from "@/lib/ai-interview/ai-openai-json";
+import { recordLocalAiFallback, requestStructuredAi, StructuredAiRequestError } from "@/lib/ai/openai-responses";
+import { resolveAiModelPolicy } from "@/lib/ai/model-policy";
+import type { AiUsageErrorCode } from "@/lib/ai/usage-recorder";
 
 export type AiInterviewFollowUpInput = {
   category: AiInterviewCategoryDefinition;
   companyName: string;
   targetRole: string;
+  userId: string;
+  sessionId: string;
   existingAnswers: Array<{
     prompt: string;
     answerText: string;
@@ -15,6 +18,15 @@ export type AiInterviewFollowUpInput = {
 export type AiInterviewFollowUpOutput = {
   prompt: string;
 };
+
+function validateFollowUpPrompt(value: unknown): string {
+  if (typeof value !== "string") throw new Error("invalid prompt");
+  const prompt = value.trim();
+  if (!prompt || prompt.length > 70 || /[\r\n]/.test(prompt) || !(prompt.endsWith("？") || prompt.endsWith("?"))) {
+    throw new Error("invalid prompt");
+  }
+  return prompt;
+}
 
 function buildFallbackFollowUpQuestion(input: AiInterviewFollowUpInput): AiInterviewFollowUpOutput {
   const lastAnswer = input.existingAnswers[input.existingAnswers.length - 1];
@@ -27,9 +39,28 @@ function buildFallbackFollowUpQuestion(input: AiInterviewFollowUpInput): AiInter
   };
 }
 
+async function recordFallback(input: AiInterviewFollowUpInput, model: string, errorCode: AiUsageErrorCode) {
+  try {
+    await recordLocalAiFallback({
+      userId: input.userId,
+      actionKey: "interview_follow_up_generate",
+      sourceTable: "ai_interview_sessions",
+      sourceId: input.sessionId,
+      model,
+      errorCode
+    });
+  } catch {
+    // fail-open
+  }
+}
+
 export async function buildAiInterviewFollowUpQuestion(input: AiInterviewFollowUpInput): Promise<AiInterviewFollowUpOutput> {
   try {
-    return await requestAiInterviewJson<AiInterviewFollowUpOutput>({
+    const result = await requestStructuredAi<AiInterviewFollowUpOutput>({
+      userId: input.userId,
+      actionKey: "interview_follow_up_generate",
+      sourceTable: "ai_interview_sessions",
+      sourceId: input.sessionId,
       systemPrompt:
         "あなたは新卒・転職面接の面接官です。カテゴリ内の深掘り質問を1問だけ作ります。質問文は自然な日本語で、1文、70文字以内、次に聞く1問だけを返してください。既に聞いたことの言い換えを避け、候補者の直前回答を具体化する方向で深掘りしてください。",
       userPrompt: [
@@ -41,18 +72,29 @@ export async function buildAiInterviewFollowUpQuestion(input: AiInterviewFollowU
         "次に聞く深掘り質問を1問だけ返してください。"
       ].join("\n\n"),
       schemaName: "ai_interview_follow_up_question",
-      schema: {
+      jsonSchema: {
         type: "object",
         additionalProperties: false,
+        required: ["prompt"],
         properties: {
           prompt: {
-            type: "string"
+            type: "string",
+            minLength: 1,
+            maxLength: 70
           }
-        },
-        required: ["prompt"]
+        }
+      },
+      parse(value) {
+        const data = value && typeof value === "object" ? value as { prompt?: unknown } : null;
+        return { prompt: validateFollowUpPrompt(data?.prompt) };
       }
     });
-  } catch {
-    return buildFallbackFollowUpQuestion(input);
+    return result.data;
+  } catch (error) {
+    const fallback = buildFallbackFollowUpQuestion(input);
+    const errorCode: AiUsageErrorCode = error instanceof StructuredAiRequestError ? error.code : "unknown_error";
+    const model = error instanceof StructuredAiRequestError ? error.model : resolveAiModelPolicy("interview_follow_up_generate").model;
+    await recordFallback(input, model, errorCode);
+    return fallback;
   }
 }

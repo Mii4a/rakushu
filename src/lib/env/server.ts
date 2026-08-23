@@ -2,6 +2,20 @@ import { z } from "zod";
 
 import { isProductionBuildPhase } from "@/lib/env/build-phase";
 
+const nonBlankTrimmedString = z
+  .string()
+  .transform((value) => value.trim())
+  .refine((value) => value.length > 0, "Required");
+
+const routingModeSchema = z.enum(["legacy", "standard"]);
+
+const fxYenPerUsdMilliSchema = z
+  .string()
+  .transform((value) => value.trim())
+  .refine((value) => /^\d+$/.test(value), "Must contain only digits")
+  .refine((value) => Number.isSafeInteger(Number(value)), "Must be a safe integer")
+  .refine((value) => Number(value) > 0, "Must be positive");
+
 const serverEnvSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url(),
   BETTER_AUTH_URL: z.string().url(),
@@ -21,6 +35,13 @@ const serverEnvSchema = z.object({
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MAIN_MODEL: z.string().default("gpt-4.1-mini"),
   OPENAI_LIGHT_MODEL: z.string().default("gpt-4.1-nano"),
+  OPENAI_INTERVIEW_FOLLOWUP_MODEL: nonBlankTrimmedString.default("gpt-5.6-luna"),
+  OPENAI_INTERVIEW_FEEDBACK_MODEL: nonBlankTrimmedString.default("gpt-5.4-mini"),
+  OPENAI_RESUME_MODEL: nonBlankTrimmedString.default("gpt-5.4-mini"),
+  OPENAI_COMPANY_RESEARCH_MODEL: nonBlankTrimmedString.default("gpt-5.4-mini"),
+  OPENAI_ESCALATION_MODEL: nonBlankTrimmedString.default("gpt-5.6-terra"),
+  OPENAI_MODEL_ROUTING_MODE: routingModeSchema.default("legacy"),
+  FX_YEN_PER_USD_MILLI: fxYenPerUsdMilliSchema.default("150000"),
   INTERNAL_TOOL_EMAILS: z.string().default(""),
   INTERNAL_ADMIN_EMAILS: z.string().default(""),
   AI_INTERVIEW_TRANSCRIBER_URL: z.string().url().optional(),
@@ -28,6 +49,8 @@ const serverEnvSchema = z.object({
   AI_INTERVIEW_CALLBACK_SECRET: z.string().optional(),
   AI_INTERVIEW_RECORDING_POLICY_VERSION: z.string().default("2026-06-15")
 });
+
+export type ServerEnv = z.infer<typeof serverEnvSchema>;
 
 const runtimeEnvInput = {
   ...process.env,
@@ -51,7 +74,11 @@ const buildPhaseFallbacks = {
   GOOGLE_CLIENT_SECRET: "build-placeholder-google-client-secret"
 } as const;
 
-const serverEnvInput = isProductionBuildPhase()
+export function parseServerEnv(input: Record<string, string | undefined>): ServerEnv {
+  return serverEnvSchema.parse(input);
+}
+
+const serverEnvInput = isProductionBuildPhase() || process.env.NODE_ENV === "test" || process.env.VITEST === "true"
   ? {
       ...runtimeEnvInput,
       ...Object.fromEntries(
@@ -60,4 +87,4 @@ const serverEnvInput = isProductionBuildPhase()
     }
   : runtimeEnvInput;
 
-export const serverEnv = serverEnvSchema.parse(serverEnvInput);
+export const serverEnv = parseServerEnv(serverEnvInput);

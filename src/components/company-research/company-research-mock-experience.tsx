@@ -22,6 +22,7 @@ import { ResearchChatMessage } from "@/components/company-research/research-chat
 import { ResearchProcessingState } from "@/components/company-research/research-processing-state";
 import { ResearchReportModal } from "@/components/company-research/research-report-modal";
 import { ResearchReportPreviewCard } from "@/components/company-research/research-report-preview-card";
+import { MAX_COMPANY_RESEARCH_CHAT_QUESTIONS, MAX_COMPANY_RESEARCH_QUESTION_LENGTH, countCompanyResearchUserQuestions } from "@/lib/company-research/chat-limits";
 import type { CompanyResearchRecentItem, CompanyResearchResult } from "@/lib/company-research/mock-data";
 import type { CompanyResearchChatMessage } from "@/lib/company-research/types";
 import { clearTopDemoIntent, readTopDemoIntent } from "@/lib/top-demo-intent";
@@ -412,6 +413,7 @@ export function CompanyResearchMockExperience({
     setChatMessages(item.result.chatMessages);
     setIsReportModalOpen(false);
     setActiveResearchId(item.id);
+    setQuestionText("");
     setSaveError(null);
     setAskError(null);
   };
@@ -496,10 +498,11 @@ export function CompanyResearchMockExperience({
 
   const askFollowUpQuestion = () => {
     const question = questionText.trim();
-    if (!activeResearchId || !question || isAsking) return;
+    const researchId = activeResearchId;
+    if (!researchId || !question || !canAskFollowUp) return;
 
     startAskingTransition(async () => {
-      const response = await askCompanyResearchQuestionAction({ researchId: activeResearchId, question });
+      const response = await askCompanyResearchQuestionAction({ researchId, question });
       if (!response.ok) {
         setAskError(response.message);
         return;
@@ -519,11 +522,19 @@ export function CompanyResearchMockExperience({
   };
 
   const result = currentResult;
-  const isResultState = Boolean(result);
   const isProcessingState = !result && isSaving;
   const isInputState = !result && !isSaving;
   const canShowHistoryRail = !isProcessingState;
   const isHistoryRailVisible = canShowHistoryRail && isHistoryRailOpen;
+  const askedQuestionCount = countCompanyResearchUserQuestions(chatMessages);
+  const remainingQuestionCount = Math.max(0, MAX_COMPANY_RESEARCH_CHAT_QUESTIONS - askedQuestionCount);
+  const normalizedQuestionText = questionText.trim();
+  const isQuestionOverLimit = normalizedQuestionText.length > MAX_COMPANY_RESEARCH_QUESTION_LENGTH;
+  const canAskFollowUp = Boolean(activeResearchId && normalizedQuestionText && !isQuestionOverLimit && remainingQuestionCount > 0 && !isAsking);
+  const questionCounterText =
+    remainingQuestionCount <= 0
+      ? "この企業への追加質問は3回までです"
+      : `追加質問 残り${remainingQuestionCount}回 / ${MAX_COMPANY_RESEARCH_CHAT_QUESTIONS}回・${normalizedQuestionText.length} / ${MAX_COMPANY_RESEARCH_QUESTION_LENGTH}文字`;
 
   return (
     <section className="dashboard-frame dashboard-mock-frame">
@@ -608,7 +619,7 @@ export function CompanyResearchMockExperience({
 
                     <div className="research-suggested-questions" aria-label="質問候補">
                       {result.report.suggestedQuestions.slice(0, 4).map((question) => (
-                        <button key={question} type="button" onClick={() => setQuestionText(question)}>
+                        <button key={question} type="button" disabled={!activeResearchId || isAsking || remainingQuestionCount <= 0} onClick={() => setQuestionText(question.slice(0, MAX_COMPANY_RESEARCH_QUESTION_LENGTH))}>
                           {question}
                         </button>
                       ))}
@@ -618,11 +629,16 @@ export function CompanyResearchMockExperience({
                       <textarea
                         value={questionText}
                         onChange={(event) => setQuestionText(event.target.value)}
-                        placeholder="企業について質問してみましょう  例: 最新のIR情報は？ 年収は？ など"
+                        placeholder={remainingQuestionCount <= 0 ? "3回まで質問できます" : "企業について質問してみましょう  例: 最新のIR情報は？ 年収は？ など"}
                         aria-label="企業について追加質問"
+                        maxLength={MAX_COMPANY_RESEARCH_QUESTION_LENGTH}
+                        disabled={!activeResearchId || remainingQuestionCount <= 0 || isAsking}
                       />
-                      <button type="button" disabled={!questionText.trim() || isAsking} onClick={askFollowUpQuestion}>
-                        {isAsking ? "回答中" : "質問する"}
+                      <p aria-live="polite" className="text-xs font-semibold text-[#6d7a7d]">
+                        {questionCounterText}
+                      </p>
+                      <button type="button" disabled={!canAskFollowUp} onClick={askFollowUpQuestion}>
+                        {remainingQuestionCount <= 0 ? "3回利用済み" : isAsking ? "回答中" : "質問する"}
                       </button>
                     </div>
                     {askError ? <p className="company-research-input-error">{askError}</p> : null}

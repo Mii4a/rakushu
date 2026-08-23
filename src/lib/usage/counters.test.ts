@@ -2,14 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   selectLimitMock,
-  selectWhereMock,
-  selectFromMock,
   selectMock,
   insertValuesMock,
-  updateWhereMock,
-  updateSetMock,
   insertMock,
-  updateMock
+  updateMock,
+
 } = vi.hoisted(() => {
   const selectLimit = vi.fn();
   const selectWhere = vi.fn(() => ({ limit: selectLimit }));
@@ -23,14 +20,11 @@ const {
 
   return {
     selectLimitMock: selectLimit,
-    selectWhereMock: selectWhere,
-    selectFromMock: selectFrom,
     selectMock: select,
     insertValuesMock: insertValues,
-    updateWhereMock: updateWhere,
-    updateSetMock: updateSet,
     insertMock: insert,
-    updateMock: update
+    updateMock: update,
+
   };
 });
 
@@ -56,15 +50,20 @@ vi.mock("@/lib/db/client", () => ({
 }));
 
 vi.mock("@/lib/plans", () => ({
-  AI_CREDIT_COSTS: {},
-  PLAN_LIMITS: {}
+  AI_CREDIT_COSTS: {
+    company_research: 3
+  },
+  PLAN_LIMITS: {
+    free: { monthlyAiCredits: 5 },
+    starter: { monthlyAiCredits: 20 }
+  }
 }));
 
 vi.mock("@/lib/subscription", () => ({
-  getUserPlan: vi.fn()
+  getUserPlan: vi.fn(async () => "free")
 }));
 
-import { getAnalysisCount, getMonthKey, incrementAnalysisCount } from "./counters";
+import { assertAiCreditsAvailable, getAnalysisCount, getMonthKey, incrementAnalysisCount } from "./counters";
 
 describe("usage counters", () => {
   beforeEach(() => {
@@ -94,5 +93,23 @@ describe("usage counters", () => {
         analysisCount: 1
       })
     );
+  });
+
+  it("asserts company research credits without writing when under limit", async () => {
+    selectLimitMock.mockResolvedValueOnce([{ id: "usage-1", aiCreditsUsed: 2 }]);
+
+    await expect(assertAiCreditsAvailable("user-1", "company_research", "2026-04")).resolves.toBeUndefined();
+
+    expect(insertMock).not.toHaveBeenCalled();
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("throws the same limit message and does not write when credits are exhausted", async () => {
+    selectLimitMock.mockResolvedValueOnce([{ id: "usage-1", aiCreditsUsed: 3 }]);
+
+    await expect(assertAiCreditsAvailable("user-1", "company_research", "2026-04")).rejects.toThrow("今月のAIクレジット上限（5）に達しています。");
+
+    expect(insertMock).not.toHaveBeenCalled();
+    expect(updateMock).not.toHaveBeenCalled();
   });
 });

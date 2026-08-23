@@ -222,26 +222,35 @@ test.describe("local jobs route smoke", () => {
     await expect(page.locator("body")).not.toContainText("職務経歴書");
     await expect(page.getByRole("button", { name: "入力欄を開く⇧" })).toBeVisible();
     await page.getByRole("button", { name: "入力欄を開く⇧" }).click();
-    await expect(page.getByRole("dialog", { name: "履歴書項目入力フォーム" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "AI下書き" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "添削" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "企業に合わせて調整" })).toBeVisible();
-    await page.getByRole("button", { name: "AI下書き" }).click();
-    await expect(page.locator("body")).toContainText("差分を確認してからフォームへ反映");
-    await expect(page.getByLabel("志望動機・自己PRなど")).not.toHaveValue(/学生時代/);
-    await expect(page.getByRole("button", { name: "フォームへ反映する" })).toBeVisible();
-    await page.getByRole("button", { name: "フォームへ反映する" }).click();
-    await expect(page.getByLabel("志望動機・自己PRなど")).toHaveValue(/学生時代/);
-    await page.getByRole("button", { name: "添削" }).click();
-    await expect(page.locator("body")).toContainText("差分を確認してからフォームへ反映");
-    await expect(page.getByLabel("志望動機・自己PRなど")).not.toHaveValue(/結論を先に置き/);
-    await page.getByRole("button", { name: "フォームへ反映する" }).click();
-    await expect(page.getByLabel("志望動機・自己PRなど")).toHaveValue(/結論を先に置き/);
-    await page.getByRole("button", { name: "企業に合わせて調整" }).click();
-    await expect(page.locator("body")).toContainText("差分を確認してからフォームへ反映");
-    await expect(page.getByLabel("志望動機・自己PRなど")).not.toHaveValue(/企業研究の内容/);
-    await page.getByRole("button", { name: "フォームへ反映する" }).click();
-    await expect(page.getByLabel("志望動機・自己PRなど")).toHaveValue(/企業研究の内容/);
+    const drawer = page.getByRole("dialog", { name: "履歴書項目入力フォーム" });
+    await expect(drawer).toBeVisible();
+    await expect(drawer.getByRole("button", { name: "AI下書き" })).toHaveAttribute("type", "submit");
+    await expect(drawer.getByRole("button", { name: "添削" })).toHaveAttribute("type", "submit");
+    await expect(drawer.getByRole("button", { name: "企業に合わせて調整" })).toHaveAttribute("type", "submit");
+    await expect(drawer.getByRole("button", { name: "企業に合わせて調整" })).toBeEnabled();
+    await expect(drawer.getByText(/企業に合わせて調整は、対象求人を選んだときだけ使えます。/)).toHaveCount(0);
+    const currentAppeal = await drawer.getByLabel("志望動機・自己PRなど").inputValue();
+    await expect(currentAppeal).not.toContain("学生時代に取り組んだ");
+    await expect(currentAppeal).not.toContain("結論を先に置き");
+    await expect(currentAppeal).not.toContain("企業研究の内容を使い");
+    await expect(drawer.getByLabel("志望動機・自己PRなど")).toHaveValue(currentAppeal);
+    await expect(page.locator("body")).not.toContainText("学生時代に取り組んだ");
+    const aiForm = page.locator("form#resume-ai-form");
+    await expect(aiForm).toHaveAttribute("method", "POST");
+    await expect(aiForm).toHaveAttribute("enctype", "multipart/form-data");
+    await expect(drawer.getByRole("button", { name: "AI下書き" })).toHaveAttribute("form", "resume-ai-form");
+    await expect(drawer.getByRole("button", { name: "添削" })).toHaveAttribute("form", "resume-ai-form");
+    await expect(drawer.getByRole("button", { name: "企業に合わせて調整" })).toHaveAttribute("form", "resume-ai-form");
+    const appInputNames = await aiForm.locator("input").evaluateAll((inputs) =>
+      inputs
+        .map((input) => input.getAttribute("name"))
+        .filter((name): name is string => typeof name === "string" && !name.startsWith("$ACTION_"))
+        .sort(),
+    );
+    expect(appInputNames).toEqual(["education", "experience", "jobId", "licenses", "motivation", "selfPr"]);
+    await expect(aiForm.locator('input[name="fullName"], input[name="currentAddress"], input[name="phone"], input[name="email"]')).toHaveCount(0);
+    await expect(drawer.getByRole("button", { name: "下書き保存" })).toHaveAttribute("type", "submit");
+    await expect(drawer.getByRole("textbox", { name: "志望動機・自己PRなど" })).toHaveValue(currentAppeal);
   });
 
   test("/jobs/[id]", async ({ page }) => {

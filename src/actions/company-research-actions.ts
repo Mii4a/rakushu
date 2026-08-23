@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, gte, lt } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, lt } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -9,13 +9,14 @@ import { generateCompanyResearchChatAnswer } from "@/lib/company-research/chat-g
 import { buildCompanyResearchResultFromQuery } from "@/lib/company-research/generate-result";
 import { generateCompanyResearchReport } from "@/lib/company-research/report-generator";
 import { buildCompanyResearchRequest } from "@/lib/company-research/research-request";
+import { MAX_COMPANY_RESEARCH_CHAT_QUESTIONS, MAX_COMPANY_RESEARCH_QUESTION_LENGTH, countCompanyResearchUserQuestions, parsePersistedCompanyResearchChatMessages } from "@/lib/company-research/chat-policy";
 import type { CompanyResearchChatMessage, CompanyResearchReport } from "@/lib/company-research/types";
 import { normalizeCompanyWebsiteUrl } from "@/lib/company-research/url";
 import { db } from "@/lib/db/client";
 import { companyResearches } from "@/lib/db/schema";
 import { PLAN_LIMITS } from "@/lib/plans";
 import { getUserPlan } from "@/lib/subscription";
-import { consumeAiCredits } from "@/lib/usage/counters";
+import { consumeAiCredits, assertAiCreditsAvailable } from "@/lib/usage/counters";
 
 const saveCompanyResearchSchema = z.object({
   query: z.string().trim().min(1, "企業URLを入力してください").max(500, "URLが長すぎます")
@@ -27,8 +28,8 @@ const loadMoreCompanyResearchesSchema = z.object({
 });
 
 const askCompanyResearchQuestionSchema = z.object({
-  researchId: z.string().min(1),
-  question: z.string().trim().min(1, "質問を入力してください").max(1000, "質問が長すぎます")
+  researchId: z.string().trim().min(1).max(120),
+  question: z.string().trim().min(1, "質問を入力してください").max(MAX_COMPANY_RESEARCH_QUESTION_LENGTH, "質問は200文字以内で入力してください")
 });
 
 function parseJsonOr<T>(value: string | null | undefined, fallback: T): T {
@@ -37,6 +38,15 @@ function parseJsonOr<T>(value: string | null | undefined, fallback: T): T {
     return JSON.parse(value) as T;
   } catch {
     return fallback;
+  }
+}
+
+function parseChatMessagesOrFallback(value: string | null | undefined, fallback: unknown): unknown {
+  if (value == null) return fallback;
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return Symbol.for("parse-error");
   }
 }
 
@@ -137,7 +147,7 @@ export async function saveCompanyResearchAction(input: { query: string }) {
   }
 
   try {
-    await consumeAiCredits(user.id, "company_research");
+    await assertAiCreditsAvailable(user.id, "company_research");
   } catch (error) {
     const message = toAiCreditLimitMessage(error);
     if (message) {
@@ -153,10 +163,10 @@ export async function saveCompanyResearchAction(input: { query: string }) {
   const now = new Date();
   const id = crypto.randomUUID();
   const researchRequest = buildCompanyResearchRequest(websiteUrl);
-  let generatedResult;
+  let generation;
 
   try {
-    generatedResult = await generateCompanyResearchReport({ websiteUrl, researchRequest, now });
+    generation = await generateCompanyResearchReport({ userId: user.id, researchId: id, websiteUrl, researchRequest, now });
   } catch (error) {
     return {
       ok: false as const,
@@ -164,6 +174,21 @@ export async function saveCompanyResearchAction(input: { query: string }) {
     };
   }
 
+  try {
+    await consumeAiCredits(user.id, "company_research");
+  } catch (error) {
+    const message = toAiCreditLimitMessage(error);
+    if (message) {
+      return {
+        ok: false as const,
+        message
+      };
+    }
+
+    throw error;
+  }
+
+  const generatedResult = generation.result;
   const sourceChunks = generatedResult.report.sourceChunks ?? [];
 
   await db.insert(companyResearches).values({
@@ -182,7 +207,7 @@ export async function saveCompanyResearchAction(input: { query: string }) {
     reportJson: JSON.stringify(generatedResult.report),
     sourceChunksJson: JSON.stringify(sourceChunks),
     chatMessagesJson: JSON.stringify(generatedResult.chatMessages.slice(-50)),
-    modelName: researchRequest.model,
+    modelName: generation.model,
     sourceCount: generatedResult.report.sources.length,
     status: "レポート作成済み",
     createdAt: now,
@@ -274,7 +299,23 @@ export async function askCompanyResearchQuestionAction(input: { researchId: stri
   const fallback = buildCompanyResearchResultFromQuery(research.query);
   const now = new Date();
   const report = parseJsonOr<CompanyResearchReport>(research.reportJson, fallback.report);
-  const previousMessages = parseJsonOr<CompanyResearchChatMessage[]>(research.chatMessagesJson, fallback.chatMessages);
+  const originalChatMessagesJson = research.chatMessagesJson;
+  const previousMessages = parseChatMessagesOrFallback(originalChatMessagesJson, fallback.chatMessages);
+  const parsedPreviousMessages = parsePersistedCompanyResearchChatMessages(previousMessages);
+
+  if (parsedPreviousMessages === null) {
+    return {
+      ok: false as const,
+      message: "企業研究チャットの履歴を読み込めませんでした"
+    };
+  }
+
+  if (countCompanyResearchUserQuestions(parsedPreviousMessages) >= MAX_COMPANY_RESEARCH_CHAT_QUESTIONS) {
+    return {
+      ok: false as const,
+      message: "この企業への追加質問は3回までです"
+    };
+  }
   const userMessage: CompanyResearchChatMessage = {
     id: crypto.randomUUID(),
     role: "user",
@@ -285,27 +326,41 @@ export async function askCompanyResearchQuestionAction(input: { researchId: stri
   let assistantMessage: CompanyResearchChatMessage;
   try {
     assistantMessage = await generateCompanyResearchChatAnswer({
+      userId: user.id,
+      researchId: parsed.data.researchId,
       question: parsed.data.question,
       report,
-      previousMessages,
+      previousMessages: parsedPreviousMessages,
       now
     });
-  } catch (error) {
+  } catch {
     return {
       ok: false as const,
-      message: toGenerationErrorMessage(error)
+      message: "企業研究チャットの回答生成に失敗しました。時間をおいて再度お試しください。"
     };
   }
 
-  const nextMessages = [...previousMessages, userMessage, assistantMessage].slice(-50);
+  const nextMessages = [...parsedPreviousMessages, userMessage, assistantMessage].slice(-50);
 
-  await db
+  const updateSet = db
     .update(companyResearches)
     .set({
       chatMessagesJson: JSON.stringify(nextMessages),
       updatedAt: now
-    })
-    .where(and(eq(companyResearches.id, parsed.data.researchId), eq(companyResearches.userId, user.id)));
+    });
+
+  const optimisticHistoryCondition =
+    originalChatMessagesJson == null ? isNull(companyResearches.chatMessagesJson) : eq(companyResearches.chatMessagesJson, originalChatMessagesJson);
+  const updateResult = await updateSet.where(
+    and(eq(companyResearches.id, parsed.data.researchId), eq(companyResearches.userId, user.id), optimisticHistoryCondition)
+  );
+
+  if ((updateResult as { rowsAffected?: number }).rowsAffected === 0) {
+    return {
+      ok: false as const,
+      message: "別の質問が先に送信されました。履歴を更新してから再度お試しください"
+    };
+  }
 
   revalidatePath("/company-research");
 

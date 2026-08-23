@@ -3,7 +3,8 @@
 import { ChevronDown, Eye, FileDown, Menu, Plus, Save, Trash2, Upload } from "lucide-react";
 import { useActionState, useMemo, useState } from "react";
 
-import { generateResumeDraftAction, type ResumeActionState } from "@/actions/resume-actions";
+import { generateResumeAiProposalAction, generateResumeDraftAction, type ResumeActionState, type ResumeAiActionState } from "@/actions/resume-actions";
+import { ResumeAiProposalPanel } from "./resume-ai-proposal-panel";
 import { downloadResumeWorkbookXlsx } from "@/lib/resume/xlsx";
 
 type ResumeTargetJob = {
@@ -66,6 +67,11 @@ type ResumeFormValues = {
 const initialResumeActionState: ResumeActionState = {
   error: null,
   result: null,
+};
+
+const initialResumeAiActionState: ResumeAiActionState = {
+  error: null,
+  proposal: null,
 };
 
 function todayIsoDate() {
@@ -694,10 +700,12 @@ function ResumePreviewPaper({
 }
 
 export function ResumeGeneratorForm({ defaults, targetJob }: { defaults?: ResumeFormDefaults; targetJob?: ResumeTargetJob }) {
-  const [state, formAction] = useActionState(generateResumeDraftAction, initialResumeActionState);
+  const [draftState, draftFormAction] = useActionState(generateResumeDraftAction, initialResumeActionState);
+  const [aiState, aiFormAction, aiPending] = useActionState(generateResumeAiProposalAction, initialResumeAiActionState);
   const [activeTab, setActiveTab] = useState<"form" | "preview">("form");
   const [formDrawerOpen, setFormDrawerOpen] = useState(false);
-  const [aiAssistMode, setAiAssistMode] = useState<"draft" | "review" | "company" | null>(null);
+  const [aiMode, setAiMode] = useState<"draft" | "review" | "company" | null>(null);
+  const [proposalDismissed, setProposalDismissed] = useState(false);
   const [previewPage, setPreviewPage] = useState<PreviewPage>(1);
   const [previewZoom, setPreviewZoom] = useState(1);
   const [values, setValues] = useState<ResumeFormValues>(() => toInitialValues(defaults));
@@ -721,12 +729,6 @@ export function ResumeGeneratorForm({ defaults, targetJob }: { defaults?: Resume
   );
   const targetCompanyName = targetJob?.companyName?.trim() || "対象企業";
   const targetJobTitle = targetJob?.title?.trim() || "求人";
-  const aiProposalText = useMemo(() => {
-    if (aiAssistMode === "draft") return "学生時代に取り組んだ経験を、応募企業でどう活かせるかが伝わる志望動機に整えます。";
-    if (aiAssistMode === "review") return "結論を先に置き、経験・学び・入社後の貢献が一文ずつ伝わるように添削します。";
-    if (aiAssistMode === "company") return `${targetCompanyName}の${targetJobTitle}に向けて、企業研究の内容を使い、この企業でなければならない理由が伝わる表現へ調整します。`;
-    return "";
-  }, [aiAssistMode, targetCompanyName, targetJobTitle]);
 
   function updateField<K extends keyof ResumeFormValues>(key: K, value: ResumeFormValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
@@ -818,7 +820,7 @@ export function ResumeGeneratorForm({ defaults, targetJob }: { defaults?: Resume
         </div>
       </div>
 
-      <form action={formAction} className="resume-print-form grid gap-6 xl:grid-cols-1">
+      <form action={draftFormAction} className="resume-print-form grid gap-6 xl:grid-cols-1">
         <input type="hidden" name="templateName" value={values.templateName} readOnly />
         <input type="hidden" name="asOfDate" value={values.asOfDate} readOnly />
         <input type="hidden" name="fullName" value={fullName} readOnly />
@@ -835,6 +837,7 @@ export function ResumeGeneratorForm({ defaults, targetJob }: { defaults?: Resume
         <input type="hidden" name="motivation" value={values.motivation} readOnly />
         <input type="hidden" name="selfPr" value={values.selfPr} readOnly />
         <input type="hidden" name="desiredConditions" value={values.desiredConditions} readOnly />
+        <input type="hidden" name="jobId" value={targetJob?.id ?? ""} readOnly />
 
         <div className={`resume-preview-column ${activeTab === "preview" ? "hidden md:block" : "block"} print:block`}>
           <ResumePreviewPaper
@@ -874,23 +877,58 @@ export function ResumeGeneratorForm({ defaults, targetJob }: { defaults?: Resume
             </div>
 
             <div className="mb-5 grid gap-3 md:grid-cols-3">
-              <button type="button" onClick={() => setAiAssistMode("draft")} className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700">AI下書き</button>
-              <button type="button" onClick={() => setAiAssistMode("review")} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700">添削</button>
-              <button type="button" onClick={() => setAiAssistMode("company")} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700">企業に合わせて調整</button>
+              <button
+                type="submit"
+                form="resume-ai-form"
+                name="mode"
+                value="draft"
+                onClick={() => { setAiMode("draft"); setProposalDismissed(false); }}
+                disabled={aiPending}
+                className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {aiPending && aiMode === "draft" ? "生成中…" : "AI下書き"}
+              </button>
+              <button
+                type="submit"
+                form="resume-ai-form"
+                name="mode"
+                value="review"
+                onClick={() => { setAiMode("review"); setProposalDismissed(false); }}
+                disabled={aiPending}
+                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {aiPending && aiMode === "review" ? "生成中…" : "添削"}
+              </button>
+              <button
+                type="submit"
+                form="resume-ai-form"
+                name="mode"
+                value="company"
+                onClick={() => { setAiMode("company"); setProposalDismissed(false); }}
+                disabled={!targetJob || aiPending}
+                aria-describedby={!targetJob ? "resume-ai-company-disabled" : undefined}
+                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {aiPending && aiMode === "company" ? "生成中…" : "企業に合わせて調整"}
+              </button>
             </div>
+            {!targetJob ? <p id="resume-ai-company-disabled" className="mb-5 text-xs font-bold text-slate-500">企業に合わせて調整は、対象求人を選んだときだけ使えます。</p> : null}
 
-            {aiAssistMode ? (
-              <div className="mb-5 rounded-[24px] border border-amber-200 bg-amber-50/80 p-4 text-sm leading-7 text-amber-950">
-                <p className="font-black">差分を確認してからフォームへ反映</p>
-                <div className="mt-3 grid gap-3 md:grid-cols-2">
-                  <div className="rounded-2xl bg-white/70 p-3"><p className="text-xs font-bold text-slate-500">現在の値</p><p className="mt-2 whitespace-pre-wrap text-slate-700">{combinedAppealText || "まだ入力されていません"}</p></div>
-                  <div className="rounded-2xl bg-white p-3"><p className="text-xs font-bold text-emerald-700">AI提案</p><p className="mt-2 whitespace-pre-wrap text-slate-800">{aiProposalText}</p></div>
-                </div>
-                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-xs font-bold text-amber-800">この段階ではまだフォームには反映していません。</p>
-                  <button type="button" onClick={() => { updateCombinedAppealText(aiProposalText); setAiAssistMode(null); }} className="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-950 px-4 text-sm font-black text-white">フォームへ反映する</button>
-                </div>
-              </div>
+            {!proposalDismissed && (aiPending || aiState.error || aiState.proposal) ? (
+              <ResumeAiProposalPanel
+                state={{
+                  motivation: values.motivation,
+                  selfPr: values.selfPr,
+                  targetJobId: targetJob?.id ?? null,
+                  targetCompanyName: targetJob?.companyName?.trim() ?? null,
+                  mode: aiMode ?? "draft",
+                  loading: aiPending,
+                  error: aiState.error,
+                  proposal: aiState.proposal,
+                }}
+                onApply={(next) => setValues((current) => ({ ...current, ...next }))}
+                onClose={() => setProposalDismissed(true)}
+              />
             ) : null}
 
             <div className="mb-5 flex items-center gap-3 text-emerald-700">
@@ -986,7 +1024,7 @@ export function ResumeGeneratorForm({ defaults, targetJob }: { defaults?: Resume
                       </div>
 
                       <FieldLabel required>現住所</FieldLabel>
-                      <input value={values.currentAddress} onChange={(event) => updateField("currentAddress", event.target.value)} className={inputClassName()} placeholder="東京都新宿区四谷1-6-1 コモレ四谷ビル5階" />
+                      <input value={values.currentAddress} onChange={(event) => updateField("currentAddress", event.target.value)} className={inputClassName()} placeholder="東京都〇〇区1-1-1 △△ビル101" />
 
                       <FieldLabel>連絡先</FieldLabel>
                       <input value={values.contactAddress} onChange={(event) => updateField("contactAddress", event.target.value)} className={inputClassName()} placeholder="現住所以外への連絡先があれば入力" />
@@ -1072,22 +1110,23 @@ export function ResumeGeneratorForm({ defaults, targetJob }: { defaults?: Resume
             </div>
           </div>
 
-          {state.error ? (
+          {draftState.error ? (
             <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
-              {state.error}
+              {draftState.error}
             </div>
           ) : null}
 
-          {state.result ? (
+          {draftState.result ? (
             <div className="rounded-[24px] border border-emerald-200 bg-emerald-50/70 p-4 text-sm leading-7 text-slate-700 shadow-[0_12px_24px_-20px_rgba(5,150,105,0.3)]">
               <p className="mb-2 text-sm font-bold text-emerald-700">保存済みの下書き</p>
-              <pre className="whitespace-pre-wrap font-sans">{state.result}</pre>
+              <pre className="whitespace-pre-wrap font-sans">{draftState.result}</pre>
             </div>
           ) : null}
 
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
             <button
               type="submit"
+              formAction={draftFormAction}
               className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-white px-8 text-base font-bold text-emerald-700 shadow-[0_12px_24px_-20px_rgba(15,23,42,0.3)] hover:border-emerald-300"
             >
               <Save className="size-5" />
@@ -1096,6 +1135,15 @@ export function ResumeGeneratorForm({ defaults, targetJob }: { defaults?: Resume
             <XlsxButton onClick={handleDownloadXlsx} />
           </div>
         </div>
+      </form>
+
+      <form id="resume-ai-form" action={aiFormAction} className="hidden" aria-hidden="true">
+        <input type="hidden" name="motivation" value={values.motivation} readOnly />
+        <input type="hidden" name="selfPr" value={values.selfPr} readOnly />
+        <input type="hidden" name="education" value={educationText} readOnly />
+        <input type="hidden" name="experience" value="" readOnly />
+        <input type="hidden" name="licenses" value={licensesText} readOnly />
+        <input type="hidden" name="jobId" value={targetJob?.id ?? ""} readOnly />
       </form>
     </div>
   );

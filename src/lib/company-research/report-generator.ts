@@ -1,54 +1,115 @@
-import { buildMockCompanyResearchReport, type CompanyResearchResult } from "@/lib/company-research/mock-data";
-import type { CompanyResearchRequest } from "@/lib/company-research/research-request";
-import type { CompanyResearchReport, ResearchSection, ResearchSource } from "@/lib/company-research/types";
-import { generateJsonWithGpt } from "@/lib/company-research/llm-client";
+import { z } from "zod";
+
+import { requestStructuredAi } from "@/lib/ai/openai-responses";
+import { StructuredAiValidationError } from "@/lib/ai/validation-error";
+import { REQUIRED_RESEARCH_SECTION_TITLES, validateCompanyResearchEvidence } from "@/lib/company-research/evidence-validator";
 import { buildCompanyResearchReportUserPrompt, companyResearchReportSystemPrompt } from "@/lib/company-research/report-prompt";
+import type { CompanyResearchRequest } from "@/lib/company-research/research-request";
+import type { CompanyResearchReport, CompanyResearchResult, ResearchSection, ResearchSource } from "@/lib/company-research/types";
 
-const requiredSectionTitles = [
-  "エグゼクティブサマリー",
-  "企業基本情報と設立背景",
-  "事業内容",
-  "業界・競争環境",
-  "組織・人材",
-  "財務・業績",
-  "成長戦略",
-  "従業員評価",
-  "就活への応用"
-];
+const requiredSectionTitles = REQUIRED_RESEARCH_SECTION_TITLES;
 
-function hasMinimalResultShape(value: unknown): value is CompanyResearchResult {
-  if (!value || typeof value !== "object") return false;
-  const result = value as Partial<CompanyResearchResult>;
-  return Boolean(result.companyName && result.summary && result.report && Array.isArray(result.report.sections));
-}
+const boundedTrimmedString = (maxLength: number) => z.string().transform((value) => value.trim()).pipe(z.string().min(1).max(maxLength));
+const boundedTrimmedUrl = z.string().transform((value) => value.trim()).pipe(z.string().min(1).max(2048).url());
 
-function buildFallbackSource(websiteUrl: string, now: Date): ResearchSource {
-  return {
-    id: "source-ai-public-info",
-    kind: "other",
-    title: "AI調査で参照した公開情報",
-    url: "URL未取得",
-    fetchedAt: now.toISOString(),
-    excerpt: `AI調査で参照した公開情報。入力URL: ${websiteUrl}。個別の引用URLは未取得です。`,
-    reliability: "low"
-  };
-}
+const citationSchema = z.object({ sourceId: boundedTrimmedString(100), label: boundedTrimmedString(100) }).strict();
+const subsectionSchema = z.object({ id: boundedTrimmedString(100), title: boundedTrimmedString(200), content: z.array(boundedTrimmedString(4000)).min(1).max(10), citations: z.array(citationSchema).min(1).max(10) }).strict();
+const sectionSchema = z.object({ id: boundedTrimmedString(100), title: boundedTrimmedString(200), subsections: z.array(subsectionSchema).min(1).max(20) }).strict();
+const sourceSchema = z.object({ id: boundedTrimmedString(100), kind: z.enum(["official", "ir", "recruit", "review", "news", "other"]), title: boundedTrimmedString(200), url: boundedTrimmedUrl, excerpt: boundedTrimmedString(4000), reliability: z.enum(["high", "medium", "low"]) }).strict();
+const providerReportSchema = z.object({ companyName: boundedTrimmedString(200), estimatedPages: z.number().int().min(0).max(200), estimatedFigures: z.number().int().min(0).max(200), sections: z.array(sectionSchema).min(9).max(12), sources: z.array(sourceSchema).min(1).max(20), suggestedQuestions: z.array(boundedTrimmedString(500)).min(1).max(6) }).strict();
+const providerPayloadSchema = z.object({ companyName: boundedTrimmedString(200), industry: boundedTrimmedString(4000), location: boundedTrimmedString(4000), size: boundedTrimmedString(4000), summary: boundedTrimmedString(4000), keyPoints: z.array(boundedTrimmedString(500)).min(1).max(5), interviewHints: z.array(boundedTrimmedString(500)).min(1).max(5), nextActions: z.array(boundedTrimmedString(500)).min(1).max(5), report: providerReportSchema }).strict();
 
-function normalizeSources(sources: CompanyResearchReport["sources"] | undefined, websiteUrl: string, now: Date): ResearchSource[] {
-  if (!Array.isArray(sources) || sources.length === 0) return [buildFallbackSource(websiteUrl, now)];
+type ProviderPayload = z.infer<typeof providerPayloadSchema>;
 
-  return sources.map((source, index) => ({
-    id: source.id || `source-${index + 1}`,
-    kind: source.kind || "other",
-    title: source.title || `引用サイト・文献 ${index + 1}`,
-    url: source.url || "URL未取得",
-    fetchedAt: source.fetchedAt || now.toISOString(),
-    excerpt: source.excerpt || "このレポート作成時に参照した公開情報です。",
-    reliability: source.reliability || "medium"
-  }));
-}
+const requestJsonSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["companyName", "industry", "location", "size", "summary", "keyPoints", "interviewHints", "nextActions", "report"],
+  properties: {
+    companyName: { type: "string", minLength: 1, maxLength: 200 },
+    industry: { type: "string", minLength: 1, maxLength: 4000 },
+    location: { type: "string", minLength: 1, maxLength: 4000 },
+    size: { type: "string", minLength: 1, maxLength: 4000 },
+    summary: { type: "string", minLength: 1, maxLength: 4000 },
+    keyPoints: { type: "array", minItems: 1, maxItems: 5, items: { type: "string", minLength: 1, maxLength: 500 } },
+    interviewHints: { type: "array", minItems: 1, maxItems: 5, items: { type: "string", minLength: 1, maxLength: 500 } },
+    nextActions: { type: "array", minItems: 1, maxItems: 5, items: { type: "string", minLength: 1, maxLength: 500 } },
+    report: {
+      type: "object",
+      additionalProperties: false,
+      required: ["companyName", "estimatedPages", "estimatedFigures", "sections", "sources", "suggestedQuestions"],
+      properties: {
+        companyName: { type: "string", minLength: 1, maxLength: 200 },
+        estimatedPages: { type: "integer", minimum: 0, maximum: 200 },
+        estimatedFigures: { type: "integer", minimum: 0, maximum: 200 },
+        sections: {
+          type: "array",
+          minItems: 9,
+          maxItems: 9,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["id", "title", "subsections"],
+            properties: {
+              id: { type: "string", minLength: 1, maxLength: 100 },
+              title: { type: "string", enum: requiredSectionTitles },
+              subsections: {
+                type: "array",
+                minItems: 1,
+                maxItems: 3,
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["id", "title", "content", "citations"],
+                  properties: {
+                    id: { type: "string", minLength: 1, maxLength: 100 },
+                    title: { type: "string", minLength: 1, maxLength: 200 },
+                    content: { type: "array", minItems: 1, maxItems: 3, items: { type: "string", minLength: 1, maxLength: 1200 } },
+                    citations: {
+                      type: "array",
+                      minItems: 1,
+                      maxItems: 10,
+                      items: {
+                        type: "object",
+                        additionalProperties: false,
+                        required: ["sourceId", "label"],
+                        properties: {
+                          sourceId: { type: "string", minLength: 1, maxLength: 100 },
+                          label: { type: "string", minLength: 1, maxLength: 100 }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        sources: {
+          type: "array",
+          minItems: 1,
+          maxItems: 20,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["id", "kind", "title", "url", "excerpt", "reliability"],
+            properties: {
+              id: { type: "string", minLength: 1, maxLength: 100 },
+              kind: { type: "string", enum: ["official", "ir", "recruit", "review", "news", "other"] },
+              title: { type: "string", minLength: 1, maxLength: 200 },
+              url: { type: "string", minLength: 1, maxLength: 2048 },
+              excerpt: { type: "string", minLength: 1, maxLength: 4000 },
+              reliability: { type: "string", enum: ["high", "medium", "low"] }
+            }
+          }
+        },
+        suggestedQuestions: { type: "array", minItems: 1, maxItems: 6, items: { type: "string", minLength: 1, maxLength: 500 } }
+      }
+    }
+  }
+} as const;
 
-function buildCitationSection(sources: ResearchSource[]): ResearchSection {
+function buildDerivedCitationSection(sources: ResearchSource[]): ResearchSection {
   return {
     id: "quoted-sites-and-literature",
     title: "引用サイト・文献",
@@ -56,97 +117,70 @@ function buildCitationSection(sources: ResearchSource[]): ResearchSection {
       {
         id: "quoted-sites-and-literature-list",
         title: "引用サイト・文献一覧",
-        content: sources.map((source, index) => {
-          const url = source.url && source.url.trim().length > 0 ? source.url : "URL未取得";
-          const reliabilityLabel = source.reliability === "high" ? "高" : source.reliability === "medium" ? "中" : "低";
-          return `[${index + 1}] ${source.title} / ${url} / 種別: ${source.kind} / 確度: ${reliabilityLabel}`;
-        }),
+        content: sources.map((source, index) => `[${index + 1}] ${source.title} / ${source.url} / 種別: ${source.kind} / 確度: ${source.reliability}`),
         citations: sources.map((source, index) => ({ sourceId: source.id, label: `[${index + 1}]` }))
       }
     ]
   };
 }
 
-function ensureSectionCitations(sections: ResearchSection[], sources: ResearchSource[]): ResearchSection[] {
-  const primarySource = sources[0];
-  return sections.map((section) => {
-    if (section.title === "引用サイト・文献") return section;
-    return {
-      ...section,
-      subsections: section.subsections.map((subsection) => ({
-        ...subsection,
-        citations:
-          Array.isArray(subsection.citations) && subsection.citations.length > 0
-            ? subsection.citations
-            : primarySource
-              ? [{ sourceId: primarySource.id, label: "[1]" }]
-              : []
-      }))
-    };
-  });
-}
-
-function withCitationSection(sections: ResearchSection[], sources: ResearchSource[]): ResearchSection[] {
-  const nonCitationSections = sections.filter((section) => section.title !== "引用サイト・文献");
-  return [...ensureSectionCitations(nonCitationSections, sources), buildCitationSection(sources)];
-}
-
-function withRequiredReportShape(result: CompanyResearchResult, websiteUrl: string, now: Date): CompanyResearchResult {
-  const fallbackReport = buildMockCompanyResearchReport(result.companyName || "気になる企業", now.toISOString());
-  const existingTitles = new Set(result.report.sections.map((section) => section.title));
-  const missingSections = fallbackReport.sections.filter((section) => !existingTitles.has(section.title));
-  const sources = normalizeSources(result.report.sources, websiteUrl, now);
-  const report = {
-    ...fallbackReport,
-    ...result.report,
-    companyName: result.report.companyName || result.companyName,
-    generatedAt: result.report.generatedAt || now.toISOString(),
+function finalizeResult(payload: ProviderPayload, now: Date): CompanyResearchResult {
+  const timestamp = now.toISOString();
+  const sources: ResearchSource[] = payload.report.sources.map((source) => ({ ...source, fetchedAt: timestamp }));
+  const evidenceReport: CompanyResearchReport = {
+    companyName: payload.report.companyName,
+    generatedAt: timestamp,
+    estimatedPages: payload.report.estimatedPages,
+    estimatedFigures: payload.report.estimatedFigures,
+    sections: payload.report.sections,
     sources,
-    sections: withCitationSection([...result.report.sections, ...missingSections], sources),
-    suggestedQuestions:
-      Array.isArray(result.report.suggestedQuestions) && result.report.suggestedQuestions.length > 0
-        ? result.report.suggestedQuestions
-        : fallbackReport.suggestedQuestions
+    sourceChunks: [],
+    suggestedQuestions: payload.report.suggestedQuestions
+  };
+
+  const evidenceValidation = validateCompanyResearchEvidence(evidenceReport);
+  if (evidenceValidation.ok !== true) throw new StructuredAiValidationError(evidenceValidation.reason);
+
+  const report: CompanyResearchReport = {
+    ...evidenceReport,
+    sections: evidenceReport.sections.filter((section) => section.title !== "引用サイト・文献").concat(buildDerivedCitationSection(sources))
   };
 
   return {
-    ...result,
+    companyName: payload.companyName,
+    industry: payload.industry,
+    location: payload.location,
+    size: payload.size,
+    summary: payload.summary,
+    keyPoints: payload.keyPoints,
+    interviewHints: payload.interviewHints,
+    nextActions: payload.nextActions,
     report,
-    chatMessages:
-      result.chatMessages.length > 0
-        ? result.chatMessages
-        : [
-            {
-              id: crypto.randomUUID(),
-              role: "assistant" as const,
-              content: `${result.companyName}について、公開情報をもとに調査を行い、レポートを作成しました。
-以下のレポートをご確認ください。`,
-              createdAt: now.toISOString()
-            }
-          ]
+    chatMessages: [{ id: crypto.randomUUID(), role: "assistant", content: `${payload.companyName}について、公開情報をもとに調査を行い、レポートを作成しました。\n以下のレポートをご確認ください。`, createdAt: timestamp }]
   };
 }
 
-export async function generateCompanyResearchReport({
-  websiteUrl,
-  researchRequest,
-  now
-}: {
-  websiteUrl: string;
-  researchRequest: CompanyResearchRequest;
-  now: Date;
-}): Promise<CompanyResearchResult> {
-  const generated = await generateJsonWithGpt<CompanyResearchResult>({
-    system: companyResearchReportSystemPrompt,
-    user: buildCompanyResearchReportUserPrompt(researchRequest),
-    temperature: 0.2
+function parseProviderPayload(value: unknown, now: Date): CompanyResearchResult {
+  const parsed = providerPayloadSchema.safeParse(value);
+  if (!parsed.success) throw new StructuredAiValidationError("provider_schema");
+  return finalizeResult(parsed.data, now);
+}
+
+export async function generateCompanyResearchReport(input: { userId: string; researchId: string; websiteUrl: string; researchRequest: CompanyResearchRequest; now: Date; }): Promise<{ result: CompanyResearchResult; model: string; usageEventId: string | null }> {
+  const { userId, researchId, researchRequest, now } = input;
+  const generation = await requestStructuredAi({
+    userId,
+    actionKey: "company_research_report_generate",
+    sourceTable: "company_researches",
+    sourceId: researchId,
+    systemPrompt: companyResearchReportSystemPrompt,
+    userPrompt: buildCompanyResearchReportUserPrompt(researchRequest),
+    schemaName: "company_research_report",
+    jsonSchema: requestJsonSchema,
+    parse: (value: unknown) => parseProviderPayload(value, now)
   });
 
-  if (!hasMinimalResultShape(generated)) {
-    throw new Error("Company research report JSON did not match the minimal expected shape");
-  }
-
-  return withRequiredReportShape(generated, websiteUrl, now);
+  return { result: generation.data, model: generation.model, usageEventId: generation.usageEventId };
 }
 
 export { requiredSectionTitles };
