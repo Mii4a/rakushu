@@ -3,6 +3,7 @@ import { serverEnv } from "../env/server";
 import type { AiActionKey, AiFeatureArea } from "./model-policy";
 import { resolveAiModelPolicy } from "./model-policy";
 import { recordAiUsage, type AiUsageErrorCode, type AiUsageMetadata } from "./usage-recorder";
+import { structuredAiValidationFailureReason, type StructuredAiValidationFailureReason } from "./validation-error";
 
 export type StructuredAiResult<T> = { data: T; model: string; usageEventId: string | null };
 
@@ -65,9 +66,11 @@ function buildBody(input: StructuredAiRequestInput<unknown>, model: string, poli
     instructions: input.systemPrompt,
     input: input.userPrompt,
     reasoning: { effort: policy.reasoningEffort },
+    max_output_tokens: policy.maxOutputTokens,
     text: { format: { type: "json_schema", name: input.schemaName, strict: true, schema: input.jsonSchema } }
   };
   if (policy.webSearch) body.tools = [{ type: "web_search" }];
+  if (policy.maxToolCalls !== null) body.max_tool_calls = policy.maxToolCalls;
   return body;
 }
 
@@ -111,8 +114,8 @@ function requestFailureCode(error: unknown): AiUsageErrorCode {
   return isTimeoutError(error) ? "timeout" : "network_error";
 }
 
-function shouldFallback(code: AiUsageErrorCode): boolean {
-  return code === "invalid_json" || code === "schema_validation_failed" || code === "empty_output" || code === "http_400" || code === "http_401" || code === "http_403" || code === "http_429" || code === "http_5xx" || code === "timeout" || code === "network_error" || code === "unknown_error";
+function shouldFallback(code: AiUsageErrorCode, policy: ReturnType<typeof resolveAiModelPolicy>): boolean {
+  return policy.fallbackErrorCodes.some((allowedCode) => allowedCode === code);
 }
 
 function fallbackReasonFor(code: AiUsageErrorCode): NonNullable<AiUsageMetadata["fallbackReason"]> {
@@ -137,8 +140,17 @@ function eventMetadata(attemptNumber: 1 | 2, fallbackReason?: NonNullable<AiUsag
   return fallbackReason ? { attempt: attemptNumber, fallbackReason } : { attempt: attemptNumber };
 }
 
-function failureMetadata(attemptNumber: 1 | 2, code: AiUsageErrorCode, fallbackReason?: NonNullable<AiUsageMetadata["fallbackReason"]>): AiUsageMetadata {
-  return { attempt: attemptNumber, fallbackReason: fallbackReason ?? fallbackReasonFor(code) };
+function failureMetadata(
+  attemptNumber: 1 | 2,
+  code: AiUsageErrorCode,
+  fallbackReason?: NonNullable<AiUsageMetadata["fallbackReason"]>,
+  validationFailureReason?: StructuredAiValidationFailureReason | null
+): AiUsageMetadata {
+  return {
+    attempt: attemptNumber,
+    fallbackReason: fallbackReason ?? fallbackReasonFor(code),
+    ...(validationFailureReason ? { validationFailureReason } : {})
+  };
 }
 
 async function recordEvent(input: {
@@ -237,8 +249,9 @@ async function attempt<T>(input: StructuredAiRequestInput<T>, policy: ReturnType
       const data = input.parse(parsed);
       const usageEventId = await recordEvent({ userId: input.userId, actionKey: input.actionKey, featureArea: policy.featureArea, sourceTable: input.sourceTable, sourceId: input.sourceId, model, requestStatus: "success", usage, latencyMs: Math.max(0, Date.now() - started), metadata });
       return { ok: true as const, data, usageEventId };
-    } catch {
-      const usageEventId = await recordEvent({ userId: input.userId, actionKey: input.actionKey, featureArea: policy.featureArea, sourceTable: input.sourceTable, sourceId: input.sourceId, model, requestStatus: "error", usage, latencyMs: Math.max(0, Date.now() - started), errorCode: "schema_validation_failed", metadata: failureMetadata(attemptNumber, "schema_validation_failed", fallbackReason) });
+    } catch (error) {
+      const validationFailureReason = structuredAiValidationFailureReason(error);
+      const usageEventId = await recordEvent({ userId: input.userId, actionKey: input.actionKey, featureArea: policy.featureArea, sourceTable: input.sourceTable, sourceId: input.sourceId, model, requestStatus: "error", usage, latencyMs: Math.max(0, Date.now() - started), errorCode: "schema_validation_failed", metadata: failureMetadata(attemptNumber, "schema_validation_failed", fallbackReason, validationFailureReason) });
       return { ok: false as const, error: new StructuredAiRequestError("schema_validation_failed", model), usageEventId };
     }
   } catch (error) {
@@ -258,7 +271,7 @@ export async function requestStructuredAi<T>(input: StructuredAiRequestInput<T>)
 
   const primary = await attempt(input, policy, policy.model, 1, apiKey);
   if (primary.ok) return { data: primary.data, model: policy.model, usageEventId: primary.usageEventId };
-  if (policy.fallbackModel && policy.maxAttempts === 2 && shouldFallback(primary.error.code)) {
+  if (policy.fallbackModel && policy.maxAttempts === 2 && shouldFallback(primary.error.code, policy)) {
     const fallback = await attempt(input, policy, policy.fallbackModel, 2, apiKey, fallbackReasonFor(primary.error.code));
     if (fallback.ok) return { data: fallback.data, model: policy.fallbackModel, usageEventId: fallback.usageEventId };
     throw fallback.error;

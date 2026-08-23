@@ -5,10 +5,12 @@ import { aiUsageEvents } from "../db/schema";
 
 import { estimateAiCost } from "./pricing";
 import type { AiActionKey, AiFeatureArea } from "./model-policy";
+import { isStructuredAiValidationFailureReason, type StructuredAiValidationFailureReason } from "./validation-error";
 
 export type AiUsageMetadata = {
   attempt?: number;
   fallbackReason?: "api_error" | "invalid_output" | "insufficient_evidence" | "local_fallback";
+  validationFailureReason?: StructuredAiValidationFailureReason;
   citationCount?: number;
   groundedSourceCount?: number;
   chatQuestionNumber?: number;
@@ -47,7 +49,7 @@ export type RecordAiUsageInput = {
 };
 
 const DEFAULT_FX_YEN_PER_USD_MILLI = 150000;
-const SAFE_METADATA_KEYS = ["attempt", "fallbackReason", "citationCount", "groundedSourceCount", "chatQuestionNumber", "creditSettled"] as const;
+const SAFE_METADATA_KEYS = ["attempt", "fallbackReason", "validationFailureReason", "citationCount", "groundedSourceCount", "chatQuestionNumber", "creditSettled"] as const;
 
 function warnRecordFailed(input: Pick<RecordAiUsageInput, "actionKey" | "featureArea" | "model" | "requestStatus">): void {
   console.warn("ai_usage_record_failed", {
@@ -127,6 +129,10 @@ function sanitizeMetadata(metadata: unknown): AiUsageMetadata | null {
           ) {
             return null;
           }
+          safeMetadata[key] = value;
+          break;
+        case "validationFailureReason":
+          if (!isStructuredAiValidationFailureReason(value)) return null;
           safeMetadata[key] = value;
           break;
         case "creditSettled":

@@ -9,6 +9,7 @@ vi.mock("@/lib/ai/openai-responses", () => ({
   requestStructuredAi: requestStructuredAiMock
 }));
 
+import { StructuredAiValidationError } from "@/lib/ai/validation-error";
 import { validateCompanyResearchEvidence } from "@/lib/company-research/evidence-validator";
 import { generateCompanyResearchReport } from "@/lib/company-research/report-generator";
 import type { CompanyResearchRequest } from "@/lib/company-research/research-request";
@@ -21,7 +22,7 @@ type StrictInput = {
   schemaName: string;
   systemPrompt: string;
   userPrompt: string;
-  jsonSchema: { properties?: { report?: { properties?: { sections?: { items?: { properties?: { subsections?: { maxItems?: number; items?: { properties?: { content?: { maxItems?: number } } } } } } } } } } };
+  jsonSchema: Record<string, unknown>;
   parse: (value: unknown) => CompanyResearchResult;
 };
 
@@ -94,8 +95,43 @@ const mockInputCheck = (input: StrictInput) => {
     sourceId: "research-1",
     schemaName: "company_research_report"
   });
-  expect(input.jsonSchema.properties?.report?.properties?.sections?.items?.properties?.subsections?.items?.properties?.content?.maxItems).toBe(10);
-  expect(input.jsonSchema.properties?.report?.properties?.sections?.items?.properties?.subsections?.maxItems).toBe(20);
+  const schema = input.jsonSchema as {
+    properties?: {
+      report?: {
+        properties?: {
+          sections?: {
+            minItems?: number;
+            maxItems?: number;
+            items?: {
+              properties?: {
+                title?: { enum?: readonly string[] };
+                subsections?: {
+                  maxItems?: number;
+                  items?: { properties?: { content?: { maxItems?: number } } };
+                };
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+  const sectionsSchema = schema.properties?.report?.properties?.sections;
+  expect(sectionsSchema?.minItems).toBe(9);
+  expect(sectionsSchema?.maxItems).toBe(9);
+  expect(sectionsSchema?.items?.properties?.title?.enum).toEqual([
+    "エグゼクティブサマリー",
+    "企業基本情報と設立背景",
+    "事業内容",
+    "業界・競争環境",
+    "組織・人材",
+    "財務・業績",
+    "成長戦略",
+    "従業員評価",
+    "就活への応用"
+  ]);
+  expect(sectionsSchema?.items?.properties?.subsections?.items?.properties?.content?.maxItems).toBe(3);
+  expect(sectionsSchema?.items?.properties?.subsections?.maxItems).toBe(3);
   expect(JSON.stringify(input.jsonSchema)).not.toMatch(/generatedAt|fetchedAt|sourceChunks|chatMessages/);
 };
 
@@ -169,14 +205,10 @@ describe("generateCompanyResearchReport", () => {
     expect(validateCompanyResearchEvidence(result.result.report)).toEqual({ ok: true });
   });
 
-  test("falls back to Terra once when the first provider parse is invalid", async () => {
-    const invalid = makePayload((draft) => {
-      draft.report.sources = [];
-    });
+  test("accepts a valid Terra result returned after transient provider fallback", async () => {
     const valid = makePayload();
 
     requestStructuredAiMock.mockImplementationOnce(async (input: StrictInput) => {
-      expect(() => input.parse(invalid)).toThrow();
       const parsed = input.parse(valid);
       return { data: parsed, model: "gpt-5.6-terra", usageEventId: "usage-2" };
     });
@@ -186,6 +218,23 @@ describe("generateCompanyResearchReport", () => {
     expect(result.model).toBe("gpt-5.6-terra");
     expect(result.usageEventId).toBe("usage-2");
     expect(requestStructuredAiMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("reports a privacy-safe evidence failure reason without attaching provider output", async () => {
+    const invalid = makePayload((draft) => {
+      draft.report.sections[0]!.title = "要約";
+    });
+    requestStructuredAiMock.mockImplementationOnce(async (input: StrictInput) => input.parse(invalid));
+
+    let caught: unknown;
+    try {
+      await generateCompanyResearchReport(request());
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toEqual(new StructuredAiValidationError("missing_required_sections"));
+    expect(caught).not.toHaveProperty("payload");
   });
 
   test.each([

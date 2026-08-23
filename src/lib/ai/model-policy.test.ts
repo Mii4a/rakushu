@@ -65,7 +65,20 @@ describe("resolveAiModelPolicy", () => {
       maxAttempts: 1,
     }],
   ] as const)("returns the standard policy defaults for %s", (actionKey, expected) => {
-    expect(resolveAiModelPolicy(actionKey, { OPENAI_MODEL_ROUTING_MODE: "standard" })).toEqual({ actionKey, ...expected });
+    expect(resolveAiModelPolicy(actionKey, { OPENAI_MODEL_ROUTING_MODE: "standard" })).toMatchObject({ actionKey, ...expected });
+  });
+
+  it("caps company report output/tool usage and only falls back on transient provider failures", () => {
+    expect(resolveAiModelPolicy("company_research_report_generate", { OPENAI_MODEL_ROUTING_MODE: "standard" })).toMatchObject({
+      maxOutputTokens: 6000,
+      maxToolCalls: 1,
+      fallbackErrorCodes: ["http_429", "http_5xx", "timeout", "network_error"],
+    });
+    expect(resolveAiModelPolicy("resume_draft_generate", { OPENAI_MODEL_ROUTING_MODE: "standard" })).toMatchObject({
+      maxOutputTokens: 2048,
+      maxToolCalls: null,
+      fallbackErrorCodes: [],
+    });
   });
 
   it("defaults interview follow-up and feedback to the main model in legacy mode", () => {

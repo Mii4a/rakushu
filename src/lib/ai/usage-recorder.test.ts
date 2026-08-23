@@ -256,6 +256,23 @@ describe("recordAiUsage", () => {
     expect(consoleWarnSpy.mock.calls.flat().join(" ")).not.toContain("-1");
   });
 
+  it("stores an allowlisted validation failure reason without raw output", async () => {
+    estimateAiCostMock.mockReturnValue(makePricingResult());
+    insertValuesMock.mockResolvedValueOnce(undefined);
+
+    await expect(recordAiUsage(baseInput({
+      featureArea: "company_research" as AiFeatureArea,
+      actionKey: "company_research_report_generate" as AiActionKey,
+      requestStatus: "error",
+      errorCode: "schema_validation_failed",
+      metadata: { attempt: 1, fallbackReason: "invalid_output", validationFailureReason: "missing_required_sections" }
+    }))).resolves.toBe("event-1");
+
+    expect(insertValuesMock).toHaveBeenCalledWith(expect.objectContaining({
+      metadataJson: JSON.stringify({ attempt: 1, fallbackReason: "invalid_output", validationFailureReason: "missing_required_sections" })
+    }));
+  });
+
   it("rejects secret metadata values without inserting or logging them", async () => {
     estimateAiCostMock.mockReturnValue(makePricingResult());
 

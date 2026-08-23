@@ -13,7 +13,9 @@ export function buildCompanyResearchReportUserPrompt(request: CompanyResearchReq
 - URL未取得、架空URL、架空文献、存在しない参照先を入れないでください。
 - 取得できない情報は推測で断定せず、未確認として本文に明記してください。
 - 各小項目の citations には、根拠にした sources の id と [1] のような label を入れてください。
-- provider は 9 個の実質的な必須セクションを返してください。
+- provider は下記9個の必須大項目を、タイトルを変更せず各1回ずつ、合計9セクションで返してください。
+- 各セクションは1〜3個の小項目、各小項目のcontentは1〜3個の簡潔な文章にしてください。
+- 6,000 output token以内に収まるよう、重複説明を避けて要点を優先してください。
 - アプリ側で reader 向けの「引用サイト・文献」一覧を別途組み立てます。
 - provider は generatedAt, fetchedAt, sourceChunks, chatMessages を返してはいけません。
 

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { requestStructuredAi } from "@/lib/ai/openai-responses";
+import { StructuredAiValidationError } from "@/lib/ai/validation-error";
 import { REQUIRED_RESEARCH_SECTION_TITLES, validateCompanyResearchEvidence } from "@/lib/company-research/evidence-validator";
 import { buildCompanyResearchReportUserPrompt, companyResearchReportSystemPrompt } from "@/lib/company-research/report-prompt";
 import type { CompanyResearchRequest } from "@/lib/company-research/research-request";
@@ -44,18 +45,18 @@ const requestJsonSchema = {
         sections: {
           type: "array",
           minItems: 9,
-          maxItems: 12,
+          maxItems: 9,
           items: {
             type: "object",
             additionalProperties: false,
             required: ["id", "title", "subsections"],
             properties: {
               id: { type: "string", minLength: 1, maxLength: 100 },
-              title: { type: "string", minLength: 1, maxLength: 200 },
+              title: { type: "string", enum: requiredSectionTitles },
               subsections: {
                 type: "array",
                 minItems: 1,
-                maxItems: 20,
+                maxItems: 3,
                 items: {
                   type: "object",
                   additionalProperties: false,
@@ -63,7 +64,7 @@ const requestJsonSchema = {
                   properties: {
                     id: { type: "string", minLength: 1, maxLength: 100 },
                     title: { type: "string", minLength: 1, maxLength: 200 },
-                    content: { type: "array", minItems: 1, maxItems: 10, items: { type: "string", minLength: 1, maxLength: 4000 } },
+                    content: { type: "array", minItems: 1, maxItems: 3, items: { type: "string", minLength: 1, maxLength: 1200 } },
                     citations: {
                       type: "array",
                       minItems: 1,
@@ -137,9 +138,8 @@ function finalizeResult(payload: ProviderPayload, now: Date): CompanyResearchRes
     suggestedQuestions: payload.report.suggestedQuestions
   };
 
-  if (validateCompanyResearchEvidence(evidenceReport).ok !== true) {
-    throw new Error("Company research report generation failed");
-  }
+  const evidenceValidation = validateCompanyResearchEvidence(evidenceReport);
+  if (evidenceValidation.ok !== true) throw new StructuredAiValidationError(evidenceValidation.reason);
 
   const report: CompanyResearchReport = {
     ...evidenceReport,
@@ -160,6 +160,12 @@ function finalizeResult(payload: ProviderPayload, now: Date): CompanyResearchRes
   };
 }
 
+function parseProviderPayload(value: unknown, now: Date): CompanyResearchResult {
+  const parsed = providerPayloadSchema.safeParse(value);
+  if (!parsed.success) throw new StructuredAiValidationError("provider_schema");
+  return finalizeResult(parsed.data, now);
+}
+
 export async function generateCompanyResearchReport(input: { userId: string; researchId: string; websiteUrl: string; researchRequest: CompanyResearchRequest; now: Date; }): Promise<{ result: CompanyResearchResult; model: string; usageEventId: string | null }> {
   const { userId, researchId, researchRequest, now } = input;
   const generation = await requestStructuredAi({
@@ -171,7 +177,7 @@ export async function generateCompanyResearchReport(input: { userId: string; res
     userPrompt: buildCompanyResearchReportUserPrompt(researchRequest),
     schemaName: "company_research_report",
     jsonSchema: requestJsonSchema,
-    parse: (value: unknown) => finalizeResult(providerPayloadSchema.parse(value), now)
+    parse: (value: unknown) => parseProviderPayload(value, now)
   });
 
   return { result: generation.data, model: generation.model, usageEventId: generation.usageEventId };
