@@ -78,3 +78,4 @@
 - production canaryでは面接追加質問・面接feedback・resumeは成功したが、企業研究primary／Terraがともに`schema_validation_failed`。5 usage events合計79.557円となり、承認上限10円を超過した。
 - rollout gateに従ってhealthy legacy version `7fc3ba6a-cd5f-4664-aec4-51205c5e6821`へrollbackし、production専用7-route smoke 7/7 PASS。24h standard monitor cronは削除済み。
 - 再rollout前のhardeningとして、action別output/tool cap、transient error限定fallback、privacy-safe validation reason、企業研究9-section compact schemaをTDD実装。full 505/505、typecheck、lint error 0、build PASS。独立reviewと限定commit後に、追加料金を再承認してcanaryをやり直す。
+- hardening commit `f116b01`をlegacy routingのままproductionへdeploy。Cloudflare version `b69aa43f-ac0e-487f-ad78-b0cb877a2a24`、production専用authenticated smoke 7/7 PASS。standard再切替と有料canaryは未実行。

@@ -260,3 +260,6 @@
 - allowlist済み`validationFailureReason`だけをusage metadataへ保存し、raw error／payloadを持たない`StructuredAiValidationError`を追加した。
 - 企業研究JSON schemaとpromptを、必須9タイトル各1回、9 sections固定、各section 1〜3 subsections、各content 1〜3件、compact outputへ整合した。
 - focused AI hardening 87/87、validation boundary 5/5、full 51 files／505 tests、typecheck PASS、lint 0 errors／既存warning 11、production build PASS、diff check PASS。追加のOpenAI call、production deploy、git pushは行っていない。
+- 独立pre-commit reviewはsecurity concern 0、logic error 0、suggestion 0でPASS。hardening 14 filesを`f116b01 [verified] fix: bound production AI report costs`として限定commitした。criteriaの既存dirty 2 filesは除外した。
+- clean detached worktree `f116b01`、独立node_modules、routing legacyでtypecheck、full 505/505、production buildを再確認後にdeploy。Cloudflare versionは`b69aa43f-ac0e-487f-ad78-b0cb877a2a24`。
+- deploy後のproduction専用authenticated smokeは7/7 PASS。AI生成call 0、temporary `.env.production`削除、deploy worktree tracked cleanを確認した。standard再切替／有料canary／git pushは未実行。
