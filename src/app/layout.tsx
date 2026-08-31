@@ -84,7 +84,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <header className="sticky top-0 z-40 border-b border-rakumo-border/80 bg-white/95 backdrop-blur-xl">
           <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 md:px-6">
             <div className="flex items-center justify-between gap-4">
-              <Link href={session?.user ? "/dashboard" : "/"} className="flex items-center gap-3">
+              <Link href={session?.user ? "/jobs/new" : "/"} className="flex items-center gap-3">
                 <div className="flex size-11 items-center justify-center rounded-2xl border border-rakumo-mint/50 bg-rakumo-mint/85 text-rakumo-ink shadow-[0_14px_30px_-16px_rgba(125,211,199,0.55)]">
                   <BriefcaseBusiness className="size-5" />
                 </div>

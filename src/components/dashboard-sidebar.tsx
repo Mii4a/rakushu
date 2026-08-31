@@ -11,7 +11,6 @@ import {
   CreditCard,
   FileText,
   GitCompareArrows,
-  Home,
   Menu,
   MessageCircle,
   Mic,
@@ -32,7 +31,6 @@ type SidebarItem = {
 };
 
 export const dashboardNavItems: SidebarItem[] = [
-  { href: "/dashboard", label: "ダッシュボード", icon: Home, key: "dashboard" },
   { href: "/jobs/new", label: "求人チェッカー", icon: Plane, key: "jobs-new" },
   { href: "/jobs", label: "保存した求人", icon: Bookmark, key: "saved-jobs" },
   { href: "/company-research", label: "企業研究", icon: Building2, key: "company-research" },
@@ -45,7 +43,6 @@ export const dashboardNavItems: SidebarItem[] = [
 ] as const;
 
 export const dashboardMockNavItems: SidebarItem[] = [
-  { href: "/dashboard", label: "ダッシュボード", icon: Home, key: "dashboard" },
   { href: "/jobs", label: "求人一覧", icon: BriefcaseBusiness, key: "saved-jobs" },
   { href: "/jobs/new", label: "求人チェッカー", icon: CircleCheck, key: "jobs-new" },
   { href: "/company-research", label: "企業研究", icon: Building2, key: "company-research" },

@@ -27,7 +27,7 @@ export default async function HomePage() {
   const session = await getSession();
 
   if (session?.user) {
-    redirect("/dashboard");
+    redirect("/jobs/new");
   }
 
   return <TopLandingPage />;

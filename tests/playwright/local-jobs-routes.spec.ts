@@ -88,13 +88,10 @@ async function assertRouteHealthy(page: Page, route: string, expectedUrlPart?: s
 }
 
 test.describe("local jobs route smoke", () => {
-  test("/dashboard", async ({ page }) => {
-    await assertRouteHealthy(page, "/dashboard", "/dashboard");
-    await expect(page.locator("body")).toContainText("ダッシュボード");
-    await expect(page.locator("body")).toContainText("まだ解析前の求人があります。気になる1件だけ進めましょう");
-    await expect(page.locator("body")).toContainText("判断基準を1か所だけ見直す");
-    await expect(page.locator("body")).toContainText("応募状況を更新する");
-    await expect(page.getByRole("link", { name: "ダッシュボード" })).toBeVisible();
+  test("/dashboard redirects to the job checker", async ({ page }) => {
+    await assertRouteHealthy(page, "/dashboard", "/jobs/new");
+    await expect(page.getByRole("heading", { name: "求人チェッカー" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "ダッシュボード" })).toHaveCount(0);
   });
 
   test("/onboarding preview", async ({ page, context }) => {
@@ -118,7 +115,7 @@ test.describe("local jobs route smoke", () => {
     await expect(page.getByRole("button", { name: "次の基準" })).toBeVisible();
     await expect(page.locator("body")).toContainText("選択した条件");
     await expect(page.locator("body")).toContainText("スコアにどう反映される？");
-    await expect(page.getByRole("link", { name: "ダッシュボード" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "ダッシュボード" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "チェック基準", exact: true })).toBeVisible();
   });
 

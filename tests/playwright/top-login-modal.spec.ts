@@ -91,6 +91,25 @@ test.describe("top page login CTA modal", () => {
     await expect(dialog).toBeHidden();
   });
 
+  test("uses the job checker as the default post-login destination", async ({ page }) => {
+    await page.goto("/");
+
+    const signInCalls: unknown[] = [];
+    await page.route("**/api/auth/sign-in/social", async (route) => {
+      signInCalls.push(route.request().postDataJSON());
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ url: null }) });
+    });
+
+    await page.getByRole("button", { name: "ログイン" }).click();
+    await page.getByRole("dialog", { name: "ログインして始める" }).getByRole("button", { name: /Google.*ログイン/ }).click();
+
+    await expect.poll(() => signInCalls.length).toBe(1);
+    expect(signInCalls[0]).toMatchObject({
+      provider: "google",
+      callbackURL: "http://localhost:3100/jobs/new"
+    });
+  });
+
   test("preserves job checker demo input through login CTA and restores it on the job form", async ({ page }) => {
     await page.goto("/");
 

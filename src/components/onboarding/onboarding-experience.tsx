@@ -573,7 +573,7 @@ export function OnboardingExperience({ userId, initialName, userImage, initialDr
               </div>
               <button
                 type="button"
-                onClick={() => void handleSkip("/dashboard")}
+                onClick={() => void handleSkip("/jobs/new")}
                 className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-[16px] border border-[#dce2e8] bg-white px-4 text-base font-bold text-[#4b5563]"
               >
                 <X className="h-4 w-4" />
@@ -608,7 +608,7 @@ export function OnboardingExperience({ userId, initialName, userImage, initialDr
                   </button>
                   <button
                     type="button"
-                    onClick={() => void handleSkip("/dashboard")}
+                    onClick={() => void handleSkip("/jobs/new")}
                     className="inline-flex min-h-[58px] items-center justify-center rounded-[18px] border border-[#dce2e8] bg-white px-7 text-lg font-black text-[#4b5563]"
                   >
                     あとでやる
@@ -802,7 +802,7 @@ export function OnboardingExperience({ userId, initialName, userImage, initialDr
                         </button>
                         <button
                           type="button"
-                          onClick={() => void handleSkip("/dashboard")}
+                          onClick={() => void handleSkip("/jobs/new")}
                           className="inline-flex min-h-[52px] items-center justify-center rounded-[16px] border border-[#dce2e8] px-4 text-sm font-black text-[#4b5563]"
                         >
                           あとで設定する
@@ -826,11 +826,11 @@ export function OnboardingExperience({ userId, initialName, userImage, initialDr
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleFinish("/dashboard")}
+                          onClick={() => handleFinish("/jobs/new")}
                           disabled={isFinishing}
                           className="inline-flex min-h-[52px] items-center justify-center rounded-[16px] border border-[#dce2e8] bg-white px-4 text-sm font-black text-[#4b5563] disabled:opacity-60"
                         >
-                          ダッシュボードへ行く
+                          求人チェッカーへ行く
                         </button>
                       </div>
                     </div>

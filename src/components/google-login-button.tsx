@@ -22,7 +22,7 @@ function GoogleMark() {
   );
 }
 
-export function GoogleLoginButton({ variant = "default", label, callbackPath = "/onboarding" }: GoogleLoginButtonProps) {
+export function GoogleLoginButton({ variant = "default", label, callbackPath = "/jobs/new" }: GoogleLoginButtonProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

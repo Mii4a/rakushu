@@ -29,7 +29,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: S
   const onboardingDraft = await getUserOnboardingDraft(session.user.id);
 
   if (isOnboardingFinished(onboardingDraft)) {
-    redirect("/dashboard");
+    redirect("/jobs/new");
   }
 
   return (

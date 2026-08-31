@@ -276,7 +276,7 @@ function LoginModal({ open, onClose, callbackPath }: { open: boolean; onClose: (
 
 export function TopLandingPage() {
   const [loginModalOpen, setLoginModalOpen] = useState(false);
-  const [loginCallbackPath, setLoginCallbackPath] = useState("/onboarding");
+  const [loginCallbackPath, setLoginCallbackPath] = useState("/jobs/new");
   const lastTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   const openLoginModal = useCallback((event: MouseEvent<HTMLButtonElement>, feature?: TopDemoFeature) => {
@@ -286,7 +286,7 @@ export function TopLandingPage() {
     } else if (feature === "company-research") {
       setLoginCallbackPath("/company-research?restoreDemo=1");
     } else {
-      setLoginCallbackPath("/onboarding");
+      setLoginCallbackPath("/jobs/new");
     }
     setLoginModalOpen(true);
   }, []);

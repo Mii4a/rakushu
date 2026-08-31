@@ -31,7 +31,7 @@ export default async function LoginPage() {
   const session = await getSession();
 
   if (session?.user) {
-    redirect("/dashboard");
+    redirect("/jobs/new");
   }
 
   return (

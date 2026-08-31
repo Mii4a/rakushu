@@ -2,14 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BriefcaseBusiness, Building2, CreditCard, FileText, LayoutDashboard, Layers3, Mic, Search } from "lucide-react";
+import { BriefcaseBusiness, Building2, CreditCard, FileText, Layers3, Mic, Search } from "lucide-react";
 
 const navItems = [
-  {
-    href: "/dashboard",
-    label: "ホーム",
-    icon: LayoutDashboard
-  },
   {
     href: "/criteria",
     label: "判断基準",
@@ -54,7 +49,7 @@ export function AppNavLinks() {
     <nav className="flex flex-wrap items-center gap-2">
       {navItems.map((item) => {
         const Icon = item.icon;
-        const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
 
         return (
           <Link
