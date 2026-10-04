@@ -15,7 +15,7 @@ export default defineConfig({
   globalSetup: "./tests/playwright/global-setup.mjs",
   globalTeardown: "./tests/playwright/global-teardown.mjs",
   use: {
-    baseURL: "https://rakushu.mii4a.workers.dev",
+    baseURL: "https://rakushu.app",
     storageState: "playwright/.auth/prod-user.json",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",

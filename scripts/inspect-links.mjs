@@ -1,6 +1,6 @@
 import { chromium } from '@playwright/test';
 
-const baseUrl = 'https://rakushu.mii4a.workers.dev';
+const baseUrl = 'https://rakushu.app';
 const paths = process.argv.slice(2);
 const browser = await chromium.launch({ headless: true });
 try {

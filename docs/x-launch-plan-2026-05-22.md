@@ -38,7 +38,7 @@
 見比べやすくする方向で作ってる。
 
 まずはトップのデモで触れる。
-https://rakushu.mii4a.workers.dev/
+https://rakushu.app/
 
 ### 案2: 価値の一言説明
 就活で欲しかったの、
@@ -53,7 +53,7 @@ https://rakushu.mii4a.workers.dev/
 までを一つにつなげたい。
 
 β参加はこちら
-https://rakushu.mii4a.workers.dev/beta
+https://rakushu.app/beta
 
 ### 案3: 改善ログ寄り
 求人解析まわり、summary line に情報が圧縮された求人でも
@@ -63,7 +63,7 @@ https://rakushu.mii4a.workers.dev/beta
 比較ツールはすぐ信用を失うのでここをかなり大事にしてる。
 
 「こういう求人票で毎回つまずく」があればβで教えてほしい。
-https://rakushu.mii4a.workers.dev/beta
+https://rakushu.app/beta
 
 ### 案4: ターゲット明確化
 ブラック求人を避けたいけど、
@@ -77,7 +77,7 @@ https://rakushu.mii4a.workers.dev/beta
 あたりを、貼るだけで見直しやすくしたい。
 
 まずはデモから。
-https://rakushu.mii4a.workers.dev/
+https://rakushu.app/
 
 ### 案5: β募集
 まだ作り込み途中なので、
@@ -89,7 +89,7 @@ https://rakushu.mii4a.workers.dev/
 だけ送ってもらえればOK。
 
 就活中で、求人票の見極めに毎回消耗してる人に使ってほしい。
-https://rakushu.mii4a.workers.dev/beta
+https://rakushu.app/beta
 
 ## 初動の出し方
 - 1本目: 案1

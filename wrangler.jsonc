@@ -3,8 +3,8 @@
   "name": "rakushu",
   "main": ".open-next/worker.js",
   "vars": {
-    "NEXT_PUBLIC_APP_URL": "https://rakushu.mii4a.workers.dev",
-    "BETTER_AUTH_URL": "https://rakushu.mii4a.workers.dev",
+    "NEXT_PUBLIC_APP_URL": "https://rakushu.app",
+    "BETTER_AUTH_URL": "https://rakushu.app",
     "STRIPE_ALLOW_PROMOTION_CODES": "true",
     "OPENAI_MAIN_MODEL": "gpt-4.1-mini",
     "OPENAI_LIGHT_MODEL": "gpt-4.1-nano",

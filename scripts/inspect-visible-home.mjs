@@ -1,6 +1,6 @@
 import { chromium } from '@playwright/test';
 
-const baseUrl = 'https://rakushu.mii4a.workers.dev';
+const baseUrl = 'https://rakushu.app';
 const route = '/';
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });

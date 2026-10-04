@@ -28,8 +28,8 @@ cp .env.production.example .env.production
 ```
 
 ```bash
-NEXT_PUBLIC_APP_URL=https://rakushu.mii4a.workers.dev
-BETTER_AUTH_URL=https://rakushu.mii4a.workers.dev
+NEXT_PUBLIC_APP_URL=https://rakushu.app
+BETTER_AUTH_URL=https://rakushu.app
 BETTER_AUTH_SECRET=replace-with-a-new-strong-random-secret
 
 TURSO_DATABASE_URL=libsql://your-production-db.turso.io
@@ -128,9 +128,9 @@ npm run cf:secrets:prod
 Google Cloud Console で以下を登録します。
 
 - Authorized JavaScript origins:
-  - `https://rakushu.mii4a.workers.dev`
+  - `https://rakushu.app`
 - Authorized redirect URIs:
-  - `https://rakushu.mii4a.workers.dev/api/auth/callback/google`
+  - `https://rakushu.app/api/auth/callback/google`
 
 このアプリの Better Auth は `BETTER_AUTH_URL` を `baseURL` として使います。
 
@@ -157,11 +157,11 @@ Google Cloud Console で以下を登録します。
 詳細な手順は `docs/google-search-console-checklist.md` を参照。
 
 最短では次の順です。
-1. Search Console で `https://rakushu.mii4a.workers.dev` の URL prefix property を追加
+1. Search Console で `https://rakushu.app` の URL prefix property を追加
 2. HTML tag 方式で verification code を取得
 3. その値を `GOOGLE_SEARCH_CONSOLE_SITE_VERIFICATION` に入れて再デプロイ
-4. `https://rakushu.mii4a.workers.dev/sitemap.xml` を sitemap として送信
-5. 独自ドメインへ移るときは、そのドメインでも property を追加し直す
+4. `https://rakushu.app/sitemap.xml` を sitemap として送信
+5. Search ConsoleのDomain propertyを使う場合は、DNS TXTによる所有権確認も行う
 
 ### Stripe
 
@@ -172,7 +172,7 @@ Stripe 側で以下を設定します。
   - `Plus`
   - `Pro`
 - Webhook endpoint:
-  - `https://rakushu.mii4a.workers.dev/api/stripe/webhook`
+  - `https://rakushu.app/api/stripe/webhook`
 - Billing Portal:
   - 支払い方法更新
   - サブスクリプション解約
@@ -261,7 +261,7 @@ npm run db:migrate:prod
    ```bash
    npm run db:migrate:prod:status
    ```
-7. `workers.dev` URL で疎通確認する
+7. `https://rakushu.app` で疎通確認する
 
 手動 deploy を使うのは、CI/CD 経路を使えない一時対応や切り分け時だけです。  
 通常運用の実行順は `cf:secrets:prod -> db:migrate:prod -> db:backfill:raw-text-null:prod -> db:migrate:prod:status -> main 更新 -> db:migrate:prod:status` に固定します。
@@ -293,7 +293,7 @@ DB 側でも最低限以下を確認します。
 Cloudflare 側でも確認します。
 
 - Worker の本番デプロイが成功している
-- `rakushu.mii4a.workers.dev` でアクセスできる
+- `rakushu.app` でアクセスできる
 - 必要な secret が揃っている
 - ログ上で auth / stripe webhook の失敗が出ていない
 

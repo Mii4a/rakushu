@@ -11,7 +11,7 @@ const ENV_PATH = path.join(ROOT, ".env.production");
 const META_PATH = path.join(ROOT, "playwright/.auth/prod-session-meta.json");
 const STORAGE_STATE_PATH = path.join(ROOT, "playwright/.auth/prod-user.json");
 const PROD_EMAIL = process.env.PLAYWRIGHT_PROD_EMAIL ?? "mii4a2501@gmail.com";
-const PROD_BASE_URL = process.env.PLAYWRIGHT_PROD_BASE_URL ?? "https://rakushu.mii4a.workers.dev";
+const PROD_BASE_URL = process.env.PLAYWRIGHT_PROD_BASE_URL ?? "https://rakushu.app";
 
 async function loadProdEnv() {
   return loadEnvFile(ENV_PATH, ["TURSO_DATABASE_URL", "TURSO_AUTH_TOKEN", "BETTER_AUTH_SECRET"]);

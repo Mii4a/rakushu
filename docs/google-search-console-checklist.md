@@ -1,15 +1,15 @@
 # Google Search Console 登録チェックリスト
 
-らくしゅうの本番公開 URL `https://rakushu.mii4a.workers.dev` を Search Console に登録し、sitemap 送信まで進めるための最短手順。
+らくしゅうの本番公開 URL `https://rakushu.app` を Search Console に登録し、sitemap 送信まで進めるための最短手順。
 
 ## 0. 前提
-- `NEXT_PUBLIC_APP_URL=https://rakushu.mii4a.workers.dev` になっている
+- `NEXT_PUBLIC_APP_URL=https://rakushu.app` になっている
 - `/robots.txt` と `/sitemap.xml` が本番で返る
-- 今回は独自ドメインではなく `workers.dev` の URL prefix property で進める
+- `rakushu.app` のURL prefix propertyまたはDomain propertyで進める
 
 確認 URL:
-- `https://rakushu.mii4a.workers.dev/robots.txt`
-- `https://rakushu.mii4a.workers.dev/sitemap.xml`
+- `https://rakushu.app/robots.txt`
+- `https://rakushu.app/sitemap.xml`
 
 ## 1. 事前確認
 ブラウザで次を開いて確認する。
@@ -26,7 +26,7 @@
 4. 次を入力する
 
 ```text
-https://rakushu.mii4a.workers.dev
+https://rakushu.app
 ```
 
 注意:
@@ -80,7 +80,7 @@ npm run build
 ## 6. 反映確認
 デプロイ後に本番で確認する。
 
-- [ ] `view-source:https://rakushu.mii4a.workers.dev/` で `google-site-verification` が見える
+- [ ] `view-source:https://rakushu.app/` で `google-site-verification` が見える
 - [ ] Search Console の確認画面で `確認` を押して成功する
 
 うまくいかないとき:
@@ -99,7 +99,7 @@ sitemap.xml
 またはフル URL:
 
 ```text
-https://rakushu.mii4a.workers.dev/sitemap.xml
+https://rakushu.app/sitemap.xml
 ```
 
 確認項目:
@@ -116,26 +116,24 @@ https://rakushu.mii4a.workers.dev/sitemap.xml
 - [ ] 手動による対策の有無
 
 ## 9. 今回は後回しでいいもの
-- 独自ドメイン化
-- Domain property
-- OGP 画像の本格整備
+- OGP画像の本格整備
 - 構造化データ追加
 
-## 10. 独自ドメイン化するときの引き継ぎメモ
-後で独自ドメインに移すときは次をまとめて見直す。
+## 10. 独自ドメイン運用の確認項目
+`rakushu.app` を公式URLとして使うため、次を同時に揃える。
 
-- `NEXT_PUBLIC_APP_URL`
-- `BETTER_AUTH_URL`
+- `NEXT_PUBLIC_APP_URL=https://rakushu.app`
+- `BETTER_AUTH_URL=https://rakushu.app`
 - Google OAuth redirect URI
 - Stripe webhook endpoint
 - Search Console property
-- sitemap 再送信
+- sitemap再送信
 
 ## 最短チェック
 急ぐならこの 5 個だけでいい。
 
-- [ ] `https://rakushu.mii4a.workers.dev/robots.txt` が開く
-- [ ] `https://rakushu.mii4a.workers.dev/sitemap.xml` が開く
+- [ ] `https://rakushu.app/robots.txt` が開く
+- [ ] `https://rakushu.app/sitemap.xml` が開く
 - [ ] Search Console に URL prefix property を追加
 - [ ] `GOOGLE_SEARCH_CONSOLE_SITE_VERIFICATION` を入れて deploy
 - [ ] Search Console に `sitemap.xml` を送信

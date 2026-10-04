@@ -388,7 +388,7 @@ npm run db:migrate:prod:status
 npm run test:prod-smoke
 ```
 
-現在の本番公開 URL は `https://rakushu.mii4a.workers.dev` です。
+現在の本番公開 URL は `https://rakushu.app` です。
 
 Google Search Console 対応のため、以下も用意しています。
 - `src/app/robots.ts` → `/robots.txt`
