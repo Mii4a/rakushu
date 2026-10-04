@@ -1,4 +1,9 @@
-const fallbackSiteUrl = "http://localhost:3000";
+const productionSiteUrl = "https://rakushu.app";
+const developmentSiteUrl = "http://localhost:3000";
+
+function fallbackSiteUrl() {
+  return process.env.NODE_ENV === "production" ? productionSiteUrl : developmentSiteUrl;
+}
 
 function normalizeSiteUrl(url: string) {
   const parsed = new URL(url);
@@ -11,7 +16,7 @@ function normalizeSiteUrl(url: string) {
 }
 
 export function getSiteUrl() {
-  return normalizeSiteUrl(process.env.NEXT_PUBLIC_APP_URL ?? fallbackSiteUrl);
+  return normalizeSiteUrl(process.env.NEXT_PUBLIC_APP_URL || fallbackSiteUrl());
 }
 
 export function getSiteOrigin() {

@@ -15,6 +15,13 @@ describe("official site URL", () => {
     expect(buildCanonicalUrl("/beta")).toBe("https://rakushu.app/beta");
   });
 
+  it("defaults production builds to the official HTTPS origin", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "");
+
+    expect(getSiteUrl()).toBe("https://rakushu.app");
+  });
+
   it("rejects non-HTTPS production origins", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("NEXT_PUBLIC_APP_URL", "http://rakushu.app");
